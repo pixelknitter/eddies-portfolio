@@ -5,36 +5,56 @@ import {
   View,
   FlatList,
   type ListRenderItemInfo,
+  Button,
 } from "react-native"
-import { useRouter } from "expo-router"
+import { useCallback } from "react"
 import { SafeAreaView } from "react-native-safe-area-context"
+import { useRouter } from "expo-router"
+import { openBrowserAsync } from "expo-web-browser"
+
+import type { Project } from "../types/projects"
+import { useProjects } from "../hooks/useProjects"
 import { Colors } from "../styles/Colors"
 import { Layout } from "../styles/Layout"
 import { Fonts } from "../styles/Fonts"
-import { useCallback } from "react"
-import type { Project } from "../types/projects"
 
-const PROJECTS: Project[] = [
-  {
-    id: 0,
-    name: "Text Project",
-    description:
-      "Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ab nesciunt labore sint, quasi cum, laudantium cupiditate ad dolores quod praesentium itaque consequuntur facere. Perspiciatis, illum. Distinctio quisquam expedita voluptates sunt!",
-    links: {
-      code: "https://github.com/",
-      demo: "https://github.com/",
-    },
-    date: new Date("01/10/2023"),
-  },
-]
+// ---- TEST DATA ----
+// const PROJECTS: Project[] = [
+//   {
+//     id: 0,
+//     name: "Text Project",
+//     description:
+//       "Lorem ipsum dolor sit amet consectetur, adipisicing elit. Ab nesciunt labore sint, quasi cum, laudantium cupiditate ad dolores quod praesentium itaque consequuntur facere. Perspiciatis, illum. Distinctio quisquam expedita voluptates sunt!",
+//     links: {
+//       code: "https://github.com/",
+//       demo: "https://github.com/",
+//     },
+//     date: new Date("01/10/2023"),
+//   },
+// ]
 
 export default function Details() {
   const router = useRouter()
+  const { data: projects, isLoading, isLoadingError } = useProjects()
 
   // set up the flatlist functions
   const keyExtractor = (item: Project) => `${item.id}`
   const renderItem = useCallback(({ item }: ListRenderItemInfo<Project>) => {
-    return <Text>{item.name}</Text>
+    // TODO: clean this up so it has a better error message and UX
+    const _handlePressButtonAsync = async () => {
+      let result
+      try {
+        result = await openBrowserAsync(item.links.code)
+      } catch (error) {
+        alert(`${result?.type} - ${error}`)
+      }
+    }
+    return (
+      <Pressable style={styles.projectItem} onPress={_handlePressButtonAsync}>
+        <Text style={styles.title}>{item.name}</Text>
+        <Text style={styles.body}>{item.description}</Text>
+      </Pressable>
+    )
   }, [])
 
   return (
@@ -42,16 +62,21 @@ export default function Details() {
       <Text style={styles.title}>Projects</Text>
       <View style={styles.content}>
         <Text style={styles.body}>
-          Lorem ipsum, dolor sit amet consectetur adipisicing elit. Autem
-          commodi repudiandae recusandae cumque, modi beatae nostrum? Officia
-          praesentium rerum, laboriosam deserunt itaque quod quasi illo impedit
-          doloremque, eius consequatur quia!
+          Here are some projects that I've engineered over the years to present
+          my growing skills.
         </Text>
-        <FlatList<Project>
-          data={PROJECTS}
-          keyExtractor={keyExtractor}
-          renderItem={renderItem}
-        />
+        {/* TODO: migrate to a matching pattern for improved error handling */}
+        {isLoading || isLoadingError ? (
+          // TODO: move to a loading animation
+          <Text style={styles.loading}>Loading...</Text>
+        ) : (
+          <FlatList<Project>
+            data={projects}
+            keyExtractor={keyExtractor}
+            renderItem={renderItem}
+            style={styles.projectList}
+          />
+        )}
       </View>
       <Pressable style={styles.button} onPress={() => router.back()}>
         <Text style={styles.buttonText}>Go Back</Text>
@@ -93,5 +118,23 @@ const styles = StyleSheet.create({
     fontSize: Fonts.Button,
     fontWeight: "bold",
     color: Colors.Contrast,
+  },
+  projectList: {
+    flex: 1,
+    marginTop: Layout.Paragraph,
+  },
+  projectItem: {
+    flex: 1,
+    flexDirection: "column",
+    // backgroundColor: Colors.Secondary,
+    color: Colors.Primary,
+    padding: Layout.Container,
+  },
+  loading: {
+    color: Colors.Accent,
+    textAlign: "center",
+    marginTop: Layout.Paragraph,
+    fontSize: Fonts.Button,
+    fontWeight: "bold",
   },
 })

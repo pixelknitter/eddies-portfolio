@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { QueryClient, QueryClientProvider, useQuery } from "react-query"
 import {
   // Import `SplashScreen` from `expo-router` instead of `expo-splash-screen`
   SplashScreen,
@@ -11,6 +12,8 @@ import { useFonts, Inter_500Medium } from "@expo-google-fonts/inter"
 import Entypo from "@expo/vector-icons/Entypo"
 import * as Font from "expo-font"
 import { SafeAreaProvider } from "react-native-safe-area-context"
+
+const queryClient = new QueryClient()
 
 export default function Layout() {
   const [appIsReady, setAppIsReady] = useState(false)
@@ -46,9 +49,11 @@ export default function Layout() {
   // Render the children routes now that all the assets are loaded.
   return (
     <SafeAreaProvider>
-      {/* <Header /> */}
-      <Slot />
-      {/* <Footer /> */}
+      <QueryClientProvider client={queryClient}>
+        {/* <Header /> */}
+        <Slot />
+        {/* <Footer /> */}
+      </QueryClientProvider>
     </SafeAreaProvider>
   )
 }

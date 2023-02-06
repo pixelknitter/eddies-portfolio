@@ -12,3 +12,7 @@ export type Project = {
   }
   imageURL?: string
 }
+
+export interface ProjectResponse {
+  projects: Project[]
+}
