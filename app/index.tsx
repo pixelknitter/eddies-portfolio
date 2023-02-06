@@ -8,12 +8,10 @@ import {
   FlatList,
   ListRenderItemInfo,
 } from "react-native"
-// import { StatusBar } from "expo-status-bar"
 
 import { Entypo } from "@expo/vector-icons"
 import { SplashScreen, Stack, Link } from "expo-router"
 import { ResizeMode, Video } from "expo-av"
-import * as Font from "expo-font"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Layout } from "../styles/Layout"
 import { Fonts } from "../styles/Fonts"

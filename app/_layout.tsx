@@ -12,6 +12,7 @@ import { useFonts, Inter_500Medium } from "@expo-google-fonts/inter"
 import Entypo from "@expo/vector-icons/Entypo"
 import * as Font from "expo-font"
 import { SafeAreaProvider } from "react-native-safe-area-context"
+import { StatusBar } from "expo-status-bar"
 
 const queryClient = new QueryClient()
 
@@ -50,6 +51,7 @@ export default function Layout() {
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
+        <StatusBar style="light" />
         {/* <Header /> */}
         <Slot />
         {/* <Footer /> */}
