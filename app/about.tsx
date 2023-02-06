@@ -9,8 +9,20 @@ export default function Details() {
   const router = useRouter()
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Details Screen</Text>
+      <Text style={styles.title}>About</Text>
       <View style={styles.content}>
+        <Text style={styles.body}>
+          Lorem ipsum, dolor sit amet consectetur adipisicing elit. Autem
+          commodi repudiandae recusandae cumque, modi beatae nostrum? Officia
+          praesentium rerum, laboriosam deserunt itaque quod quasi illo impedit
+          doloremque, eius consequatur quia!
+        </Text>
+        <Text style={styles.body}>
+          Lorem ipsum, dolor sit amet consectetur adipisicing elit. Autem
+          commodi repudiandae recusandae cumque, modi beatae nostrum? Officia
+          praesentium rerum, laboriosam deserunt itaque quod quasi illo impedit
+          doloremque, eius consequatur quia!
+        </Text>
         <Text style={styles.body}>
           Lorem ipsum, dolor sit amet consectetur adipisicing elit. Autem
           commodi repudiandae recusandae cumque, modi beatae nostrum? Officia
@@ -28,26 +40,28 @@ export default function Details() {
 const styles = StyleSheet.create({
   container: {
     alignItems: "center",
-    backgroundColor: "transparent",
+    backgroundColor: Colors.Contrast,
     flex: 1,
-    padding: Layout.Container,
-    justifyContent: "space-between",
+    paddingHorizontal: Layout.Container * 2,
+    paddingVertical: Layout.Container,
+    justifyContent: "space-evenly",
   },
   title: {
     fontSize: Fonts.Title,
     fontWeight: "bold",
-    color: "black",
+    color: Colors.Primary,
   },
   content: {
-    paddingHorizontal: Layout.Container,
     paddingVertical: Layout.Container * 2,
   },
   body: {
     fontSize: Fonts.Body,
+    marginBottom: Layout.Paragraph,
+    color: Colors.Secondary,
   },
   button: {
-    backgroundColor: Colors.Primary,
-    width: "80%",
+    backgroundColor: Colors.Action,
+    width: "100%",
     padding: Layout.Container,
     borderRadius: Layout.Corners,
   },

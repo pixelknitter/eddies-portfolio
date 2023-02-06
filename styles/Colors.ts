@@ -4,4 +4,5 @@ export const Colors = {
   Secondary: "#F5F7DC",
   Accent: "#FFFF82",
   Contrast: "#0f0326",
+  Overlay: "rgba(0,0,0,0.2)",
 }

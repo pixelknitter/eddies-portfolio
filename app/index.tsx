@@ -1,8 +1,16 @@
-import React, { useCallback, useEffect, useState, useMemo } from "react"
-import { StyleSheet, Text, View, Animated, Pressable } from "react-native"
+import React, { useCallback, useMemo } from "react"
+import {
+  StyleSheet,
+  Text,
+  View,
+  Animated,
+  Pressable,
+  FlatList,
+  ListRenderItemInfo,
+} from "react-native"
 // import { StatusBar } from "expo-status-bar"
 
-import Entypo from "@expo/vector-icons/Entypo"
+import { Entypo } from "@expo/vector-icons"
 import { SplashScreen, Stack, Link } from "expo-router"
 import { ResizeMode, Video } from "expo-av"
 import * as Font from "expo-font"
@@ -10,12 +18,29 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { Layout } from "../styles/Layout"
 import { Fonts } from "../styles/Fonts"
 import { Colors } from "../styles/Colors"
+import { NavItem } from "../types/navigation"
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync()
 
 // Some values to modify the styling of the app
-const ROCKET_SIZE = 30
+const ICON_SIZE = 30
+
+// dummy data until we hook up React Query and setup the API
+const NAV_DATA: NavItem[] = [
+  {
+    id: 0,
+    title: "Who Am I?",
+    iconName: "rocket",
+    link: "about",
+  },
+  {
+    id: 1,
+    title: "Projects",
+    iconName: "github",
+    link: "projects",
+  },
+]
 
 export default function App() {
   const opacity = useMemo(() => new Animated.Value(0), [])
@@ -27,6 +52,26 @@ export default function App() {
       useNativeDriver: true,
     }).start()
   }
+
+  // set up the flat list functions
+  const keyExtractor = (item: NavItem) => `${item.id}`
+  const renderItem = useCallback(({ item }: ListRenderItemInfo<NavItem>) => {
+    return (
+      <Link
+        href={item.link}
+        style={styles.link}
+        // TODO: determine why the below are required to satisfy TypeScript
+        accessibilityLabelledBy={undefined}
+        accessibilityLanguage={undefined}
+        asChild
+      >
+        <Pressable style={styles.button}>
+          <Text style={styles.buttonText}>{item.title}</Text>
+          {item.iconName && <Entypo name={item.iconName} size={ICON_SIZE} />}
+        </Pressable>
+      </Link>
+    )
+  }, [])
 
   return (
     <SafeAreaView style={styles.container}>
@@ -49,19 +94,12 @@ export default function App() {
       </View>
       <View style={styles.overlay}>
         <Text style={styles.title}>Eddie's Portfolio Demo 👋</Text>
-        <Link
-          href="details"
-          style={styles.link}
-          // TODO: determine why the below are required to satisfy TypeScript
-          accessibilityLabelledBy={undefined}
-          accessibilityLanguage={undefined}
-          asChild
-        >
-          <Pressable style={styles.button}>
-            <Text style={styles.buttonText}>Find Out More</Text>
-            <Entypo name="rocket" size={ROCKET_SIZE} />
-          </Pressable>
-        </Link>
+        <FlatList<NavItem>
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          data={NAV_DATA}
+          style={styles.list}
+        />
       </View>
     </SafeAreaView>
   )
@@ -76,27 +114,30 @@ const styles = StyleSheet.create({
   },
   background: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "black",
+    backgroundColor: Colors.Contrast,
   },
   backgroundViewWrapper: {
     ...StyleSheet.absoluteFillObject,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.2)",
+    backgroundColor: Colors.Overlay,
     paddingHorizontal: Layout.Container,
   },
   video: { flex: 1 },
   title: {
     color: Colors.Accent,
-    fontSize: ROCKET_SIZE,
+    fontSize: ICON_SIZE,
     fontWeight: "bold",
-    marginTop: 90,
+    marginTop: Layout.Container * Layout.multiplier(3),
     textAlign: "center",
   },
+  list: {
+    marginTop: Layout.Container * Layout.multiplier(2),
+  },
   link: {
-    marginTop: 60,
     textAlign: "center",
+    marginVertical: Layout.Container / 2,
   },
   buttonText: {
     color: Colors.Contrast,
@@ -108,8 +149,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignSelf: "center",
     alignItems: "center",
-    justifyContent: "space-evenly",
-    minWidth: "40%",
+    justifyContent: "space-between",
     padding: Layout.Container,
     borderRadius: Layout.Corners,
     backgroundColor: Colors.Action,
