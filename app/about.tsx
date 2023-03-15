@@ -1,15 +1,12 @@
-import { Text, StyleSheet, Pressable, View } from "react-native"
-import { useRouter } from "expo-router"
+import { Text, StyleSheet, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Colors } from "../styles/Colors"
 import { Layout } from "../styles/Layout"
 import { Fonts } from "../styles/Fonts"
 
 export default function Details() {
-  const router = useRouter()
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>About</Text>
+    <SafeAreaView edges={["left", "right"]} style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.body}>
           Lorem ipsum, dolor sit amet consectetur adipisicing elit. Autem
@@ -30,9 +27,6 @@ export default function Details() {
           doloremque, eius consequatur quia!
         </Text>
       </View>
-      <Pressable style={styles.button} onPress={() => router.back()}>
-        <Text style={styles.buttonText}>Go Back</Text>
-      </Pressable>
     </SafeAreaView>
   )
 }
@@ -52,7 +46,7 @@ const styles = StyleSheet.create({
     color: Colors.Primary,
   },
   content: {
-    paddingVertical: Layout.Container * 2,
+    paddingVertical: Layout.Container,
   },
   body: {
     fontSize: Fonts.Body,

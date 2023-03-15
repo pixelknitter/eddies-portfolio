@@ -5,11 +5,9 @@ import {
   View,
   FlatList,
   type ListRenderItemInfo,
-  Button,
 } from "react-native"
 import { useCallback } from "react"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { useRouter } from "expo-router"
 import { openBrowserAsync } from "expo-web-browser"
 
 import type { Project } from "../types/projects"
@@ -34,7 +32,6 @@ import { Fonts } from "../styles/Fonts"
 // ]
 
 export default function Details() {
-  const router = useRouter()
   const { data: projects, isLoading, isLoadingError } = useProjects()
 
   // set up the flatlist functions
@@ -58,8 +55,7 @@ export default function Details() {
   }, [])
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Projects</Text>
+    <SafeAreaView edges={["left", "right"]} style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.body}>
           Here are some projects that I've engineered over the years to present
@@ -78,9 +74,6 @@ export default function Details() {
           />
         )}
       </View>
-      <Pressable style={styles.button} onPress={() => router.back()}>
-        <Text style={styles.buttonText}>Go Back</Text>
-      </Pressable>
     </SafeAreaView>
   )
 }
@@ -100,24 +93,12 @@ const styles = StyleSheet.create({
     color: Colors.Primary,
   },
   content: {
-    paddingVertical: Layout.Container * 2,
+    paddingVertical: Layout.Container,
   },
   body: {
     fontSize: Fonts.Body,
-    marginBottom: Layout.Paragraph,
+    marginBottom: Layout.Paragraph / 4,
     color: Colors.Secondary,
-  },
-  button: {
-    backgroundColor: Colors.Action,
-    width: "100%",
-    padding: Layout.Container,
-    borderRadius: Layout.Corners,
-  },
-  buttonText: {
-    textAlign: "center",
-    fontSize: Fonts.Button,
-    fontWeight: "bold",
-    color: Colors.Contrast,
   },
   projectList: {
     flex: 1,
@@ -126,7 +107,6 @@ const styles = StyleSheet.create({
   projectItem: {
     flex: 1,
     flexDirection: "column",
-    // backgroundColor: Colors.Secondary,
     color: Colors.Primary,
     padding: Layout.Container,
   },
