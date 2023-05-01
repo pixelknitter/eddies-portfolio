@@ -28,6 +28,7 @@
     "@nx/next": "^16.0.1",
     "@nx/react": "16.0.1",
     "@nx/react-native": "16.0.1",
+    "@nxtensions/astro": "^3.5.0",
     "@react-native-community/cli": "10.2.2",
     "@react-native-community/cli-platform-android": "10.2.0",
     "@react-native-community/cli-platform-ios": "10.2.1",
