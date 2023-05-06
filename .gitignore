@@ -112,3 +112,5 @@ yarn-error.log
 
 
 packages/mobile-expo-e2e/artifacts
+
+.astro

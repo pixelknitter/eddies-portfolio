@@ -1,15 +1,5 @@
 {
-  "tasksRunnerOptions": {
-    "default": {
-      "runner": "nx-cloud",
-      "options": {
-        "cacheableOperations": ["build", "lint", "test", "e2e"],
-        "accessToken": "Mjk3MjU5OTgtZTMzYi00MTYxLWE0MDItYzc3Y2E1YjlmMzVmfHJlYWQtd3JpdGU="
-      }
-    }
-  },
-  "extends": "nx/presets/npm.json",
-  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "plugins": ["@nxtensions/astro"],
   "targetDefaults": {
     "test": {
       "inputs": ["default", "^default", "{workspaceRoot}/jest.preset.js"]
@@ -20,6 +10,15 @@
         "{workspaceRoot}/.eslintrc.json",
         "{workspaceRoot}/.eslintignore"
       ]
+    }
+  },
+  "tasksRunnerOptions": {
+    "default": {
+      "runner": "nx-cloud",
+      "options": {
+        "cacheableOperations": ["build", "lint", "test", "e2e", "check"],
+        "accessToken": "Mjk3MjU5OTgtZTMzYi00MTYxLWE0MDItYzc3Y2E1YjlmMzVmfHJlYWQtd3JpdGU="
+      }
     }
   },
   "generators": {
@@ -34,5 +33,7 @@
         "linter": "eslint"
       }
     }
-  }
+  },
+  "defaultProject": "web-astro",
+  "extends": "nx/presets/npm.json"
 }
