@@ -1,39 +1,55 @@
 ---
-export interface Props {
-	title: string;
-}
-
-const { title } = Astro.props;
+import { ViewTransitions } from 'astro:transitions';
+import { fade } from 'astro:transitions';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import '../styles/global.css';
+const { pageTitle } = Astro.props;
 ---
 
 <!DOCTYPE html>
-<html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<meta name="generator" content={Astro.generator} />
-		<title>{title}</title>
-	</head>
+<html transition:animate="none" lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="description" content="A portfolio of Eddie Freeman containing projects ranging from mobile (react native), nextjs, astro, and LLMs" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="preload"
+      href="https://fonts.googleapis.com/css2?family=Josefin+Sans&family=Pacifico&display=swap"
+      as="style"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Josefin+Sans&family=Pacifico&display=swap"
+      rel="stylesheet"
+    />
+    <meta name="generator" content={Astro.generator} />
+    <title>{pageTitle}</title>
+    <ViewTransitions />
+  </head>
+  <body>
+    <Header />
+    <main transition:animate={fade({ duration: '0.2s' })}>
+      <slot />
+      <Footer />
+    </main>
+    <script>
+      function colorMode() {
+        if (
+          localStorage.theme === 'light' ||
+          (!('theme' in localStorage) &&
+            window.matchMedia('(prefers-color-scheme: light)').matches)
+        ) {
+          document.documentElement.classList.add('light');
+        } else {
+          document.documentElement.classList.remove('light');
+        }
+      }
 
-	<body>
-		<slot />
-	</body>
+      colorMode();
+      document.addEventListener('astro:after-swap', colorMode);
+    </script>
+  </body>
 </html>
-
-<style is:global>
-	:root {
-		--accent: 124, 58, 237;
-		--accent-gradient: linear-gradient(45deg, rgb(var(--accent)), #da62c4 30%, white 60%);
-	}
-
-	html {
-		font-family: system-ui, sans-serif;
-		background-color: #F6F6F6;
-	}
-
-	code {
-		font-family: Menlo, Monaco, Lucida Console, Liberation Mono, DejaVu Sans Mono,
-			Bitstream Vera Sans Mono, Courier New, monospace;
-	}
-</style>

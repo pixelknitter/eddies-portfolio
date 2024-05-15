@@ -1,97 +1,99 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import Card from '../components/Card.astro';
+const pageTitle = "Engineering by Eddie";
 ---
-
-<Layout title="Welcome to Astro.">
-	<main>
-		<h1>Welcome to <span class="text-gradient">Astro</span></h1>
-		<p class="instructions">
-			To get started, open the directory <code>src/pages</code> in your project.<br />
-			<strong>Code Challenge:</strong> Tweak the "Welcome to Astro" message above.
-		</p>
-		<ul role="list" class="link-card-grid">
-			<Card
-				href="https://docs.astro.build/"
-				title="Documentation"
-				body="Learn how Astro works and explore the official API docs."
-			/>
-			<Card
-				href="https://astro.build/integrations/"
-				title="Integrations"
-				body="Supercharge your project with new frameworks and libraries."
-			/>
-			<Card
-				href="https://astro.build/themes/"
-				title="Themes"
-				body="Explore a galaxy of community-built starter themes."
-			/>
-			<Card
-				href="https://astro.build/chat/"
-				title="Astro Community"
-				body="Come say hi to our amazing Astro Discord community. ❤️"
-			/>
-			<Card
-				href="https://nx.dev/"
-				title="Nx"
-				body="Learn more about Nx."
-			/>
-			<Card
-				href="https://nrwlcommunity.slack.com/"
-				title="Nrwl Community Slack"
-				body="Come chat in the Nrwl Community Slack. ❤️"
-			/>
-		</ul>
-	</main>
+<Layout pageTitle={pageTitle}>
+    <div class="gif">
+        <img width="300" height="259" alt="RaccoonSpaceGif" src="/space.webp"/>
+    </div>
+    <h1>Eddie Freeman</h1>
+    <span class="badge">Pixel Knitter (Developer)</span>
+    <span class="badge">Storyteller</span>
+    <span class="badge">Traveler</span>
+    <span class="badge">Cook</span>
+    <h2>About</h2>
+    <p>
+        Praesent malesuada mi nisi, quis tempus magna venenatis ut.
+        Suspendisse tempor sem at scelerisque congue. Curabitur mollis,
+        mi id molestie finibus, metus sem sagittis nunc, euismod feugiat orci neque non lorem.
+        Aenean sollicitudin erat eu molestie tempus. Nunc ac eros elementum, fermentum lacus at,
+        pellentesque mauris. Suspendisse eros neque, interdum euismod consectetur convallis,
+        porttitor at massa. Phasellus a ultrices arcu. Donec viverra, lorem in pellentesque euismod,
+        libero justo gravida nibh, non ultricies justo purus ultrices est.
+    </p>
+    <p>
+        Ut at interdum dui. Donec ut ante ex. Maecenas id ex eget nibh consequat accumsan.
+        Proin semper semper dui nec feugiat. Donec cursus neque id aliquet finibus. Morbi
+        facilisis turpis nibh, nec dictum orci dictum nec. In hac habitasse platea dictumst.
+        Maecenas mollis turpis vitae turpis bibendum, vitae tristique arcu eleifend.
+    </p>
+    <div class="center">
+        <a href="/works/">
+            <button class="btn">My portfolio</button>
+        </a>
+    </div>
+    <h2>Interests</h2>
+    <p>
+        Ut at interdum dui. Donec ut ante ex. Maecenas id ex eget nibh consequat accumsan.
+        Proin semper semper dui nec feugiat. Donec cursus neque id aliquet finibus. Morbi
+        facilisis turpis nibh, nec dictum orci dictum nec. In hac habitasse platea dictumst.
+        Maecenas mollis turpis vitae turpis bibendum, vitae tristique arcu eleifend.
+    </p>
+    <h2>My Building Blocks</h2>
+    <p>As a product developer, how I build is ever-changing, but below are a good number of blocks that make up what I build.</p>
+        <!-- https://devicon.dev/ for more -->
+    <h3>Languages</h3>
+        <div class="skills center">
+            <img class="skills__img" width="46" height="46" alt="TypeScript" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/typescript/typescript-original.svg"/>
+            <img class="skills__img" width="46" height="46" alt="JavaScript" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/javascript/javascript-original.svg"/>
+            <img class="skills__img" width="46" height="46" alt="CSS" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/css3/css3-original.svg"/>
+            <img class="skills__img" width="46" height="46" alt="HTML" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/html5/html5-original.svg"/>
+            <img class="skills__img" width="46" height="46" alt="Kotlin" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/kotlin/kotlin-original.svg" />
+            <img class="skills__img" width="46" height="46" alt="Swift" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/swift/swift-original.svg" />
+            <img class="skills__img" width="46" height="46" alt="Python" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg"/>
+            <img class="skills__img" width="46" height="46" alt="Bash" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/bash/bash-original.svg" />
+        </div>
+    <h3>Frameworks</h3>
+        <div class="skills center">
+            <img class="skills__img" width="46" height="46" alt="React" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/react/react-original.svg"/>
+            <img class="skills__img" width="46" height="46" alt="NextJS" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg" />
+            <img class="skills__img" width="46" height="46" alt="Astro" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/astro/astro-original.svg" />
+            <img class="skills__img" width="46" height="46" alt="Tailwind" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/tailwindcss/tailwindcss-original.svg" />
+            <img class="skills__img" width="46" height="46" alt="Jamstack" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/jamstack/jamstack-original.svg" />
+        </div>
+    <h3>Platforms</h3>
+        <div class="skills center">
+            <img class="skills__img" width="46" height="46" alt="OpenAI" src="https://www.cdnlogo.com/logos/o/38/openai.svg" />
+            <img class="skills__img" width="46" height="46" alt="Android" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/android/android-original.svg" />
+            <img class="skills__img" width="46" height="46" alt="iOS" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/apple/apple-original.svg" />
+            <img class="skills__img" width="46" height="46" alt="Expo" src="/expo.svg" />
+        </div>
+    <h3>Tools</h3>
+        <div class="skills center">
+            <img class="skills__img" width="46" height="46" alt="Jest" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/jest/jest-plain.svg" />
+            <img class="skills__img" width="46" height="46" alt="Gradle" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/gradle/gradle-original.svg" />
+            <img class="skills__img" width="46" height="46" alt="Mobx" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/mobx/mobx-original.svg" />
+            <img class="skills__img" width="46" height="46" alt="Sanity" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/sanity/sanity-original.svg" />
+            <img class="skills__img" width="46" height="46" alt="Storybook" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/storybook/storybook-original.svg" />
+            <img class="skills__img" width="46" height="46" alt="Figma" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/figma/figma-original.svg" />
+            <img class="skills__img" width="46" height="46" alt="VSCode" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/vscode/vscode-original.svg" />
+            <img class="skills__img" width="46" height="46" alt="Yarn" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/yarn/yarn-original.svg" />
+            <img class="skills__img" width="46" height="46" alt="Git" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/git/git-original.svg"/>
+        </div>
+    <h3>Infrastructure</h3>
+        <div class="skills center">
+            <img class="skills__img" width="46" height="46" alt="Cloudflare" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/cloudflare/cloudflare-original.svg" />
+            <img class="skills__img" width="46" height="46" alt="Vercel" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/vercel/vercel-original-wordmark.svg" />
+            <img class="skills__img" width="46" height="46" alt="Amazon Web Services" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/amazonwebservices/amazonwebservices-original-wordmark.svg" />
+            <img class="skills__img" width="46" height="46" alt="Postgresql" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg"/>
+            <img class="skills__img" width="46" height="46" alt="Github" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/github/github-original.svg"/>
+            <img class="skills__img" width="46" height="46" alt="Github Actions" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/githubactions/githubactions-original.svg" />
+            <img class="skills__img" width="46" height="46" alt="Drop Wizard" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/dropwizard/dropwizard-original.svg" />
+        </div>
+    <h3>Analytics</h3>
+        <div class="skills center">
+            <img class="skills__img" width="46" height="46" alt="Sentry" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/sentry/sentry-original.svg" />
+            <img class="skills__img" width="46" height="46" alt="Open Telemetry" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/opentelemetry/opentelemetry-original.svg" />
+        </div>
 </Layout>
 
-<style>
-	main {
-		margin: auto;
-		padding: 1.5rem;
-		max-width: 60ch;
-	}
-
-	h1 {
-		font-size: 3rem;
-		font-weight: 800;
-		margin: 0;
-	}
-
-	.text-gradient {
-		background-image: var(--accent-gradient);
-		-webkit-background-clip: text;
-		-webkit-text-fill-color: transparent;
-		background-size: 400%;
-		background-position: 0%;
-	}
-
-	.instructions {
-		line-height: 1.6;
-		margin: 1rem 0;
-		border: 1px solid rgba(var(--accent), 25%);
-		background-color: white;
-		padding: 1rem;
-		border-radius: 0.4rem;
-	}
-
-	.instructions code {
-		font-size: 0.875em;
-		font-weight: bold;
-		background: rgba(var(--accent), 12%);
-		color: rgb(var(--accent));
-		border-radius: 4px;
-		padding: 0.3em 0.45em;
-	}
-
-	.instructions strong {
-		color: rgb(var(--accent));
-	}
-
-	.link-card-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(24ch, 1fr));
-		gap: 1rem;
-		padding: 0;
-	}
-</style>
