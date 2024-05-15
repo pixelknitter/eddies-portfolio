@@ -3,6 +3,7 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages/mobile-expo/src",
   "projectType": "application",
+  "tags": [],
   "targets": {
     "start": {
       "executor": "@nx/react-native:start",
@@ -88,6 +89,5 @@
         }
       }
     }
-  },
-  "tags": []
+  }
 }

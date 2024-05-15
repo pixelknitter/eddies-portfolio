@@ -3,6 +3,8 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages/mobile-expo-e2e/src",
   "projectType": "application",
+  "tags": [],
+  "implicitDependencies": ["mobile-expo"],
   "targets": {
     "build-ios": {
       "executor": "@nx/detox:build",
@@ -59,7 +61,5 @@
         "lintFilePatterns": ["packages/mobile-expo-e2e/**/*.{ts,tsx,js,jsx}"]
       }
     }
-  },
-  "tags": [],
-  "implicitDependencies": ["mobile-expo"]
+  }
 }

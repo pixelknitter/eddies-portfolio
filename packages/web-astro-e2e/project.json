@@ -3,6 +3,8 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages/web-astro-e2e/src",
   "projectType": "application",
+  "tags": [],
+  "implicitDependencies": ["web-astro"],
   "targets": {
     "e2e": {
       "executor": "@nx/cypress:cypress",
@@ -19,7 +21,5 @@
         "lintFilePatterns": ["packages/web-astro-e2e/**/*.{js,ts}"]
       }
     }
-  },
-  "tags": [],
-  "implicitDependencies": ["web-astro"]
+  }
 }

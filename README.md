@@ -15,3 +15,28 @@ Run `npx nx connect-to-nx-cloud` to enable [remote caching](https://nx.app) and 
 ## Further help
 
 Visit the [Nx Documentation](https://nx.dev) to learn more.
+
+## Features
+
+- [x] Base Mobile App
+- [x] Setup [nx.dev](https://nx.dev) for mono-repo controls
+- [ ] Migrate AstroJS portfolio from `https://eddie.engineering`
+- [ ] Migrate Dashboard
+- [ ] Migrate Transform APIs
+- [ ] Migrate Tic-Tac-Toe game
+- [ ] Add data security to Mobile app APIs
+- [ ] Setup CI/CD pipeline
+- [ ] Configure E2E tests
+- [ ] Configure Integration tests
+
+## Exploring the Project
+
+### Mobile
+
+1. Clone the repository
+2. run `yarn install`
+3. run `yarn ios` or `yarn android` (you must have your [environment setup](https://reactnative.dev/docs/environment-setup) for mobile development with React Native)
+
+### Web
+
+TODO: add instructions for web projects

@@ -19,7 +19,6 @@
       "build": "cd ../../packages/mobile-expo/ios && xcodebuild -workspace MobileExpo.xcworkspace -scheme MobileExpo -configuration Release -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 14' -derivedDataPath ./build -quiet",
       "binaryPath": "../../packages/mobile-expo/ios/build/Build/Products/Release-iphonesimulator/MobileExpo.app"
     },
-
     "android.debug": {
       "type": "android.apk",
       "build": "cd ../../packages/mobile-expo/android && ./gradlew assembleDebug assembleAndroidTest -DtestBuildType=debug",
@@ -54,7 +53,6 @@
       "device": "simulator",
       "app": "ios.debug"
     },
-
     "android.emu.release": {
       "device": "emulator",
       "app": "android.release"

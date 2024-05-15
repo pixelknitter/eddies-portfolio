@@ -110,6 +110,9 @@ yarn-error.log
 # testing
 /coverage
 
+# nx
+.nx/cache
+migrations.json
 
 packages/mobile-expo-e2e/artifacts
 

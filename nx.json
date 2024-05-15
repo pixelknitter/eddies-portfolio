@@ -10,6 +10,18 @@
         "{workspaceRoot}/.eslintrc.json",
         "{workspaceRoot}/.eslintignore"
       ]
+    },
+    "@nxtensions/astro:build": {
+      "cache": true,
+      "inputs": ["default", "^default"],
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"]
+    },
+    "@nxtensions/astro:check": {
+      "cache": true,
+      "inputs": ["default", "^default"]
+    },
+    "@nxtensions/astro:preview": {
+      "dependsOn": ["build"]
     }
   },
   "tasksRunnerOptions": {
