@@ -11,10 +11,10 @@ const pageTitle = "Works";
     </div>
     <h2>Projects</h2>
     <ul role="list" class="link-card-grid">
-        {allProjects.map((card) => <Card 
-            url={`/projects/${card.slug}/`} 
-            image={card.data.image.url} 
-            title={card.data.title} 
+        {allProjects.map((card) => <Card
+            url={`/projects/${card.slug}/`}
+            image={card.data.image.url}
+            title={card.data.title}
             body={card.data.description}
         />)}
     </ul>

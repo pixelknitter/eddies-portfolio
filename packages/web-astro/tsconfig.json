@@ -20,6 +20,8 @@
     "skipLibCheck": true,
     // Enable strict mode
     "strict": true,
+    "strictNullChecks": true,
+    "allowJs": true,
     // Error when a value import is only used as a type
     "verbatimModuleSyntax": true,
     "ignoreDeprecations": "5.0"

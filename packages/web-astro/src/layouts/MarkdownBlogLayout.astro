@@ -1,0 +1,19 @@
+---
+import BaseLayout from './Layout.astro';
+const { frontmatter } = Astro.props;
+const { title, tags, author } = frontmatter;
+---
+<BaseLayout pageTitle={title}>
+    <div class="gif">
+        <img width="300" height="259" alt="RaccoonLaptopGif" src="/laptop.webp"/>
+    </div>
+    <h2>{title}</h2>
+    <ul class="badge__list">
+        {tags.map((tag: string) => {
+            <li><span class="badge badge--item">{tag}</span></li>
+        })}
+    </ul>
+    <span class="font-semibold text-sm dark:text-violet-400 text-violet-600">{author.name}</span>
+    <slot />
+</BaseLayout>
+
