@@ -8,11 +8,7 @@
     "next:export": "nx export web-next",
     "astro:dev": "nx dev web-astro",
     "astro:build": "nx build web-astro",
-    "astro:preview": "nx preview web-astro",
-    "mobile:start": "nx serve mobile-expo",
-    "mobile:build": "nx build mobile-expo",
-    "ios": "nx run-ios mobile-expo",
-    "android": "nx run-android mobile-expo"
+    "astro:preview": "nx preview web-astro"
   },
   "private": true,
   "devDependencies": {

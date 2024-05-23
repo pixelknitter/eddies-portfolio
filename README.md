@@ -18,12 +18,14 @@ Visit the [Nx Documentation](https://nx.dev) to learn more.
 
 ## Features
 
-- [x] Base Mobile App
 - [x] Setup [nx.dev](https://nx.dev) for mono-repo controls
-- [ ] Migrate AstroJS portfolio from `https://eddie.engineering`
-- [ ] Migrate Dashboard
-- [ ] Migrate Transform APIs
-- [ ] Migrate Tic-Tac-Toe game
+- [x] Migrate AstroJS portfolio from `https://eddie.engineering`
+- [ ] Build Interactive Resume (NextJS, OpenAI, etc)
+- [ ] Migrate AstroJS site to Tailwind CSS
+- [ ] Base Mobile App in nx
+- [ ] Dashboard for Portfolio
+- [ ] Data APIs Example
+- [ ] Web/Mobile Game Example
 - [ ] Add data security to Mobile app APIs
 - [ ] Setup CI/CD pipeline
 - [ ] Configure E2E tests
