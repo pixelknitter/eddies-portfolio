@@ -37,14 +37,17 @@ const { pageTitle } = Astro.props;
     </main>
     <script>
       function colorMode() {
+        // FIXME: the multiple classList items are because tailwind vs previous styles. Migrate to single class
         if (
           localStorage.theme === 'light' ||
           (!('theme' in localStorage) &&
             window.matchMedia('(prefers-color-scheme: light)').matches)
         ) {
           document.documentElement.classList.add('light');
+          document.documentElement.classList.remove('dark');
         } else {
           document.documentElement.classList.remove('light');
+          document.documentElement.classList.add('dark');
         }
       }
 

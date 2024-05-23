@@ -36,8 +36,10 @@
 
     if (theme === 'dark') {
         document.documentElement.classList.remove('light');
+        document.documentElement.classList.add('dark');
     } else {
         document.documentElement.classList.add('light');
+        document.documentElement.classList.remove('dark');
     }
 
     window.localStorage.setItem('theme', theme);
@@ -45,6 +47,8 @@
     const handleToggleClick = () => {
         const element = document.documentElement;
         element.classList.toggle("light");
+        // FIXME: this fixes the toggle for TailwindCSS dark mode
+        element.classList.toggle("dark");
 
         const isLight = element.classList.contains("light");
         localStorage.setItem("theme", isLight ? "light" : "dark");
