@@ -21,7 +21,7 @@ html {
 }
 
 body {
-  max-width: 540px;
+  max-width: 720px;
   margin: 0 auto;
   text-align: justify;
 }
@@ -371,7 +371,7 @@ html.light {
 }
 
 /* Media Query */
-@media only screen and (max-width: 600px) {
+@media only screen and (max-width: 640px) {
   body {
     width: 350px;
   }

@@ -3,6 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import Prose from '../components/Prose.astro'
 
 import {Content as About, frontmatter as aboutMatter} from '../static/about.md';
+import { Image } from "astro:assets";
 const SKILL_SIZE = 46;
 
 // interface Frontmatter {
@@ -15,10 +16,12 @@ const { title: pageTitle, badges, subject } = aboutMatter;
 ---
 <Layout pageTitle={pageTitle}>
     <div class="my-5 text-center">
-        <img width="300" height="259" class="mx-auto" alt="RaccoonSpaceGif" src="/space.webp"/>
+        <Image width="300" height="259" class="mx-auto" alt="RaccoonSpaceGif" src="/space.webp"/>
     </div>
     <h1 class="font-header text-[2.6rem] mb-1">{subject}</h1>
-    {badges.map((badge: string) => <span class="bg-tag text-text rounded-md font-body font-semibold text-[0.85rem] text-center mx-1 my-2 px-2 py-1 whitespace-nowrap">{badge}</span> )}
+    <div class="flex flex-wrap">
+        {badges.map((badge: string) => <span class="bg-tag text-text rounded-md font-body font-semibold text-[0.85rem] mx-1 my-2 px-2 py-1 whitespace-nowrap place-content-center">{badge}</span> )}
+    </div>
     <Prose>
         <About />
     </Prose>
