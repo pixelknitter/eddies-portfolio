@@ -1,0 +1,9 @@
+---
+import Layout from "@layouts/Layout.astro"
+import { AIResume } from '../../react/AIResume'
+
+const pageTitle = "AIR: AI-Powered Resume for Eddie Freeman"
+---
+<Layout pageTitle={pageTitle}>
+  <AIResume client:load />
+</Layout>
