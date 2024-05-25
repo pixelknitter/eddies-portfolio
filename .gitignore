@@ -117,3 +117,12 @@ migrations.json
 packages/mobile-expo-e2e/artifacts
 
 .astro
+
+# Yarn 3 files
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
