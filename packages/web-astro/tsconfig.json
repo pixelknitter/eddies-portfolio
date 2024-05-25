@@ -24,6 +24,14 @@
     "allowJs": true,
     // Error when a value import is only used as a type
     "verbatimModuleSyntax": true,
-    "ignoreDeprecations": "5.0"
+    "ignoreDeprecations": "5.0",
+    "jsxImportSource":"react",
+    "baseUrl": ".",
+    "paths": {
+      "@components/*": ["src/components/*"],
+      "@layouts/*": ["src/layouts/*"],
+      "@content/*": ["src/content/*"],
+      "@static/*": ["src/static/*"],
+    }
   }
 }

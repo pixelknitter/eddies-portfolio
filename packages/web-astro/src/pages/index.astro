@@ -6,12 +6,6 @@ import {Content as About, frontmatter as aboutMatter} from '../static/about.md';
 import { Image } from "astro:assets";
 const SKILL_SIZE = 46;
 
-// interface Frontmatter {
-//   title: string;
-//   badges: string[];
-//   subject: string;
-// }
-
 const { title: pageTitle, badges, subject } = aboutMatter;
 ---
 <Layout pageTitle={pageTitle}>

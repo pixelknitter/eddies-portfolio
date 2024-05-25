@@ -4,7 +4,9 @@
   "sourceRoot": "packages/web-astro-e2e/src",
   "projectType": "application",
   "tags": [],
-  "implicitDependencies": ["web-astro"],
+  "implicitDependencies": [
+    "web-astro"
+  ],
   "targets": {
     "e2e": {
       "executor": "@nx/cypress:cypress",
@@ -16,9 +18,13 @@
     },
     "lint": {
       "executor": "@nx/linter:eslint",
-      "outputs": ["{options.outputFile}"],
+      "outputs": [
+        "{options.outputFile}"
+      ],
       "options": {
-        "lintFilePatterns": ["packages/web-astro-e2e/**/*.{js,ts}"]
+        "lintFilePatterns": [
+          "packages/web-astro-e2e/**/*.{js,ts}"
+        ]
       }
     }
   }
