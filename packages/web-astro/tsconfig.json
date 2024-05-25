@@ -32,6 +32,7 @@
       "@layouts/*": ["src/layouts/*"],
       "@content/*": ["src/content/*"],
       "@static/*": ["src/static/*"],
+      "@util/*": ["src/util/*"],
     }
   }
 }

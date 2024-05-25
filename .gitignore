@@ -126,3 +126,6 @@ packages/mobile-expo-e2e/artifacts
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+# Env
+.env*
