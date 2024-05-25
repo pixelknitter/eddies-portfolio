@@ -2,6 +2,9 @@
 import { getCollection } from 'astro:content';
 import MarkdownWorksLayout from '@layouts/MarkdownWorksLayout.astro';
 
+// build static html for dynamic pages
+export const prerender = true;
+
 export async function getStaticPaths() {
     const projectEntries = await getCollection('projects');
     return projectEntries.map(entry => ({

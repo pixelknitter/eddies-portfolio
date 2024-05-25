@@ -1,11 +1,12 @@
 ---
+import { Image } from "astro:assets";
 import BaseLayout from './Layout.astro';
 const { frontmatter } = Astro.props;
 const { title, tags, author } = frontmatter;
 ---
 <BaseLayout pageTitle={title}>
     <div class="gif">
-        <img width="300" height="259" alt="RaccoonLaptopGif" src="/laptop.webp"/>
+        <Image width="300" height="259" alt="RaccoonLaptopGif" src="/laptop.webp"/>
     </div>
     <h2>{title}</h2>
     <ul class="badge__list">
