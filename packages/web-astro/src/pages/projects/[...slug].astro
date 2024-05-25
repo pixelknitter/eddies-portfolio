@@ -1,6 +1,6 @@
 ---
 import { getCollection } from 'astro:content';
-import MarkdownWorksLayout from '../../layouts/MarkdownWorksLayout.astro';
+import MarkdownWorksLayout from '@layouts/MarkdownWorksLayout.astro';
 
 export async function getStaticPaths() {
     const projectEntries = await getCollection('projects');
