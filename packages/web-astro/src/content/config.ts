@@ -47,8 +47,8 @@ const blog = defineCollection({
   type: 'content',
   schema: BlogSchema,
 });
-
-export type BlogPost = Omit<z.infer<typeof BlogSchema>, 'author' | 'relatedPosts'> & { author: Author, relatedPosts: string[] };
+// , 'author' | 'relatedPosts'> & { author: Author, relatedPosts: string[] };
+export type BlogPost = z.infer<typeof BlogSchema>
 // FIXME: get the available slugs for posts
 
 const AuthorSchema = z.object({

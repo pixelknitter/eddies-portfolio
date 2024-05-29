@@ -4,10 +4,6 @@ import MarkdownBlogLayout from '@layouts/MarkdownBlogLayout.astro';
 
 // build static html for dynamic pages
 export const prerender = true;
-interface Blog {
-    
-}
-
 
 export async function getStaticPaths() {
     const blogEntries = await getCollection('blog');
