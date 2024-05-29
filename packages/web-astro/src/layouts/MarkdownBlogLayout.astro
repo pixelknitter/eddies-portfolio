@@ -1,6 +1,11 @@
 ---
 import { Image } from "astro:assets";
 import BaseLayout from './Layout.astro';
+import type { BlogPost } from '../content/config'
+interface Props {
+    frontmatter: BlogPost;
+}
+
 const { frontmatter } = Astro.props;
 const { title, tags, author } = frontmatter;
 ---
@@ -10,7 +15,7 @@ const { title, tags, author } = frontmatter;
     </div>
     <h2>{title}</h2>
     <ul class="badge__list">
-        {tags.map((tag: string) => {
+        {tags.map((tag) => {
             <li><span class="badge badge--item">{tag}</span></li>
         })}
     </ul>
