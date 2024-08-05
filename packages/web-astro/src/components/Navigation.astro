@@ -1,15 +1,15 @@
 ---
 import ThemeIcon from './ThemeIcon.astro';
 ---
-<div class="navbar">
-    <div class="navbar__title">
-        <a class="dark:hover:decoration-text-link dark:focus:decoration-text-link" href="/">Engineering by Eddie</a>
+<div class="grid grid-cols-1 md:grid-cols-2 mt-3">
+    <div class="text-lg font-header text-center md:text-justify self-center">
+        <a class="nav-link" href="/">Engineering by Eddie</a>
     </div>
-    <div class="navbar__menu">
-        <a class="dark:hover:decoration-text-link dark:focus:decoration-text-link" href="/air/">A.I.R.</a>
-        <a class="dark:hover:decoration-text-link dark:focus:decoration-text-link" href="/works/">Works</a>
-        <a class="dark:hover:decoration-text-link dark:focus:decoration-text-link" href="/blog/">Blog</a>
-        <a class="dark:hover:decoration-text-link dark:focus:decoration-text-link" href="https://github.com/pixelknitter/eddies-portfolio" target="_blank">GitHub</a>
+    <div class="font-body text-lg flex items-center text-center justify-center md:justify-end">
+        <a class="nav-link" href="/air/">A.I.R.</a>
+        <a class="nav-link" href="/works/">Works</a>
+        <a class="nav-link" href="/blog/">Blog</a>
+        <a class="nav-link" href="https://github.com/pixelknitter/eddies-portfolio" target="_blank">GitHub</a>
         <ThemeIcon />
     </div>
 </div>

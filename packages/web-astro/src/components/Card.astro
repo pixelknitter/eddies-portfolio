@@ -1,24 +1,26 @@
 ---
+import { Image } from "astro:assets";
+
 interface Props {
     url: string;
     image: string;
     title: string;
     body: string;
+    alt: string
 }
 
-const { url, image, title, body } = Astro.props;
+const { url, image, title, body, alt } = Astro.props;
 ---
-<li class="card">
-    <a class="card__link" href={url}>
-        <div class="center">
-            <img class="card__img" width="226" height="127" src={image} alt="ProjectImage">
-        </div>
-        <h3 class="card__title">
-            {title}
-        </h3>
-        <p class="card__txt">
-            {body}
-        </p>
+<li class="list-none flex bg-light dark:bg-dark p-5 rounded-lg shadow-md dark:shadow-light/10 hover:shadow-lg dark:hover:shadow-light/20 transition-shadow duration-300 ease-in-out group">
+    <a class="w-full no-underline leading-normal rounded-lg text-dark dark:text-light transition-colors duration-300" href={url}>
+      <div class="text-center flex justify-center transition-transform duration-300 ease-in-out group-hover:scale-105">
+        <Image class="rounded-2xl" width="226" height="127" src={image} alt={alt}>
+      </div>
+      <h3 class="font-body text-2xl font-normal text-center mt-2 transition-colors duration-300">
+        {title}
+      </h3>
+      <p class="text-base leading-relaxed text-center mt-2 transition-colors duration-300">
+        {body}
+      </p>
     </a>
-</li>
-
+  </li>

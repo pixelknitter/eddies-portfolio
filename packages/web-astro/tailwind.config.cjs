@@ -15,13 +15,10 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        background: '#1e1e2e',
-        'background-light': '#fdebf3',
-        'border-light': '#fdebf3',
+        dark: '#1e1e2e',
+        light: '#fdebf3',
         button: '#5dd39e',
-        text: '#fdebf3',
-        'text-light': '#1e1e2e',
-        'text-link': '#5dd39e',
+        link: '#5dd39e',
         underline: '#348aa7',
         emphasis: '#525174',
         tag: '#584966',
@@ -36,6 +33,12 @@ module.exports = {
       },
       textDecorationThickness: {
         4: '4px',
+      },
+      transitionDuration: {
+        '400': '400ms',
+      },
+      gridTemplateColumns: {
+        'auto-fill-250': 'repeat(auto-fill, minmax(250px, 1fr))',
       },
     },
   },

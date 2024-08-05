@@ -41,23 +41,30 @@ const { pageTitle } = Astro.props;
       <Footer />
     </main>
     <script>
-      function colorMode() {
-        // FIXME: the multiple classList items are because tailwind vs previous styles. Migrate to single class
-        if (
-          localStorage.theme === 'light' ||
-          (!('theme' in localStorage) &&
-            window.matchMedia('(prefers-color-scheme: light)').matches)
-        ) {
-          document.documentElement.classList.add('light');
-          document.documentElement.classList.remove('dark');
-        } else {
-          document.documentElement.classList.remove('light');
+      function applyTheme() {
+        const theme = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (theme === 'dark' || (!theme && prefersDark)) {
           document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
         }
       }
 
-      colorMode();
-      document.addEventListener('astro:after-swap', colorMode);
+      // Apply theme on initial load
+      applyTheme();
+
+      // Apply theme after view transitions
+      document.addEventListener('astro:after-swap', ()=> {
+        applyTheme()
+      });
+
+      // Listen for storage events to sync theme across tabs
+      window.addEventListener('storage', (event) => {
+        if (event.key === 'theme') {
+          applyTheme();
+        }
+      });
     </script>
   </body>
 </html>

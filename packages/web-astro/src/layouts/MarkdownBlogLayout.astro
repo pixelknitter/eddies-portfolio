@@ -1,7 +1,7 @@
 ---
-import { Image } from "astro:assets";
 import BaseLayout from './Layout.astro';
 import type { BlogPost } from '../content/config'
+import Hero from "@components/Hero.astro";
 interface Props {
     frontmatter: BlogPost;
 }
@@ -10,9 +10,7 @@ const { frontmatter } = Astro.props;
 const { title, tags, author } = frontmatter;
 ---
 <BaseLayout pageTitle={title}>
-    <div class="gif">
-        <Image width="300" height="259" alt="RaccoonLaptopGif" src="/laptop.webp"/>
-    </div>
+    <Hero alt="RaccoonLaptopGif" src="/laptop.webp"/>
     <h2>{title}</h2>
     <ul class="badge__list">
         {tags.map((tag: string) => {

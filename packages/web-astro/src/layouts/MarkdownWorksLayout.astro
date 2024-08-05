@@ -1,7 +1,7 @@
 ---
-import { Image } from "astro:assets";
 import BaseLayout from './Layout.astro';
 import type { Project } from "@content/config";
+import Hero from "@components/Hero.astro";
 
 interface Props {
     frontmatter: Project
@@ -10,9 +10,7 @@ interface Props {
 const { frontmatter } = Astro.props;
 ---
 <BaseLayout pageTitle={frontmatter.title}>
-    <div class="gif">
-        <Image width="300" height="259" alt="RaccoonLaptopGif" src="/laptop.webp"/>
-    </div>
+    <Hero alt="RaccoonLaptopGif" src="/laptop.webp"/>
     <h2>{frontmatter.title}</h2>
     <slot />
     <ul class="badge__list">

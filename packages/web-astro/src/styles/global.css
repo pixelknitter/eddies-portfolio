@@ -1,40 +1,140 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .nav-link {
+    @apply mx-2.5 text-center text-dark dark:text-light hover:underline hover:decoration-underline hover:decoration-2 hover:underline-offset-6;
+  }
+  .badge {
+    @apply bg-tag text-light text-center rounded-md font-body font-semibold text-sm mx-1 my-2 px-2 py-1 whitespace-nowrap;
+  }
+  .btn {
+    @apply inline-block text-center bg-transparent border-2 border-button rounded-lg
+           text-dark dark:text-light font-body font-semibold px-4 py-2
+           transition-colors duration-300
+           hover:bg-button hover:text-dark
+           dark:hover:bg-button dark:hover:text-dark
+           cursor-pointer;
+  }
+  .icon-btn {
+    @apply flex h-10 w-10 p-2 rounded-full border-2 border-light dark:border-dark hover:border-underline  dark:hover:border-link cursor-pointer;
+  }
+  .hero-gif {
+    @apply mt-5 flex mx-auto justify-center;
+  }
+  .card-grid {
+    @apply grid grid-cols-auto-fill-250 gap-4;
+  }
+  /* Icons */
+  .git-icon {
+    content: url('/github-mark.svg');
+  }
+  .mail-icon {
+    content: url('/mail.svg');
+  }
+  .linked-in {
+    content: url('/li-in.png');
+  }
+  .dark .git-icon {
+    content: url('/github-mark-white.svg');
+  }
+  .dark .mail-icon {
+    content: url('/mail-white.svg');
+  }
+  .dark .linked-in {
+    content: url('/li-in-white.png');
+  }
+}
+
+@layer base {
+  html {
+    @apply bg-light text-dark transition-colors duration-300;
+  }
+  html.dark {
+    @apply bg-dark text-light;
+  }
+  body {
+    @apply max-w-screen-md mx-auto text-justify px-5 md:px-0 lg:px-0 text-dark dark:text-light;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-header;
+  }
+  h1 {
+    @apply text-4xl mb-1;
+  }
+  h2 {
+    @apply text-3xl mb-4 underline decoration-underline decoration-4 underline-offset-6;
+  }
+  h3 {
+    @apply text-2xl mb-2 underline decoration-emphasis decoration-4 underline-offset-6;
+  }
+  h4 {
+    @apply text-xl;
+  }
+  h5 {
+    @apply text-lg;
+  }
+  h6 {
+    @apply text-base;
+  }
+}
+
 /* Global styles */
-:root {
-  --background: #1e1e2e;
-  --background-light: #fdebf3;
-  --border-light: #fdebf3;
-  --button: #5dd39e;
-  --text: #fdebf3;
-  --text-light: #1e1e2e;
-  --text-link: #5dd39e;
-  --underline: #348aa7;
-  --emphasis: #525174;
-  --tag: #584966;
-  --disabled: #5c5b77;
-  --header: 'Pacifico', cursive;
-  --body: 'Josefin Sans', sans-serif;
+/* :root {
+  --dark: #1e1e2e;
+  --light: #fdebf3;
 }
 
 html {
-  background-color: var(--background);
-  color: var(--text);
+  background-color: var(--light);
+  color: var(--dark);
 }
 
-body {
+html.dark {
+  background-color: var(--dark);
+  color: var(--light);
+} */
+
+/* .dark .git-icon {
+  content: url('/github-mark-white.svg');
+}
+
+.dark .mail-icon {
+  content: url('/mail-white.svg');
+}
+
+.dark .linked-in {
+  content: url('/li-in-white.png');
+}
+
+.git-icon {
+  content: url('/github-mark.svg');
+}
+
+.mail-icon {
+  content: url('/mail.svg');
+}
+
+.linked-in {
+  content: url('/li-in.png');
+} */
+
+/* body {
   max-width: 720px;
   margin: 0 auto;
   text-align: justify;
-}
+} */
 
-h1,
+/* h1,
 h2,
 h3,
 h4 {
   font-family: var(--header);
   font-weight: normal;
-}
+} */
 
-h1 {
+/* h1 {
   font-size: 2.6rem;
   margin: 0;
   margin-bottom: 5px;
@@ -70,15 +170,15 @@ p {
   hyphens: auto;
   line-height: 1.5;
   text-indent: 1rem;
-}
+} */
 
-small,
+/* small,
 li {
   font-family: var(--body);
-}
+} */
 
 /* Navigation Bar */
-.navbar {
+/* .navbar {
   display: grid;
   grid-template-columns: 1fr 1fr;
   margin-top: 0.8rem;
@@ -111,16 +211,12 @@ li {
   text-decoration: underline var(--underline);
   text-decoration-thickness: 2px;
   text-underline-offset: 6px;
-}
+} */
 
 /* Gifs */
-.gif {
-  margin: 20px 0 0 0;
-  text-align: center;
-}
 
 /* Badge */
-.badge {
+/* .badge {
   background-color: var(--tag);
   color: var(--text);
   border-radius: 6px;
@@ -154,10 +250,10 @@ li {
 
 .badge__link:hover {
   text-decoration: underline;
-}
+} */
 
 /* Cards */
-.card {
+/* .card {
   list-style: none;
   display: flex;
   background-size: 400%;
@@ -190,21 +286,21 @@ li {
   text-indent: 0;
   text-align: center;
   margin: 0.5rem 0 0;
-}
+} */
 
-.card__link:hover {
+/* .card__link:hover {
   transform: scale(1.05);
-}
+} */
 
-.link-card-grid {
+/* .link-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(24ch, 1fr));
   gap: 1rem;
   padding: 0;
-}
+} */
 
 /* Button */
-.btn {
+/* .btn {
   text-align: center;
   background: rgba(0, 0, 0, 0);
   border: 2px solid var(--button);
@@ -219,10 +315,10 @@ li {
   background-color: var(--button);
   color: var(--text-light);
   cursor: pointer;
-}
+} */
 
 /* Skills */
-.skills {
+/* .skills {
   display: flex;
   margin-top: 8px;
   flex-direction: row;
@@ -235,24 +331,24 @@ li {
   color: var(--text);
   border-radius: 6px;
   padding: 6px;
-}
+} */
 
 /* Items */
-.center {
+/* .center {
   text-align: center;
 }
 
 .pro-img {
   border-radius: 16px;
   margin-top: 10px;
-}
+} */
 
 /* Footer */
-footer {
+/* footer {
   margin: 4rem 0;
-}
+} */
 
-.footer__link {
+/* .footer__link {
   color: var(--text-link);
   text-decoration: none;
 }
@@ -261,9 +357,9 @@ footer {
   cursor: default;
   list-style: none;
   padding: 0;
-}
+} */
 
-.icon__btn {
+/* .icon__btn {
   display: inline-block;
   padding: 0 0.5rem;
 }
@@ -279,22 +375,10 @@ footer {
 
 .icon__link:hover {
   border-color: var(--text-link);
-}
-
-.git-icon {
-  content: url('/github-mark-white.svg');
-}
-
-.mail-icon {
-  content: url('/mail-white.svg');
-}
-
-.linked-in {
-  content: url('/li-in-white.png');
-}
+} */
 
 /* 404 */
-.lost {
+/* .lost {
   margin-top: 30%;
   text-align: center;
 }
@@ -314,14 +398,10 @@ footer {
 .lost__link {
   color: var(--text-link);
   text-decoration: none;
-}
+} */
 
 /* Theme Icon */
-html.light {
-  background-color: var(--background-light);
-  color: var(--text-light);
-}
-
+/*
 .light .navbar__title > a {
   color: var(--text-light);
 }
@@ -336,9 +416,9 @@ html.light {
 
 .light .card__txt {
   color: var(--text-light);
-}
+} */
 
-.light .btn {
+/* .light .btn {
   color: var(--text-light);
 }
 
@@ -352,26 +432,10 @@ html.light {
 
 .light .icon__link:hover {
   border-color: var(--text-link);
-}
-
-.light .git-icon {
-  content: url('/github-mark.svg');
-}
-
-.light .mail-icon {
-  content: url('/mail.svg');
-}
-
-.light .linked-in {
-  content: url('/li-in.png');
-}
-
-.light .badge__link {
-  color: var(--text-link);
-}
+}*/
 
 /* Media Query */
-@media only screen and (max-width: 640px) {
+/* @media only screen and (max-width: 640px) {
   body {
     width: 350px;
   }
@@ -407,4 +471,4 @@ html.light {
     height: auto;
     width: 350px;
   }
-}
+} */

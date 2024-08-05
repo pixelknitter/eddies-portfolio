@@ -2,23 +2,23 @@
 import Layout from '@layouts/Layout.astro';
 import Card from '@components/Card.astro';
 import { getCollection } from "astro:content";
+import Hero from "@components/Hero.astro";
 const pageTitle = "Posts";
 const blogEntries = await getCollection('blog', ({ data }) => {
     return import.meta.env.PROD ? data.draft !== true : true;
 });
 ---
 <Layout pageTitle={pageTitle}>
-    <div class="gif">
-        <img width="300" height="259" alt="RaccoonLaptopGif" src="/blog.webp"/>
-    </div>
+    <Hero alt="RaccoonLaptopGif" src="/blog.webp"/>
     <h2>Blog</h2>
     <!-- TODO: connect this to Medium/Substack -->
-    <ul role="list" class="link-card-grid">
+    <ul role="list" class="card-grid">
         {blogEntries.map((card) => <Card
             url={`/blog/${card.slug}/`}
             image={card.data.heroImage.url}
             title={card.data.title}
             body={card.data.blurb}
+            alt="ProjectImage"
         />)}
     </ul>
     <!-- <h2>YouTube</h2>

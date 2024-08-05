@@ -15,7 +15,7 @@ export function AIResume() {
   return (
     <div className="container mt-12">
       <div>
-        <h1>
+        <h1 className="center">
           <span> Hello there, </span>
           Welcome to A.I.R.! 👋
         </h1>
