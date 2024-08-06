@@ -1,0 +1,55 @@
+---
+import { Image } from "astro:assets";
+import { iconUrl } from '@util/constants'
+interface Props extends Badge {};
+
+const { label, tech, src, iconSuffix = "original" } = Astro.props
+
+const SKILL_SIZE = 46;
+---
+<div class="group relative">
+  <div class="badge-container">
+    <Image
+      class="badge transition-all duration-300 hover:scale-110 hover:rotate-3 hover:shadow-lg"
+      width={SKILL_SIZE}
+      height={SKILL_SIZE}
+      alt={label}
+      src={src ?? `${iconUrl}/${tech}/${tech}-${iconSuffix}.svg`}
+    />
+  </div>
+  <div class="tooltip opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+    {label}
+  </div>
+</div>
+
+<style>
+  .badge-container {
+    @apply inline-block;
+    animation: float 3s ease-in-out infinite;
+  }
+  .badge {
+    @apply rounded-md p-1.5;
+    transition: transform var(--animate-duration), rotate var(--animate-duration), box-shadow var(--animate-duration);
+  }
+  .tooltip {
+    @apply absolute -top-10 left-1/2 transform -translate-x-1/2 bg-dark text-light dark:bg-light dark:text-dark px-2 py-1 rounded text-sm whitespace-nowrap;
+    transition: opacity var(--animate-duration);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    @keyframes float {
+      0% { transform: translateY(0px); }
+      50% { transform: translateY(-5px); }
+      100% { transform: translateY(0px); }
+    }
+    .badge-container:hover {
+      animation: wiggle 0.5s ease-in-out;
+    }
+    @keyframes wiggle {
+      0% { transform: rotate(0deg); }
+      25% { transform: rotate(5deg); }
+      50% { transform: rotate(0deg); }
+      75% { transform: rotate(-5deg); }
+      100% { transform: rotate(0deg); }
+    }
+  }
+</style>

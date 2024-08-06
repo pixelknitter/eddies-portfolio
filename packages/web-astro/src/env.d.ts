@@ -9,3 +9,12 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+type Badge = {
+  label: string;
+  tech: string;
+  iconSuffix?: string;
+  src?: string;
+}
+
+type BlockCategory = 'Languages' | 'Frameworks' | 'Platforms' | 'Tools' | 'Infrastructure' | 'Analytics';

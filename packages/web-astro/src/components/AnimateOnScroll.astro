@@ -1,0 +1,41 @@
+---
+
+---
+<div class="animate-on-scroll">
+  <slot />
+</div>
+
+<script is:inline>
+  function setupAnimations() {
+    const animatedElements = document.querySelectorAll('.animate-on-scroll');
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in-view');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1 });
+
+    animatedElements.forEach(el => observer.observe(el));
+  }
+
+  // Run on initial load
+  setupAnimations();
+
+  // Re-run on Astro page changes
+  document.addEventListener('astro:page-load', setupAnimations);
+</script>
+
+<style>
+  .animate-on-scroll {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.5s, transform 0.5s;
+  }
+  .animate-on-scroll.in-view {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>

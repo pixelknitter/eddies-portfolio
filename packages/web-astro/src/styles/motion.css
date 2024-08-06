@@ -1,0 +1,15 @@
+@media (prefers-reduced-motion: no-preference) {
+  :root {
+    --animate-duration: 0.5s;
+    --animate-delay: 0.1s;
+    --animate-transform: translateY(20px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --animate-duration: 0s;
+    --animate-delay: 0s;
+    --animate-transform: none;
+  }
+}
