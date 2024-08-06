@@ -19,12 +19,6 @@ subject: 'Eddie Freeman'
 
 As a world traveler, storyteller, forever learner, and wearer of many hats in 15+ years working in Silicon Valley startups, I aim to inspire, nudge, and put a bit more optimism into the world.
 
-<div class="text-center space-y-2">
-  <a href="/works/">
-    <button class="btn">My portfolio</button>
-  </a>
-</div>
-
 ## Interests
 
 - Passionate about creating a better world with empowering technology

@@ -13,14 +13,14 @@ const { title: pageTitle, badges, subject } = aboutMatter;
 <Layout pageTitle={pageTitle}>
     <Hero alt="RaccoonSpaceGif" src="/space.webp"/>
     <h1>{subject}</h1>
-    <div class="flex flex-wrap">
+    <div class="flex flex-wrap mb-6">
         {badges.map((badge: string) => <span class="bg-tag text-light rounded-md font-body font-semibold text-[0.85rem] mx-1 my-2 px-2 py-1 whitespace-nowrap place-content-center">{badge}</span> )}
     </div>
     <Prose>
         <About />
     </Prose>
-    <h2>My Building Blocks</h2>
-    <p class="font-body text-lg mb-4">As a product engineer, how I build is ever-changing, but below are a good number of the blocks I've used in my engineering.</p>
+    <h2 class="mt-6">My Building Blocks</h2>
+    <p class="font-body text-lg mb-6">As a product engineer, how I build is ever-changing, but below are a good number of the blocks I've used in my engineering.</p>
     {Object.entries(buildingBlocks).map(([category, tech]) => (
         <AnimateOnScroll>
             <MyBlocksSection title={category} tech={tech} />
