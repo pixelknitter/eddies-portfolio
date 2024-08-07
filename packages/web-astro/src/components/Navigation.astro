@@ -1,10 +1,14 @@
 ---
 import { showAIR, showBlog, showProjects } from "@util/constants";
 import ThemeIcon from './ThemeIcon.astro';
+import { readableHostname } from "@util/functions";
+
+const { hostname } = Astro.url;
+const readableHost = readableHostname(hostname);
 ---
 <div class="grid grid-cols-1 md:grid-cols-2 mt-3">
     <div class="text-lg font-header text-center md:text-justify self-center">
-        <a class="nav-link" href="/">Engineering by Eddie</a>
+        <a class="nav-link" href="/">{readableHost ? readableHost : 'Engineering by Eddie'}</a>
     </div>
     <div class="font-body text-lg flex items-center text-center justify-center md:justify-end">
         {showAIR ? <a class="nav-link" href="/air/">A.I.R.</a> : null}

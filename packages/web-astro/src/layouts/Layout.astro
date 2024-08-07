@@ -5,11 +5,14 @@ import Header from '@components/Header.astro';
 import Footer from '@components/Footer.astro';
 import '../styles/global.css';
 import '../styles/motion.css'
+import { readableHostname } from "@util/functions";
 
 interface Props {
   pageTitle: string;
 }
 
+const { hostname } = Astro.url;
+const readableHost = readableHostname(hostname);
 const { pageTitle } = Astro.props;
 ---
 
@@ -17,7 +20,7 @@ const { pageTitle } = Astro.props;
 <html transition:animate="none" lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="description" content="A portfolio of Eddie Freeman containing projects ranging from mobile (react native), nextjs, astro, and LLMs" />
+    <meta name="description" content="A portfolio of Eddie Freeman sharing projects ranging from mobile apps to LLM applications." />
     <meta name="viewport" content="width=device-width" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -32,7 +35,7 @@ const { pageTitle } = Astro.props;
       rel="stylesheet"
     />
     <meta name="generator" content={Astro.generator} />
-    <title>{pageTitle}</title>
+    <title>{readableHost ? `${pageTitle} | ${readableHost}` : pageTitle}</title>
     <ViewTransitions />
   </head>
   <body>
