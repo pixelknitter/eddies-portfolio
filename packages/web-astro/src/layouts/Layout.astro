@@ -12,6 +12,7 @@ interface Props {
 }
 
 const { hostname } = Astro.url;
+console.log('layout - url', JSON.stringify(Astro.url))
 const readableHost = readableHostname(hostname);
 const { pageTitle } = Astro.props;
 ---

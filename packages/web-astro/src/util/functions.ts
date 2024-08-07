@@ -18,7 +18,7 @@ export const readableHostname = (hostname: string): string | undefined =>  {
   if(hostArray.length > 2) {
     // get the first element of the array
     subName = hostArray.shift();
-    console.debug('readableHostname - subName',subName)
+    console.info('readableHostname - subName',subName)
   }
 
   switch(hostArray[hostArray.length - 1]) {
@@ -35,7 +35,7 @@ export const readableHostname = (hostname: string): string | undefined =>  {
       return undefined;
   }
   const readable = `${sentenceCase(hostArray.join(' '))}${subName ? ` | ${subName}` : ''}`;
-  console.debug('readableHostname - result',readable)
+  console.info('readableHostname - result',readable)
 
   return readable;
 }
