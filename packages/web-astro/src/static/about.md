@@ -6,7 +6,7 @@ badges:
     'Pixel Knitter',
     'Engineer',
     'Storyteller',
-    'Entreprenuer',
+    'Entrepreneur',
     'Educator',
     'Philosopher',
     'Traveler',
