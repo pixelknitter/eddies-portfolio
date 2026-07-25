@@ -35,5 +35,6 @@
       "@static/*": ["src/static/*"],
       "@util/*": ["src/util/*"],
     }
-  }
+  },
+  "exclude": ["dist", "node_modules", "tmp"]
 }

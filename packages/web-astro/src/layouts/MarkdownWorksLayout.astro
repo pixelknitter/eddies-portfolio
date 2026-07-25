@@ -1,10 +1,10 @@
 ---
 import BaseLayout from './Layout.astro';
-import type { Project } from "@content/config";
+import type { CollectionEntry } from 'astro:content';
 import Hero from "@components/Hero.astro";
 
 interface Props {
-    frontmatter: Project
+    frontmatter: CollectionEntry<'projects'>['data'];
 }
 
 const { frontmatter } = Astro.props;

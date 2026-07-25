@@ -51,6 +51,6 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: >-
-            pages deploy dist/packages/web-astro
+            pages deploy packages/web-astro/dist
             --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME || 'eddies-portfolio' }}
             --branch=main

@@ -27,8 +27,6 @@ const projects = defineCollection({
   schema: ProjectSchema,
 });
 
-export type Project = z.infer<typeof ProjectSchema>;
-
 const BlogSchema = z.object({
   title: z.string(),
   // Reference a single author from the `authors` collection by `id`
@@ -49,8 +47,6 @@ const blog = defineCollection({
   schema: BlogSchema,
 });
 
-export type BlogPost = z.infer<typeof BlogSchema>;
-
 const AuthorSchema = z.object({
   name: z.string(),
   portfolio: z.string().url(),
@@ -60,7 +56,5 @@ const authors = defineCollection({
   loader: glob({ pattern: '**/*.json', base: './src/content/authors' }),
   schema: AuthorSchema,
 });
-
-export type Author = z.infer<typeof AuthorSchema>;
 
 export const collections = { projects, blog, authors };

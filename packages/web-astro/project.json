@@ -9,7 +9,7 @@
       "executor": "nx:run-commands",
       "cache": true,
       "outputs": [
-        "{workspaceRoot}/dist/packages/web-astro"
+        "{projectRoot}/dist"
       ],
       "options": {
         "command": "astro build",
