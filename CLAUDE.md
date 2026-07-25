@@ -1,8 +1,12 @@
 # CLAUDE.md - AI Assistant Guide for Eddie's Portfolio
 
-> **Version:** 0.3.0
-> **Last Updated:** 2025-11-23
+> **Version:** 0.4.0
+> **Last Updated:** 2026-07-25
 > **Purpose:** This document provides comprehensive guidance for AI assistants working with Eddie Freeman's portfolio codebase.
+
+> **Note:** The tech stack was modernized in July 2026 (Astro 7, React 19,
+> Tailwind 4, Nx 23, ESLint 9 flat config, Node 22, Vitest). Sections below
+> reflect the current state; see the git history for the migration commits.
 
 ---
 
@@ -93,24 +97,32 @@ src/
 │   ├── AnimateOnScroll.astro # Scroll animations
 │   └── ThemeIcon.astro    # Theme toggle button
 │
-├── content/               # Content collections (typed)
-│   ├── config.ts          # Zod schemas for collections
+├── content.config.ts      # Content Layer schemas + glob loaders
+│                          #   (NOT src/content/config.ts)
+├── content/               # Content collection sources
 │   ├── blog/              # Blog markdown files
 │   ├── projects/          # Project markdown files
 │   └── authors/           # Author data (JSON)
 │
 ├── react/                 # React components (islands)
-│   └── AIResume.tsx       # Interactive AI resume
+│   ├── AIResume.tsx       # Interactive AI resume
+│   └── AIResume.spec.tsx  # Vitest render/interaction test
 │
 ├── static/                # Static markdown files
 │   └── about.md           # Home page about content
 │
 ├── styles/
-│   └── global.css         # Global Tailwind styles
+│   ├── global.css         # @import "tailwindcss" + @theme tokens
+│   └── motion.css         # Motion/animation variables
 │
 └── util/
-    └── constants.ts       # Environment vars, tech stack data
+    ├── constants.ts       # Environment vars, tech stack data
+    └── constants.spec.ts  # Vitest data-integrity test
 ```
+
+> Tailwind 4 has **no** `tailwind.config.cjs`. ESLint uses a flat config
+> (`eslint.config.mjs` at the root, extended per package). Vitest config is
+> `vitest.config.mts` + `vitest.setup.ts` in the package root.
 
 ### Path Aliases
 
@@ -135,32 +147,36 @@ import { TECH_STACK } from '@util/constants';
 ## Technology Stack
 
 ### Core Framework
-- **Astro 4.13.1** - Static site generator with server output for Cloudflare
-- **React 18.3.1** - For interactive islands (minimal client-side JS)
-- **TypeScript 5.4.5** - Strict mode enabled
+- **Astro 7.1.3** - Static site generator with server output for Cloudflare
+- **React 19.2** - For interactive islands (minimal client-side JS)
+- **TypeScript 5.7** - Strict mode enabled (`moduleResolution: bundler`)
 
 ### Styling
-- **Tailwind CSS 3.4.3** - Utility-first CSS framework
-- **@tailwindcss/typography** - Styled prose content
-- **PostCSS** - CSS transformations
-- **Autoprefixer** - Vendor prefix automation
+- **Tailwind CSS 4** - Utility-first CSS, **CSS-first config** via
+  `@theme` in `src/styles/global.css` (no `tailwind.config.cjs`)
+- **@tailwindcss/vite** - Tailwind is a Vite plugin (not `@astrojs/tailwind`)
+- **@tailwindcss/typography** - Styled prose content (loaded via `@plugin`)
 
 ### Build Tools
-- **Nx 19.0.3** - Monorepo build system with smart caching
-- **@nxtensions/astro** - Nx integration for Astro
+- **Nx 23** - Monorepo build/caching; targets run the Astro CLI via
+  `nx:run-commands` (the abandoned `@nxtensions/astro` plugin was removed)
 - **Yarn 3.8.2** - Package manager (node-modules linker)
+- **Node 22.12** - see `.nvmrc`
 
 ### Testing
-- **Cypress 12.17.4** - E2E testing
-- **Jest** - Unit/integration testing (Nx preset)
+- **Vitest** - Unit/integration tests (jsdom + Testing Library); Nx `test`
+  target. Specs live next to source as `*.spec.ts(x)`
+- **Cypress** - E2E scaffold (placeholder; its binary does not build in all
+  sandboxes — prefer Vitest for new coverage)
 
 ### Code Quality
-- **ESLint 8.57.0** - Linting (TypeScript, React, Astro plugins)
-- **Prettier 2.6.2** - Code formatting with Tailwind class sorting
+- **ESLint 9** - Flat config (`eslint.config.mjs`), typescript-eslint v8
+- **Prettier 3** - Formatting with Tailwind 4 class sorting + Astro plugin
 
 ### Deployment
-- **@astrojs/cloudflare** - Cloudflare Pages adapter
-- **Nx Cloud** - Remote caching for CI/CD
+- **@astrojs/cloudflare 14** - Cloudflare Pages adapter (Wrangler 4)
+- **GitHub Actions** - CI (`.github/workflows/ci.yml`) + deploy
+  (`deploy.yml`); local Nx caching (Nx Cloud removed)
 
 ---
 
@@ -170,7 +186,7 @@ import { TECH_STACK } from '@util/constants';
 
 ```bash
 # Required Node version
-node --version  # Should be v18.19.0 (see .nvmrc)
+node --version  # Should be v22.12.0 (see .nvmrc)
 
 # Install dependencies
 yarn install
@@ -197,16 +213,27 @@ nx preview web-astro
 # TypeScript type checking
 nx check web-astro
 
-# Run E2E tests
-nx e2e web-astro-e2e
+# Unit tests (Vitest)
+nx test web-astro
+nx test web-astro --configuration=watch
+
+# Lint (ESLint 9 flat config)
+nx lint web-astro
+
+# Run all CI targets at once
+yarn ci   # -> nx run-many --targets=check,lint,test,build --projects=web-astro
 ```
+
+> **CI parity:** the GitHub Actions workflow runs `check`, `lint`, `test`,
+> and `build`. Cypress's binary is skipped in install (`CYPRESS_INSTALL_BINARY=0`)
+> and the Nx daemon is disabled (`NX_DAEMON=false`).
 
 ### Nx Caching
 
 Nx caches build outputs, lint results, and test runs for faster rebuilds:
-- Cache location: `node_modules/.cache/nx`
-- Remote caching: Nx Cloud (enabled)
+- Cache: local only (`.nx/cache`); Nx Cloud has been removed
 - Clear cache: `nx reset`
+- CI disables the daemon (`NX_DAEMON=false`) for deterministic runs
 
 ### File Watching
 
@@ -298,37 +325,46 @@ import AIResume from '@/react/AIResume';
 
 ### Content Collections
 
-Content is typed using Zod schemas in `src/content/config.ts`:
+Content uses the **Content Layer API** (Astro 5+). Collections are typed with
+Zod schemas and `glob()` loaders in `src/content.config.ts` (note: this file
+lives at `src/content.config.ts`, **not** `src/content/config.ts`):
 
 ```typescript
 import { defineCollection, z, reference } from 'astro:content';
+import { glob } from 'astro/loaders';
 
 const blog = defineCollection({
-  type: 'content',
+  loader: glob({ pattern: '**/*.md', base: './src/content/blog' }),
   schema: z.object({
     title: z.string(),
     author: reference('authors'),
-    relatedPosts: z.array(z.string()).optional(),
+    relatedPosts: z.array(reference('blog')),
     tags: z.array(z.string()),
-    draft: z.boolean().default(false),
-    heroImage: z.string().optional(),
+    draft: z.boolean(),
+    heroImage: z.object({ url: z.string(), alt: z.string() }),
+    blurb: z.string(),
   }),
 });
 ```
 
-**Querying content:**
+**Querying content** (Content Layer: use `entry.id` as the slug, and the
+top-level `render()` function):
 
 ```typescript
-import { getCollection } from 'astro:content';
+import { getCollection, render } from 'astro:content';
 
 // Get all blog posts (filtering drafts in production)
 const posts = await getCollection('blog', ({ data }) => {
-  return import.meta.env.PROD ? !data.draft : true;
+  return import.meta.env.PROD ? data.draft !== true : true;
 });
 
-// Get single entry
-const project = await getEntry('projects', 'project-1');
+// entry.id is the slug (e.g. "hello"); render markdown:
+const { Content } = await render(posts[0]);
 ```
+
+> **Migration notes (from legacy collections):** `entry.slug` → `entry.id`;
+> `entry.render()` → `render(entry)`; for frontmatter prop types use
+> `CollectionEntry<'blog'>['data']` rather than custom `z.infer` exports.
 
 ### Responsive Design Patterns
 
@@ -388,7 +424,7 @@ import { SITE_TITLE } from '@util/constants';
 
 ### Content Collections Overview
 
-Three collections defined in `src/content/config.ts`:
+Three collections defined in `src/content.config.ts`:
 
 1. **Blog** - Blog posts (markdown with frontmatter)
 2. **Projects** - Project showcases (markdown with frontmatter)
@@ -466,58 +502,58 @@ const posts = await getCollection('blog', ({ data }) => {
 
 ## Styling & Theming
 
-### Tailwind Configuration
+### Tailwind Configuration (Tailwind 4, CSS-first)
 
-**Location:** `packages/web-astro/tailwind.config.cjs`
+Tailwind 4 has **no JS config file**. Theme tokens live in an `@theme` block
+in `packages/web-astro/src/styles/global.css`, and Tailwind runs as a Vite
+plugin (`@tailwindcss/vite` in `astro.config.mjs`). Content sources are
+auto-detected — no `content` array.
 
-#### Custom Colors
+```css
+/* src/styles/global.css */
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
-```javascript
-colors: {
-  dark: '#1e1e2e',      // Dark mode background
-  light: '#fdebf3',     // Light mode background
-  button: '#5dd39e',    // Primary button color
-  link: '#5dd39e',      // Link color
-  underline: '#348aa7', // Underline accent
-  emphasis: '#525174',  // Text emphasis
-  tag: '#584966',       // Tag background
-  disabled: '#5c5b77',  // Disabled state
+/* Class-based dark mode (the app toggles `.dark` on <html>). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-dark: #1e1e2e;      /* dark bg */
+  --color-light: #fdebf3;     /* light bg */
+  --color-button: #5dd39e;
+  --color-link: #5dd39e;
+  --color-underline: #348aa7;
+  --color-emphasis: #525174;
+  --color-tag: #584966;
+  --color-disabled: #5c5b77;
+
+  --font-header: "Pacifico", cursive;
+  --font-body: "Josefin Sans", sans-serif;
 }
 ```
 
-#### Custom Fonts
-
-```javascript
-fontFamily: {
-  head: ['Pacifico', 'cursive'],          // Headers
-  body: ['Josefin Sans', 'sans-serif'],   // Body text
-}
-```
-
-#### Custom Animations
-
-```javascript
-keyframes: {
-  fadeIn: { /* ... */ },
-  slideUp: { /* ... */ },
-  bounce: { /* ... */ },
-}
-```
+> **Gotcha:** `@apply` inside an Astro component's scoped `<style>` needs a
+> `@reference "../styles/global.css";` at the top of that block to resolve
+> theme tokens (see `Badge.astro`). Also, Tailwind 4 removed the standalone
+> `transform` utility — translate/scale/rotate compose automatically.
 
 ### Dark Mode Implementation
 
-**Class-based dark mode** with localStorage persistence:
+**Class-based dark mode** (via the `@custom-variant dark` above) with
+localStorage persistence. An inline script in `Layout.astro` applies the
+theme on load and after view transitions:
 
 ```javascript
 // In Layout.astro
-<script is:inline>
-  // Check localStorage or system preference
-  const theme = localStorage.getItem('theme') ||
-    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-
-  if (theme === 'dark') {
-    document.documentElement.classList.add('dark');
+<script>
+  function applyTheme() {
+    const theme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.classList.toggle('dark', theme === 'dark' || (!theme && prefersDark));
   }
+  applyTheme();
+  document.addEventListener('astro:after-swap', applyTheme);
+  window.addEventListener('storage', (e) => { if (e.key === 'theme') applyTheme(); });
 </script>
 ```
 
@@ -570,43 +606,45 @@ Standard Tailwind breakpoints:
 
 ## Testing
 
-### E2E Testing with Cypress
+### Unit/Integration Testing with Vitest
 
-**Location:** `packages/web-astro-e2e/`
+**Config:** `packages/web-astro/vitest.config.mts` (lean, framework-agnostic —
+avoids loading the Cloudflare adapter). Setup: `vitest.setup.ts`.
 
 **Run tests:**
 ```bash
-nx e2e web-astro-e2e
-nx e2e web-astro-e2e --watch  # Interactive mode
+nx test web-astro                      # single run
+nx test web-astro --configuration=watch
 ```
 
-**Test structure:**
-```typescript
-// src/e2e/app.cy.ts
-describe('web-astro', () => {
-  beforeEach(() => cy.visit('/'));
+**Conventions:**
+- Co-locate specs with source: `src/**/*.spec.ts` or `*.spec.tsx`
+- React islands: render with `@testing-library/react` + `jsdom`
+- Plain modules (e.g. `constants.ts`): assert data shape/invariants
+- Astro component rendering is covered by the `build` target in CI, not unit
+  tests
 
-  it('should display welcome message', () => {
-    cy.get('h1').should('contain', 'Welcome');
+**Example:**
+```typescript
+// src/util/constants.spec.ts
+import { describe, it, expect } from 'vitest';
+import { buildingBlocks } from './constants';
+
+describe('buildingBlocks', () => {
+  it('gives every badge a label and tech key', () => {
+    for (const badge of Object.values(buildingBlocks).flat()) {
+      expect(badge.label).toBeTruthy();
+      expect(badge.tech).toBeTruthy();
+    }
   });
 });
 ```
 
-**Page Object Model:**
-```typescript
-// src/support/app.po.ts
-export const getGreeting = () => cy.get('h1');
-```
+### E2E Testing with Cypress
 
-### Unit Testing with Jest
-
-**Configuration:** `jest.config.ts`
-
-**Run tests:**
-```bash
-nx test web-astro
-nx test web-astro --watch
-```
+**Location:** `packages/web-astro-e2e/` — placeholder scaffold only. The
+Cypress binary does not build in all sandboxes; prefer Vitest for new
+coverage until E2E is revisited (consider Playwright).
 
 ### Type Checking
 
@@ -629,21 +667,42 @@ nx lint web-astro --fix
 
 ### Cloudflare Pages
 
-**Adapter:** `@astrojs/cloudflare`
+**Adapter:** `@astrojs/cloudflare` 14 (Wrangler 4)
 **Output Mode:** Server (SSR enabled)
-**Build Output:** `dist/packages/web-astro/`
+**Build Output:** `packages/web-astro/dist/`
 
 **Astro configuration:**
 ```javascript
 // astro.config.mjs
 import cloudflare from '@astrojs/cloudflare';
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
+  outDir: './dist',                 // package-local — see note below
+  integrations: [react()],
+  vite: { plugins: [tailwindcss()] },
   output: 'server',
-  adapter: cloudflare(),
-  // ...
+  adapter: cloudflare({
+    imageService: 'passthrough',
+    platformProxy: { enabled: false },
+  }),
 });
 ```
+
+> **Why `outDir: './dist'` (not the Nx `dist/packages/web-astro`)?** The
+> Cloudflare adapter v14 prerenders pages through **workerd**, whose
+> filesystem sandbox rejects paths containing `..`. Output must live inside
+> the project root. The Nx `build` target declares `{projectRoot}/dist` as its
+> output; the deploy workflow publishes `packages/web-astro/dist`.
+
+### CI/CD (GitHub Actions)
+
+- **`.github/workflows/ci.yml`** — runs `check`, `lint`, `test`, `build` on
+  push/PR.
+- **`.github/workflows/deploy.yml`** — on successful CI on `main`, builds and
+  runs `wrangler pages deploy packages/web-astro/dist`. Requires repo secrets
+  `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` (and optional var
+  `CLOUDFLARE_PROJECT_NAME`).
 
 ### Build Process
 
@@ -652,7 +711,7 @@ export default defineConfig({
 yarn astro:build
 
 # Output location
-dist/packages/web-astro/
+packages/web-astro/dist/
 ```
 
 ### Environment Variables
@@ -751,18 +810,15 @@ export const TECH_STACK = {
 
 ### Modifying Theme Colors
 
-1. Edit `tailwind.config.cjs`:
-```javascript
-theme: {
-  extend: {
-    colors: {
-      primary: '#new-color',
-    },
-  },
+1. Edit the `@theme` block in `src/styles/global.css`:
+```css
+@theme {
+  --color-primary: #new-color;
 }
 ```
 
-2. Use in components:
+2. Use in components (the `--color-primary` token generates `*-primary`
+   utilities):
 ```astro
 <div class="bg-primary text-white">
   <!-- Content -->
@@ -885,8 +941,10 @@ Edit `src/styles/global.css`:
 ### Common Issues
 
 **Issue:** Tailwind classes not applying
-- **Solution:** Check `tailwind.config.cjs` content paths include your files
-- **Solution:** Restart dev server after config changes
+- **Solution:** Tailwind 4 auto-detects content — restart the dev server after
+  editing `@theme` in `global.css`
+- **Solution:** In a component's scoped `<style>`, add
+  `@reference "../styles/global.css";` before using `@apply`
 
 **Issue:** TypeScript errors in `.astro` files
 - **Solution:** Run `nx check web-astro` for detailed errors
@@ -898,10 +956,10 @@ Edit `src/styles/global.css`:
 
 **Issue:** Content collection changes not reflected
 - **Solution:** Restart dev server
-- **Solution:** Check schema in `src/content/config.ts`
+- **Solution:** Check schema/loaders in `src/content.config.ts`
 
 **Issue:** Build fails with "Cannot find module"
-- **Solution:** Check path aliases in `tsconfig.base.json`
+- **Solution:** Check path aliases in `packages/web-astro/tsconfig.json`
 - **Solution:** Ensure imports use correct aliases
 
 **Issue:** Nx cache causing stale builds
@@ -931,15 +989,19 @@ Edit `src/styles/global.css`:
 - Create portfolio analytics dashboard
 
 ### Recent Changes
-- Navigation feature flagging (under development)
-- Footer spacing adjustments
-- Typo fixes in content (Entrepreneur badge)
-- Tailwind CSS migration from global styles
-- React dependency fixes
-- Content typing improvements
+- **Major stack upgrade (July 2026):** Node 18→22, TypeScript 5.4→5.7,
+  Nx 19→23, Astro 4→7 (+ Content Layer), React 18→19, Tailwind 3→4
+  (CSS-first), ESLint 8→9 (flat config), Prettier 2→3.
+- Removed the abandoned `@nxtensions/astro` plugin; Astro CLI now runs via
+  Nx `run-commands`.
+- Added a Vitest test suite, GitHub Actions CI + Cloudflare deploy workflows.
+- Removed the committed Nx Cloud token from `nx.json` (**it was a plaintext
+  read-write token and should be rotated**); Nx now uses local caching.
+- Build output moved to `packages/web-astro/dist` (workerd sandbox
+  constraint).
 
 ---
 
-**Last Updated:** 2025-11-23
+**Last Updated:** 2026-07-25
 **Maintainer:** Eddie Freeman
 **For Questions:** Refer to README.md or codebase comments
