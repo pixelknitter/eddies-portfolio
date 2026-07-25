@@ -24,6 +24,28 @@
     },
     "check": {
       "executor": "@nxtensions/astro:check"
+    },
+    "lint": {
+      "executor": "@nx/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": [
+          "packages/web-astro/**/*.{js,jsx,ts,tsx,astro}"
+        ]
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "options": {
+        "command": "vitest run",
+        "cwd": "packages/web-astro"
+      },
+      "configurations": {
+        "watch": {
+          "command": "vitest"
+        }
+      }
     }
   }
 }
