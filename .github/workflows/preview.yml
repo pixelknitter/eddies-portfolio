@@ -1,0 +1,131 @@
+name: Preview Deploy
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# One preview per PR; newer pushes supersede in-flight runs.
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  CYPRESS_INSTALL_BINARY: '0'
+  NX_DAEMON: 'false'
+
+jobs:
+  preview:
+    name: Build & deploy preview
+    runs-on: ubuntu-latest
+    # Cloudflare + Discord credentials are stored as *environment* secrets,
+    # so the job must declare the environment to read them.
+    environment:
+      name: staging
+      url: ${{ steps.deploy.outputs.pages-deployment-alias-url || steps.deploy.outputs.deployment-url }}
+    permissions:
+      contents: read
+      pull-requests: write
+      deployments: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable Corepack (Yarn 3)
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      # Never ship a preview that would not have passed CI.
+      - name: Type-check
+        run: yarn nx check web-astro
+
+      - name: Lint
+        run: yarn nx lint web-astro
+
+      - name: Unit tests
+        run: yarn nx test web-astro
+
+      - name: Build
+        run: yarn nx build web-astro
+
+      # Deploy under a per-PR branch name so Cloudflare mints a stable preview
+      # alias. The alias is derived from the numeric PR number, so it is
+      # inherently safe to interpolate and always a valid DNS label.
+      - name: Deploy preview to Cloudflare Pages
+        id: deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: >-
+            pages deploy dist/packages/web-astro
+            --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME || 'eddies-portfolio' }}
+            --branch=pr-${{ github.event.pull_request.number }}
+
+      # Validate the deployment actually serves before calling it a success.
+      # Previews are gated by Cloudflare Access: without a service token the
+      # script reports that and skips rather than silently passing against the
+      # Access login page.
+      - name: Smoke test the deployment
+        env:
+          PREVIEW_URL: ${{ steps.deploy.outputs.pages-deployment-alias-url || steps.deploy.outputs.deployment-url }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+        run: node scripts/smoke-test.mjs "$PREVIEW_URL"
+
+      - name: Comment preview URL on the PR
+        if: success()
+        uses: actions/github-script@v7
+        env:
+          PREVIEW_URL: ${{ steps.deploy.outputs.pages-deployment-alias-url || steps.deploy.outputs.deployment-url }}
+        with:
+          script: |
+            const url = process.env.PREVIEW_URL;
+            const marker = '<!-- preview-deploy -->';
+            const body = `${marker}\n### 🔎 Preview deployment\n\n`
+              + `**URL:** ${url}\n\n`
+              + `Smoke tests passed against this deployment. `
+              + `_Private — access is gated by Cloudflare Access. `
+              + `Commit \`${context.sha.substring(0,7)}\`._`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                comment_id: existing.id, body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: context.issue.number, body,
+              });
+            }
+
+      - name: Notify deployments channel (success)
+        if: success()
+        uses: ./.github/actions/discord-notify
+        with:
+          webhook-url: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
+          status: success
+          title: '🔎 Preview deployed — PR #${{ github.event.pull_request.number }}'
+          description: ${{ github.event.pull_request.title }}
+          result-url: ${{ steps.deploy.outputs.pages-deployment-alias-url || steps.deploy.outputs.deployment-url }}
+
+      - name: Notify alerts channel (failure)
+        if: failure()
+        uses: ./.github/actions/discord-notify
+        with:
+          webhook-url: ${{ secrets.DISCORD_ALERT_WEBHOOK_URL }}
+          status: failure
+          title: '❌ Preview failed — PR #${{ github.event.pull_request.number }}'
+          description: 'Verification, deployment, or the post-deploy smoke test failed. See the pipeline for logs.'

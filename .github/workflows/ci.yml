@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+# Cancel in-progress runs for the same ref to save CI minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Cypress is an unused scaffold here and its binary download is slow/flaky.
+  CYPRESS_INSTALL_BINARY: '0'
+  # The Nx daemon adds no value for single-run ephemeral CI and can be flaky.
+  NX_DAEMON: 'false'
+
+jobs:
+  verify:
+    name: Type-check, lint, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Nx needs history to compute affected projects on PRs.
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable Corepack (Yarn 3)
+        run: corepack enable
+
+      - name: Get Yarn cache directory
+        id: yarn-cache
+        run: echo "dir=$(yarn config get cacheFolder)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Yarn packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.yarn-cache.outputs.dir }}
+          key: yarn-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+          restore-keys: yarn-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Type-check
+        run: yarn nx check web-astro
+
+      - name: Lint
+        run: yarn nx lint web-astro
+
+      - name: Unit tests
+        run: yarn nx test web-astro
+
+      - name: Build
+        run: yarn nx build web-astro
+
+  # The Discord webhook is an *environment* secret, so reading it requires
+  # declaring an environment. Keep that in a separate failure-only job so
+  # green CI runs don't create spurious `staging` deployment records.
+  alert:
+    name: Alert on failure
+    needs: verify
+    if: failure()
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Notify alerts channel
+        uses: ./.github/actions/discord-notify
+        with:
+          webhook-url: ${{ secrets.DISCORD_ALERT_WEBHOOK_URL }}
+          status: failure
+          title: '❌ CI failed on ${{ github.ref_name }}'
+          description: 'Type-check, lint, test, or build failed. See the pipeline for logs.'
