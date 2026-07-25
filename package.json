@@ -14,10 +14,10 @@
   },
   "private": true,
   "devDependencies": {
-    "@astrojs/check": "0.9.1",
-    "@astrojs/react": "3.6.1",
-    "@astrojs/tailwind": "5.1.0",
-    "@astrojs/ts-plugin": "1.9.1",
+    "@astrojs/check": "0.9.9",
+    "@astrojs/react": "4.4.2",
+    "@astrojs/tailwind": "6.0.2",
+    "@astrojs/ts-plugin": "1.10.10",
     "@babel/preset-react": "^7.14.5",
     "@eslint/eslintrc": "^3.0.0",
     "@eslint/js": "^9.8.0",
@@ -34,7 +34,7 @@
     "@types/react-dom": "18.3.0",
     "@typescript-eslint/eslint-plugin": "8.65.0",
     "@typescript-eslint/parser": "8.65.0",
-    "astro": "4.13.1",
+    "astro": "5.18.2",
     "astro-eslint-parser": "^1.2.0",
     "autoprefixer": "10.4.13",
     "cypress": "12.17.4",
@@ -62,7 +62,7 @@
     "packages/*"
   ],
   "dependencies": {
-    "@astrojs/cloudflare": "11.0.4",
+    "@astrojs/cloudflare": "12.6.13",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   }

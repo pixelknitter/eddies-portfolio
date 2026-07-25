@@ -1,4 +1,5 @@
 import { z, defineCollection, reference } from 'astro:content';
+import { glob } from 'astro/loaders';
 
 const ProjectSchema = z.object({
   title: z.string(),
@@ -22,7 +23,7 @@ const ProjectSchema = z.object({
 });
 
 const projects = defineCollection({
-  type: 'content',
+  loader: glob({ pattern: '**/*.md', base: './src/content/projects' }),
   schema: ProjectSchema,
 });
 
@@ -32,7 +33,7 @@ const BlogSchema = z.object({
   title: z.string(),
   // Reference a single author from the `authors` collection by `id`
   author: reference('authors'),
-  // Reference an array of related posts from the `blog` collection by `slug`
+  // Reference an array of related posts from the `blog` collection by `id`
   relatedPosts: z.array(reference('blog')),
   blurb: z.string(),
   tags: z.array(z.string()),
@@ -44,12 +45,11 @@ const BlogSchema = z.object({
 });
 
 const blog = defineCollection({
-  type: 'content',
+  loader: glob({ pattern: '**/*.md', base: './src/content/blog' }),
   schema: BlogSchema,
 });
-// , 'author' | 'relatedPosts'> & { author: Author, relatedPosts: string[] };
-export type BlogPost = z.infer<typeof BlogSchema>
-// FIXME: get the available slugs for posts
+
+export type BlogPost = z.infer<typeof BlogSchema>;
 
 const AuthorSchema = z.object({
   name: z.string(),
@@ -57,7 +57,7 @@ const AuthorSchema = z.object({
 });
 
 const authors = defineCollection({
-  type: 'data',
+  loader: glob({ pattern: '**/*.json', base: './src/content/authors' }),
   schema: AuthorSchema,
 });
 
