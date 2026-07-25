@@ -22,6 +22,31 @@ GitHub Actions pipelines. Preview deployments are private, gated by
 Preview uploads create a new Worker *version* without promoting it, so a PR
 preview never affects production traffic.
 
+## First-time setup: bootstrap the Worker
+
+`preview.yml` uses `wrangler versions upload`, which **requires the Worker to
+already exist**. On a brand-new account/worker it fails with:
+
+```
+✘ [ERROR] You cannot upload a new version of a Worker that does not yet
+  exist. Please run the `deploy` command first.
+```
+
+So the Worker must be created once, by a production deploy. Either:
+
+**A. Locally (one command, no token needed):**
+```bash
+npx wrangler login                 # interactive OAuth
+yarn nx build web-astro
+npx wrangler deploy -c packages/web-astro/dist/server/wrangler.json
+```
+
+**B. Or merge to `master`** — CI passes, `deploy.yml` runs `wrangler deploy`,
+and the Worker is created. Every PR opened *after* that gets a preview.
+
+Once the Worker exists, previews work on every PR and this step never
+repeats.
+
 ## Worker configuration
 
 `packages/web-astro/wrangler.jsonc` holds the base config (worker name,
