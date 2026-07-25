@@ -46,6 +46,7 @@ jobs:
         run: yarn nx build web-astro
 
       - name: Publish to Cloudflare Pages
+        id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -54,3 +55,22 @@ jobs:
             pages deploy packages/web-astro/dist
             --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME || 'eddies-portfolio' }}
             --branch=main
+
+      - name: Notify deployments channel (success)
+        if: success()
+        uses: ./.github/actions/discord-notify
+        with:
+          webhook-url: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
+          status: success
+          title: '🚀 Production deployed'
+          description: 'eddies-portfolio is live on Cloudflare Pages.'
+          result-url: ${{ steps.deploy.outputs.deployment-url }}
+
+      - name: Notify alerts channel (failure)
+        if: failure()
+        uses: ./.github/actions/discord-notify
+        with:
+          webhook-url: ${{ secrets.DISCORD_ALERT_WEBHOOK_URL }}
+          status: failure
+          title: '❌ Production deploy failed'
+          description: 'The production build or deployment failed. See the pipeline for logs.'
