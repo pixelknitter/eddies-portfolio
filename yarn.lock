@@ -93,13 +93,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@astrojs/compiler@npm:~2.7.0":
-  version: 2.7.1
-  resolution: "@astrojs/compiler@npm:2.7.1"
-  checksum: da3c53702b67642f3ea58fc91b6ccd49f07b91199108497b66193289f280765283a16e2b42f4ad3a588232dda368e719480058bc6910e7282b9cffe7170ea6e7
-  languageName: node
-  linkType: hard
-
 "@astrojs/internal-helpers@npm:0.4.1":
   version: 0.4.1
   resolution: "@astrojs/internal-helpers@npm:0.4.1"
@@ -4926,34 +4919,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nxtensions/astro@npm:19.0.0":
-  version: 19.0.0
-  resolution: "@nxtensions/astro@npm:19.0.0"
-  dependencies:
-    "@astrojs/compiler": ~2.7.0
-    "@phenomnomnominal/tsquery": ~6.1.3
-    fs-extra: ~11.2.0
-    node-fetch: ~2.7.0
-    semver: ~7.6.0
-    strip-ansi: ~6.0.1
-    tslib: ~2.6.2
-  peerDependencies:
-    "@nx/cypress": ^19.0.0
-    "@nx/devkit": ^19.0.0
-    "@nx/js": ^19.0.0
-    "@nx/playwright": ^19.0.0
-    astro: ^3.0.0 || ^4.0.0
-    nx: ^19.0.0
-    typescript: ^5.0.0
-  peerDependenciesMeta:
-    "@nx/cypress":
-      optional: true
-    "@nx/playwright":
-      optional: true
-  checksum: 53346a63b7e2173a2db376fb333215bf5bed556b8c60f81f5450c488be33a7c2e2a7e115e5c508d3d9714bc53a11d5644272906f3e4e3f93d271fe184cdaa476
-  languageName: node
-  linkType: hard
-
 "@phenomnomnominal/tsquery@npm:~5.0.1":
   version: 5.0.1
   resolution: "@phenomnomnominal/tsquery@npm:5.0.1"
@@ -4962,18 +4927,6 @@ __metadata:
   peerDependencies:
     typescript: ^3 || ^4 || ^5
   checksum: d8636ece9edb1212394427411870285c67709f0a047c61453ab602e9277cb49c85069d00d4734e4934a5857ab159f24baecac84fae2530ea88bd6aff570eee03
-  languageName: node
-  linkType: hard
-
-"@phenomnomnominal/tsquery@npm:~6.1.3":
-  version: 6.1.3
-  resolution: "@phenomnomnominal/tsquery@npm:6.1.3"
-  dependencies:
-    "@types/esquery": ^1.5.0
-    esquery: ^1.5.0
-  peerDependencies:
-    typescript: ^3 || ^4 || ^5
-  checksum: 92e5d11ebccaabcb8336f0c9925b756047de06fe7a345506b24700a82d80b74eb4c811b3ead81727a14b2f28d92796e7b80b2ee8e1777064fcb15fa02c0c886d
   languageName: node
   linkType: hard
 
@@ -5701,15 +5654,6 @@ __metadata:
     "@types/estree": "*"
     "@types/json-schema": "*"
   checksum: fb7137dd263ce1130b42d14452bdd0266ef81f52cb55ba1a5e9750e65da1f0596dc598c88bffc7e415458b6cb611a876dcc132bcf40ea48701c6d05b40c57be5
-  languageName: node
-  linkType: hard
-
-"@types/esquery@npm:^1.5.0":
-  version: 1.5.4
-  resolution: "@types/esquery@npm:1.5.4"
-  dependencies:
-    "@types/estree": "*"
-  checksum: 5fc78cbaf48e66b05d051013a634aa270311b02a4c38b9b02510e4224ebd29974c0f8b9bff647d258c08ac35dc3e3266425b39c4b7e24b055097eec502a12d71
   languageName: node
   linkType: hard
 
@@ -8954,7 +8898,6 @@ __metadata:
     "@nx/linter": 19.0.3
     "@nx/react": 19.0.3
     "@nx/react-native": 19.0.3
-    "@nxtensions/astro": 19.0.0
     "@tailwindcss/typography": ^0.5.13
     "@testing-library/dom": ^10.4.0
     "@testing-library/jest-dom": ^6.4.8
@@ -9846,7 +9789,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"esquery@npm:^1.4.0, esquery@npm:^1.4.2, esquery@npm:^1.5.0":
+"esquery@npm:^1.4.0, esquery@npm:^1.4.2":
   version: 1.5.0
   resolution: "esquery@npm:1.5.0"
   dependencies:
@@ -10366,7 +10309,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fs-extra@npm:^11.2.0, fs-extra@npm:~11.2.0":
+"fs-extra@npm:^11.2.0":
   version: 11.2.0
   resolution: "fs-extra@npm:11.2.0"
   dependencies:
@@ -14160,20 +14103,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"node-fetch@npm:~2.7.0":
-  version: 2.7.0
-  resolution: "node-fetch@npm:2.7.0"
-  dependencies:
-    whatwg-url: ^5.0.0
-  peerDependencies:
-    encoding: ^0.1.0
-  peerDependenciesMeta:
-    encoding:
-      optional: true
-  checksum: d76d2f5edb451a3f05b15115ec89fc6be39de37c6089f1b6368df03b91e1633fd379a7e01b7ab05089a25034b2023d959b47e59759cb38d88341b2459e89d6e5
-  languageName: node
-  linkType: hard
-
 "node-forge@npm:^1":
   version: 1.3.1
   resolution: "node-forge@npm:1.3.1"
@@ -16481,7 +16410,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"semver@npm:^7.3.8, semver@npm:^7.5.3, semver@npm:^7.5.4, semver@npm:^7.6.0, semver@npm:^7.6.2, semver@npm:~7.6.0":
+"semver@npm:^7.3.8, semver@npm:^7.5.3, semver@npm:^7.5.4, semver@npm:^7.6.0, semver@npm:^7.6.2":
   version: 7.6.2
   resolution: "semver@npm:7.6.2"
   bin:
@@ -17056,7 +16985,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"strip-ansi-cjs@npm:strip-ansi@^6.0.1, strip-ansi@npm:^6.0.0, strip-ansi@npm:^6.0.1, strip-ansi@npm:~6.0.1":
+"strip-ansi-cjs@npm:strip-ansi@^6.0.1, strip-ansi@npm:^6.0.0, strip-ansi@npm:^6.0.1":
   version: 6.0.1
   resolution: "strip-ansi@npm:6.0.1"
   dependencies:
@@ -17659,7 +17588,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tslib@npm:^2.0.3, tslib@npm:^2.2.0, tslib@npm:^2.6.2, tslib@npm:~2.6.2":
+"tslib@npm:^2.0.3, tslib@npm:^2.2.0, tslib@npm:^2.6.2":
   version: 2.6.2
   resolution: "tslib@npm:2.6.2"
   checksum: 329ea56123005922f39642318e3d1f0f8265d1e7fcb92c633e0809521da75eeaca28d2cf96d7248229deb40e5c19adf408259f4b9640afd20d13aecc1430f3ad

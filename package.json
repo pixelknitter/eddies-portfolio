@@ -27,7 +27,6 @@
     "@nx/linter": "19.0.3",
     "@nx/react": "19.0.3",
     "@nx/react-native": "19.0.3",
-    "@nxtensions/astro": "19.0.0",
     "@tailwindcss/typography": "^0.5.13",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.4.8",

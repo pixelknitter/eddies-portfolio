@@ -3,7 +3,9 @@ import react from '@astrojs/react';
 import tailwind from '@astrojs/tailwind';
 import cloudflare from "@astrojs/cloudflare";
 const tailwindOptions = {
-  configFile: './packages/web-astro/tailwind.config.cjs'
+  // Resolved relative to this config's directory (the Astro CLI runs with
+  // its cwd set to the package root).
+  configFile: './tailwind.config.cjs'
 }
 
 export default defineConfig({

@@ -1,13 +1,9 @@
 {
-  "plugins": [
-    "@nxtensions/astro"
-  ],
   "targetDefaults": {
     "test": {
       "inputs": [
         "default",
-        "^default",
-        "{workspaceRoot}/jest.preset.js"
+        "^default"
       ],
       "cache": true
     },
@@ -19,30 +15,12 @@
       ],
       "cache": true
     },
-    "@nxtensions/astro:build": {
-      "cache": true,
-      "inputs": [
-        "default",
-        "^default"
-      ],
-      "outputs": [
-        "{workspaceRoot}/dist/{projectRoot}"
-      ]
-    },
-    "@nxtensions/astro:check": {
-      "cache": true,
-      "inputs": [
-        "default",
-        "^default"
-      ]
-    },
-    "@nxtensions/astro:preview": {
-      "dependsOn": [
-        "build"
-      ]
-    },
     "build": {
-      "cache": true
+      "cache": true,
+      "inputs": [
+        "default",
+        "^default"
+      ]
     },
     "e2e": {
       "cache": true
