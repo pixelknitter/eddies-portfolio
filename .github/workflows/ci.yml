@@ -62,8 +62,20 @@ jobs:
       - name: Build
         run: yarn nx build web-astro
 
-      - name: Notify alerts channel (failure)
-        if: failure()
+  # The Discord webhook is an *environment* secret, so reading it requires
+  # declaring an environment. Keep that in a separate failure-only job so
+  # green CI runs don't create spurious `staging` deployment records.
+  alert:
+    name: Alert on failure
+    needs: verify
+    if: failure()
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Notify alerts channel
         uses: ./.github/actions/discord-notify
         with:
           webhook-url: ${{ secrets.DISCORD_ALERT_WEBHOOK_URL }}

@@ -17,23 +17,45 @@ Build output is `packages/web-astro/dist` (see the note in the root
 
 ## Required GitHub secrets & variables
 
-Set these under **Repo → Settings → Secrets and variables → Actions**.
+Secrets are stored as **environment secrets** (not repo-level) under
+**Repo → Settings → Environments**. Two environments are used:
 
-### Secrets
-| Name | Used by | Purpose |
-|------|---------|---------|
-| `CLOUDFLARE_API_TOKEN` | preview, deploy | Cloudflare API token with **Account → Cloudflare Pages → Edit** |
-| `CLOUDFLARE_ACCOUNT_ID` | preview, deploy | Your Cloudflare account ID |
-| `DISCORD_DEPLOY_WEBHOOK_URL` | preview, deploy | Webhook for the **deployments** channel (success + URLs) |
-| `DISCORD_ALERT_WEBHOOK_URL` | ci, preview, deploy | Webhook for the **alerts** channel (failures) |
+| Environment | Used by | Jobs |
+|-------------|---------|------|
+| `staging` | `preview.yml`, `ci.yml` (alert job) | Per-PR preview deploys + CI failure alerts |
+| `production` | `deploy.yml` | Production deploys |
+
+Each environment holds the same four secrets:
+
+| Name | Purpose |
+|------|---------|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with **Account → Cloudflare Pages → Edit** |
+| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID |
+| `DISCORD_DEPLOY_WEBHOOK_URL` | Webhook for the **deployments** channel (success + URLs) |
+| `DISCORD_ALERT_WEBHOOK_URL` | Webhook for the **alerts** channel (failures) |
+
+> **Why jobs declare `environment:`** — environment secrets are only readable
+> by a job that names its environment. That's why `preview.yml` declares
+> `staging`, `deploy.yml` declares `production`, and the CI **alert** job
+> (failure-only, so green runs don't create deployment records) declares
+> `staging`.
+
+> If a Discord webhook secret is not set, the notification step **no-ops**
+> (it never fails the pipeline).
 
 ### Variables (optional)
 | Name | Default | Purpose |
 |------|---------|---------|
 | `CLOUDFLARE_PROJECT_NAME` | `eddies-portfolio` | Cloudflare Pages project name |
 
-> If a Discord webhook secret is not set, the notification step **no-ops**
-> (it never fails the pipeline).
+Set this as an **environment variable** in both environments (or repo-level
+if available); otherwise the workflows fall back to `eddies-portfolio`.
+
+### Environment protection (optional)
+Because `deploy.yml` now targets the `production` environment, you can add
+**required reviewers** or a **wait timer** under
+*Settings → Environments → production* to gate production releases. No
+protection rules are configured today.
 
 ## Discord alert routing
 

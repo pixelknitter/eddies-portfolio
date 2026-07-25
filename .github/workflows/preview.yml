@@ -17,6 +17,11 @@ jobs:
   preview:
     name: Build & deploy preview
     runs-on: ubuntu-latest
+    # Cloudflare + Discord credentials are stored as *environment* secrets,
+    # so the job must declare the environment to read them.
+    environment:
+      name: staging
+      url: ${{ steps.deploy.outputs.pages-deployment-alias-url || steps.deploy.outputs.deployment-url }}
     permissions:
       contents: read
       pull-requests: write
@@ -39,26 +44,47 @@ jobs:
       - name: Build
         run: yarn nx build web-astro
 
+      # Never interpolate `github.head_ref` straight into a command: branch
+      # names are attacker-controllable. Read it from env and reduce it to a
+      # DNS-safe slug, which is also what Cloudflare needs for a branch alias.
+      - name: Compute preview branch alias
+        id: meta
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          slug="$(printf '%s' "$HEAD_REF" \
+            | tr '[:upper:]' '[:lower:]' \
+            | tr -c 'a-z0-9-' '-' \
+            | sed -E 's/-+/-/g; s/^-//; s/-$//' \
+            | cut -c1-28 \
+            | sed -E 's/-$//')"
+          [ -n "$slug" ] || slug="pr-${{ github.event.pull_request.number }}"
+          echo "branch=$slug" >> "$GITHUB_OUTPUT"
+          echo "Preview branch alias: $slug"
+
       - name: Deploy preview to Cloudflare Pages
         id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # Deploy under the PR's branch so Cloudflare creates a stable
+          # Deploy under a sanitized branch slug so Cloudflare creates a stable
           # per-branch preview alias. Gate these previews with Cloudflare
           # Access (see docs/DEPLOYMENT.md).
           command: >-
             pages deploy packages/web-astro/dist
             --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME || 'eddies-portfolio' }}
-            --branch=${{ github.head_ref }}
+            --branch=${{ steps.meta.outputs.branch }}
 
       - name: Comment preview URL on the PR
         if: success()
         uses: actions/github-script@v7
+        env:
+          PREVIEW_URL: ${{ steps.deploy.outputs.pages-deployment-alias-url || steps.deploy.outputs.deployment-url }}
         with:
           script: |
-            const url = '${{ steps.deploy.outputs.deployment-url }}';
+            const url = process.env.PREVIEW_URL;
             const marker = '<!-- preview-deploy -->';
             const body = `${marker}\n### 🔎 Preview deployment\n\n`
               + `**URL:** ${url}\n\n`
@@ -90,7 +116,7 @@ jobs:
           status: success
           title: '🔎 Preview deployed — PR #${{ github.event.pull_request.number }}'
           description: ${{ github.event.pull_request.title }}
-          result-url: ${{ steps.deploy.outputs.deployment-url }}
+          result-url: ${{ steps.deploy.outputs.pages-deployment-alias-url || steps.deploy.outputs.deployment-url }}
 
       - name: Notify alerts channel (failure)
         if: failure()
