@@ -14,6 +14,8 @@ concurrency:
 env:
   # We test with Vitest; skip the Cypress binary download during install.
   CYPRESS_INSTALL_BINARY: '0'
+  # The Nx daemon adds no value for single-run ephemeral CI and can be flaky.
+  NX_DAEMON: 'false'
 
 jobs:
   verify:

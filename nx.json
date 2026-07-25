@@ -10,8 +10,7 @@
     "lint": {
       "inputs": [
         "default",
-        "{workspaceRoot}/.eslintrc.json",
-        "{workspaceRoot}/.eslintignore"
+        "{workspaceRoot}/eslint.config.mjs"
       ],
       "cache": true
     },
@@ -29,20 +28,6 @@
       "cache": true
     }
   },
-  "generators": {
-    "@nx/react": {
-      "application": {
-        "babel": true
-      }
-    },
-    "@nx/next": {
-      "application": {
-        "style": "css",
-        "linter": "eslint"
-      }
-    }
-  },
   "defaultProject": "web-astro",
-  "extends": "nx/presets/npm.json",
-  "nxCloudAccessToken": "Mjk3MjU5OTgtZTMzYi00MTYxLWE0MDItYzc3Y2E1YjlmMzVmfHJlYWQtd3JpdGU="
+  "extends": "nx/presets/npm.json"
 }

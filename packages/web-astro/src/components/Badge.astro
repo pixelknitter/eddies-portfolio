@@ -1,7 +1,7 @@
 ---
 import { Image } from "astro:assets";
 import { iconUrl } from '@util/constants'
-interface Props extends Badge {};
+type Props = Badge;
 
 const { label, tech, src, iconSuffix = "original" } = Astro.props
 
