@@ -134,3 +134,5 @@ packages/mobile-expo-e2e/artifacts
 .nx/polygraph
 .nx/self-healing
 .nx/migrate-runs
+# wrangler local state
+.wrangler

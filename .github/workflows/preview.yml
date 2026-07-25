@@ -21,7 +21,7 @@ jobs:
     # so the job must declare the environment to read them.
     environment:
       name: staging
-      url: ${{ steps.deploy.outputs.pages-deployment-alias-url || steps.deploy.outputs.deployment-url }}
+      url: ${{ steps.preview.outputs.url }}
     permissions:
       contents: read
       pull-requests: write
@@ -44,44 +44,45 @@ jobs:
       - name: Build
         run: yarn nx build web-astro
 
-      # Never interpolate `github.head_ref` straight into a command: branch
-      # names are attacker-controllable. Read it from env and reduce it to a
-      # DNS-safe slug, which is also what Cloudflare needs for a branch alias.
-      - name: Compute preview branch alias
-        id: meta
-        env:
-          HEAD_REF: ${{ github.head_ref }}
-        run: |
-          set -euo pipefail
-          slug="$(printf '%s' "$HEAD_REF" \
-            | tr '[:upper:]' '[:lower:]' \
-            | tr -c 'a-z0-9-' '-' \
-            | sed -E 's/-+/-/g; s/^-//; s/-$//' \
-            | cut -c1-28 \
-            | sed -E 's/-$//')"
-          [ -n "$slug" ] || slug="pr-${{ github.event.pull_request.number }}"
-          echo "branch=$slug" >> "$GITHUB_OUTPUT"
-          echo "Preview branch alias: $slug"
-
-      - name: Deploy preview to Cloudflare Pages
+      # Upload a new Worker version *without* promoting it to production and
+      # give it a stable per-PR alias. The alias is derived from the numeric
+      # PR number, so it is inherently safe to interpolate and always a valid
+      # DNS label. Gate preview URLs with Cloudflare Access (docs/DEPLOYMENT.md).
+      - name: Upload preview version to Cloudflare Workers
         id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # Deploy under a sanitized branch slug so Cloudflare creates a stable
-          # per-branch preview alias. Gate these previews with Cloudflare
-          # Access (see docs/DEPLOYMENT.md).
           command: >-
-            pages deploy packages/web-astro/dist
-            --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME || 'eddies-portfolio' }}
-            --branch=${{ steps.meta.outputs.branch }}
+            versions upload
+            -c packages/web-astro/dist/server/wrangler.json
+            --preview-alias pr-${{ github.event.pull_request.number }}
+
+      # wrangler-action does not populate `deployment-url` for `versions
+      # upload` (cloudflare/wrangler-action#343), so parse the command output.
+      # Prefer the stable alias URL over the per-version one.
+      - name: Resolve preview URL
+        id: preview
+        env:
+          CMD_OUTPUT: ${{ steps.deploy.outputs.command-output }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          alias_url="$(printf '%s' "$CMD_OUTPUT" \
+            | grep -oE "https://pr-${PR_NUMBER}-[a-z0-9.-]+\.workers\.dev" | head -1 || true)"
+          any_url="$(printf '%s' "$CMD_OUTPUT" \
+            | grep -oE 'https://[a-z0-9.-]+\.workers\.dev' | head -1 || true)"
+          url="${alias_url:-$any_url}"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Preview URL: ${url:-<none>}"
+          [ -n "$url" ] || echo "::warning::Could not parse a preview URL from wrangler output."
 
       - name: Comment preview URL on the PR
         if: success()
         uses: actions/github-script@v7
         env:
-          PREVIEW_URL: ${{ steps.deploy.outputs.pages-deployment-alias-url || steps.deploy.outputs.deployment-url }}
+          PREVIEW_URL: ${{ steps.preview.outputs.url }}
         with:
           script: |
             const url = process.env.PREVIEW_URL;
@@ -116,7 +117,7 @@ jobs:
           status: success
           title: '🔎 Preview deployed — PR #${{ github.event.pull_request.number }}'
           description: ${{ github.event.pull_request.title }}
-          result-url: ${{ steps.deploy.outputs.pages-deployment-alias-url || steps.deploy.outputs.deployment-url }}
+          result-url: ${{ steps.preview.outputs.url }}
 
       - name: Notify alerts channel (failure)
         if: failure()

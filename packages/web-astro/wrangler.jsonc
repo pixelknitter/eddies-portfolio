@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Base Worker config. The Astro Cloudflare adapter merges this with the
+  // generated values (entry point, static-asset binding, session KV) and
+  // writes the result to dist/server/wrangler.json at build time.
+  "name": "eddies-portfolio",
+  "compatibility_date": "2026-04-15",
+  "compatibility_flags": ["nodejs_compat"],
+  // Required for *.workers.dev URLs and for per-version preview URLs.
+  "workers_dev": true,
+  "observability": { "enabled": true }
+}

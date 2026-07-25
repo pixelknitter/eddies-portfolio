@@ -35,7 +35,7 @@
 **License:** MIT
 
 ### Purpose
-A professional portfolio website showcasing Eddie's work, blog posts, projects, and skills. The site features a modern design with dark/light theme support, interactive components, and optimized performance for Cloudflare Pages deployment.
+A professional portfolio website showcasing Eddie's work, blog posts, projects, and skills. The site features a modern design with dark/light theme support, interactive components, and optimized performance for Cloudflare Workers deployment.
 
 ### Key Features
 - Personal about section with skills/tech stack display
@@ -44,7 +44,7 @@ A professional portfolio website showcasing Eddie's work, blog posts, projects, 
 - AI Resume interactive component (in development)
 - Dark/light theme with persistence and cross-tab sync
 - Responsive design with mobile-first approach
-- Server-side rendering on Cloudflare Pages
+- Server-side rendering on Cloudflare Workers
 
 ---
 
@@ -174,7 +174,7 @@ import { TECH_STACK } from '@util/constants';
 - **Prettier 3** - Formatting with Tailwind 4 class sorting + Astro plugin
 
 ### Deployment
-- **@astrojs/cloudflare 14** - Cloudflare Pages adapter (Wrangler 4)
+- **@astrojs/cloudflare 14** - Cloudflare **Workers** adapter (Wrangler 4). Pages is no longer supported by the adapter.
 - **GitHub Actions** - CI (`.github/workflows/ci.yml`) + deploy
   (`deploy.yml`); local Nx caching (Nx Cloud removed)
 
@@ -665,11 +665,21 @@ nx lint web-astro --fix
 
 ## Deployment
 
-### Cloudflare Pages
+### Cloudflare Workers
 
 **Adapter:** `@astrojs/cloudflare` 14 (Wrangler 4)
 **Output Mode:** Server (SSR enabled)
-**Build Output:** `packages/web-astro/dist/`
+**Build Output:** `packages/web-astro/dist/` — split into `client/` (static
+assets) and `server/` (Worker entry + generated `wrangler.json`)
+
+> **Deploy with `wrangler deploy`, never `wrangler pages deploy`.** The
+> adapter dropped Cloudflare Pages support and emits a Worker. Pushing this
+> tree to Pages "succeeds" but uploads `client/` and `server/` as plain
+> folders, leaving nothing at `/` — every route 404s.
+
+Base Worker config lives in `packages/web-astro/wrangler.jsonc` (name,
+compatibility date, `workers_dev`); the adapter merges it with the generated
+entry point, `ASSETS` binding and `SESSION` KV binding at build time.
 
 **Astro configuration:**
 ```javascript
@@ -699,10 +709,14 @@ export default defineConfig({
 
 - **`.github/workflows/ci.yml`** — runs `check`, `lint`, `test`, `build` on
   push/PR.
-- **`.github/workflows/deploy.yml`** — on successful CI on `main`, builds and
-  runs `wrangler pages deploy packages/web-astro/dist`. Requires repo secrets
-  `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` (and optional var
-  `CLOUDFLARE_PROJECT_NAME`).
+- **`.github/workflows/preview.yml`** — per-PR `wrangler versions upload
+  --preview-alias pr-<N>`, giving a private preview URL commented on the PR.
+- **`.github/workflows/deploy.yml`** — on successful CI on `master`, builds
+  and runs `wrangler deploy`.
+
+Secrets are **environment-scoped** (`staging` for previews/CI alerts,
+`production` for prod), so each job declares `environment:` to read them.
+See `docs/DEPLOYMENT.md` for the token permissions and Access setup.
 
 ### Build Process
 
@@ -716,7 +730,7 @@ packages/web-astro/dist/
 
 ### Environment Variables
 
-Define in Cloudflare Pages dashboard or `.env`:
+Define in the Cloudflare Workers dashboard or `.env`:
 
 ```bash
 OPEN_AI_TOKEN=your_token_here
@@ -974,7 +988,7 @@ Edit `src/styles/global.css`:
 - **Tailwind CSS Docs:** https://tailwindcss.com/docs
 - **Nx Docs:** https://nx.dev
 - **TypeScript Docs:** https://www.typescriptlang.org/docs
-- **Cloudflare Pages Docs:** https://developers.cloudflare.com/pages
+- **Cloudflare Workers Docs:** https://developers.cloudflare.com/workers
 
 ---
 
