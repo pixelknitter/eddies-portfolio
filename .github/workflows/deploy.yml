@@ -1,11 +1,11 @@
 name: Deploy to Cloudflare Pages
 
 on:
-  # Deploy only after CI passes on main.
+  # Deploy only after CI passes on the default branch.
   workflow_run:
     workflows: [CI]
     types: [completed]
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
 
 concurrency:
@@ -56,10 +56,12 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # `--branch` must match the Cloudflare Pages project's configured
+          # production branch, otherwise this lands as a preview deployment.
           command: >-
             pages deploy packages/web-astro/dist
             --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME || 'eddies-portfolio' }}
-            --branch=main
+            --branch=master
 
       - name: Notify deployments channel (success)
         if: success()

@@ -8,9 +8,9 @@ GitHub Actions pipelines. Preview deployments are private, gated by
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
-| `ci.yml` | push to `main`, any PR, manual | `check` → `lint` → `test` → `build` |
+| `ci.yml` | push to `master`, any PR, manual | `check` → `lint` → `test` → `build` |
 | `preview.yml` | PR opened/updated | Build + deploy a **private per-PR preview**, comment the URL on the PR |
-| `deploy.yml` | after CI succeeds on `main`, manual | Build + deploy **production** |
+| `deploy.yml` | after CI succeeds on `master`, manual | Build + deploy **production** |
 
 Build output is `packages/web-astro/dist` (see the note in the root
 `CLAUDE.md` on why the output lives inside the package).
