@@ -36,16 +36,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-
-      - name: Enable Corepack (Yarn 3)
-        run: corepack enable
-
-      - name: Install dependencies
-        run: yarn install --immutable
+      - name: Setup Node & install
+        uses: ./.github/actions/setup
 
       # Re-verify at the deployed commit. CI already ran, but this job can also
       # be dispatched manually against any ref.
