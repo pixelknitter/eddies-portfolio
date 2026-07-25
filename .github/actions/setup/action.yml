@@ -1,0 +1,41 @@
+name: Setup Node & install
+description: >-
+  Set up Node from .nvmrc, enable Corepack for Yarn 3, restore the Yarn cache
+  and install dependencies. Shared by every workflow so installs behave
+  identically — without the cache, native postinstalls (e.g. nx) are rebuilt
+  on each run and occasionally fail.
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: .nvmrc
+
+    - name: Enable Corepack (Yarn 3)
+      shell: bash
+      run: corepack enable
+
+    - name: Get Yarn cache directory
+      id: yarn-cache
+      shell: bash
+      run: echo "dir=$(yarn config get cacheFolder)" >> "$GITHUB_OUTPUT"
+
+    - name: Cache Yarn packages
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.yarn-cache.outputs.dir }}
+        key: yarn-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+        restore-keys: yarn-${{ runner.os }}-
+
+    - name: Install dependencies
+      shell: bash
+      # Retry once: unpacking/native postinstalls occasionally fail on a cold
+      # cache (observed as `nx ... couldn't be built successfully`).
+      run: |
+        set -euo pipefail
+        yarn install --immutable || {
+          echo "::warning::yarn install failed, retrying once"
+          yarn install --immutable
+        }

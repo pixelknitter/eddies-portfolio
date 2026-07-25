@@ -36,16 +36,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
+      - name: Setup Node & install
+        uses: ./.github/actions/setup
 
-      - name: Enable Corepack (Yarn 3)
-        run: corepack enable
-
-      - name: Install dependencies
-        run: yarn install --immutable
+      # Re-verify at the deployed commit. CI already ran, but this job can also
+      # be dispatched manually against any ref.
+      - name: Verify (check, lint, test)
+        run: yarn nx run-many --targets=check,lint,test --projects=web-astro
 
       - name: Build
         run: yarn nx build web-astro
@@ -76,6 +73,12 @@ jobs:
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Production URL: ${url:-<none>}"
 
+      # Production is public, so this runs the full assertions with no token.
+      - name: Smoke test production
+        env:
+          PROD_URL: ${{ steps.url.outputs.url }}
+        run: node scripts/smoke-test.mjs "$PROD_URL"
+
       - name: Notify deployments channel (success)
         if: success()
         uses: ./.github/actions/discord-notify
@@ -83,7 +86,7 @@ jobs:
           webhook-url: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
           status: success
           title: '🚀 Production deployed'
-          description: 'eddies-portfolio is live on Cloudflare Workers.'
+          description: 'Smoke tests passed against the live deployment.'
           result-url: ${{ steps.url.outputs.url }}
 
       - name: Notify alerts channel (failure)
@@ -93,4 +96,4 @@ jobs:
           webhook-url: ${{ secrets.DISCORD_ALERT_WEBHOOK_URL }}
           status: failure
           title: '❌ Production deploy failed'
-          description: 'The production build or deployment failed. See the pipeline for logs.'
+          description: 'Verification, deployment, or the post-deploy smoke test failed. See the pipeline for logs.'

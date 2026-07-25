@@ -16,11 +16,54 @@ GitHub Actions pipelines. Preview deployments are private, gated by
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
 | `ci.yml` | push to `master`, any PR, manual | `check` → `lint` → `test` → `build` |
-| `preview.yml` | PR opened/updated | `wrangler versions upload --preview-alias pr-<N>` → **private preview URL**, commented on the PR |
-| `deploy.yml` | after CI succeeds on `master`, manual | `wrangler deploy` → **production** |
+| `preview.yml` | PR opened/updated | verify → build → `wrangler versions upload --preview-alias pr-<N>` → **smoke test** → comment the URL on the PR |
+| `deploy.yml` | after CI succeeds on `master`, manual | verify → build → `wrangler deploy` → **smoke test** |
 
 Preview uploads create a new Worker *version* without promoting it, so a PR
 preview never affects production traffic.
+
+## Testing gates
+
+Deployments are guarded on both sides:
+
+**Before deploying** — `preview.yml` and `deploy.yml` both run the full
+`check` / `lint` / `test` suite at the deployed commit, so a preview is never
+published from a tree that would have failed CI.
+
+**After deploying** — `scripts/smoke-test.mjs` probes the freshly deployed URL
+and asserts real behaviour:
+
+- `/`, `/blog/`, `/works/`, a project page, a blog post and `/air/` return 200
+- the home page actually contains its rendered content, not just any 200
+- an unknown route returns 404
+- the response is not the Cloudflare Access login page
+
+That last check matters: Access answers unauthenticated requests with a login
+page that returns **HTTP 200**, so a naive status check would pass against a
+site it never reached.
+
+Run it locally against any deployment:
+
+```bash
+yarn smoke https://your-deployment-url
+```
+
+### Smoke-testing gated previews
+
+Previews sit behind Access, so CI needs an **Access service token** to reach
+them. Without one the script reports that the deployment is gated and skips
+its assertions (it does not silently pass).
+
+To enable real preview validation:
+
+1. **Zero Trust → Access → Service Auth → Create Service Token.** Copy the
+   Client ID and Client Secret.
+2. Add the token to the Access policy protecting your previews (a policy with
+   action **Service Auth** including that token).
+3. Add `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET` to the `staging`
+   environment secrets.
+
+Production is public, so it is always fully asserted.
 
 ## First-time setup: bootstrap the Worker
 
@@ -77,6 +120,8 @@ Each environment holds the same four secrets:
 | `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID |
 | `DISCORD_DEPLOY_WEBHOOK_URL` | Webhook for the **deployments** channel (success + URLs) |
 | `DISCORD_ALERT_WEBHOOK_URL` | Webhook for the **alerts** channel (failures) |
+| `CF_ACCESS_CLIENT_ID` | *(optional, `staging`)* Access service token for smoke-testing previews |
+| `CF_ACCESS_CLIENT_SECRET` | *(optional, `staging`)* Access service token secret |
 
 > **Why jobs declare `environment:`** — environment secrets are only readable
 > by a job that names its environment. That's why `preview.yml` declares
@@ -164,4 +209,5 @@ Reference: [Workers preview URLs](https://developers.cloudflare.com/workers/conf
 ```bash
 yarn ci            # check + lint + test + build (what CI runs)
 yarn astro:build   # production build -> packages/web-astro/dist
+yarn smoke <url>   # smoke test a deployed URL
 ```
