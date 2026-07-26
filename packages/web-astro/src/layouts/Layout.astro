@@ -11,6 +11,11 @@ interface Props {
 }
 
 const { pageTitle } = Astro.props;
+
+// Identifies which build is live. The deploy pipeline polls this to confirm
+// the new Worker version is actually serving before it smoke-tests, and it
+// answers "what is deployed right now?" without reading CI logs.
+const buildSha = import.meta.env.PUBLIC_BUILD_SHA ?? 'dev';
 ---
 
 <!DOCTYPE html>
@@ -32,6 +37,7 @@ const { pageTitle } = Astro.props;
       rel="stylesheet"
     />
     <meta name="generator" content={Astro.generator} />
+    <meta name="build-sha" content={buildSha} />
     <title>{pageTitle}</title>
     <ClientRouter />
   </head>

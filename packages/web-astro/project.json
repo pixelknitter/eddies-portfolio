@@ -14,7 +14,26 @@
       "options": {
         "command": "astro build",
         "cwd": "packages/web-astro"
-      }
+      },
+      "inputs": [
+        "default",
+        "^default",
+        {
+          "env": "PUBLIC_BUILD_SHA"
+        },
+        {
+          "env": "PUBLIC_SHOW_UNPUBLISHED"
+        },
+        {
+          "env": "PUBLIC_SHOW_AIR"
+        },
+        {
+          "env": "PUBLIC_SHOW_BLOG"
+        },
+        {
+          "env": "PUBLIC_SHOW_PROJECTS"
+        }
+      ]
     },
     "dev": {
       "executor": "nx:run-commands",
