@@ -1,11 +1,17 @@
 ---
 import { getCollection, render } from 'astro:content';
 import MarkdownWorksLayout from '@layouts/MarkdownWorksLayout.astro';
+import { showProjects } from '@util/visibility.mjs';
 
 // build static html for dynamic pages
 export const prerender = true;
 
 export async function getStaticPaths() {
+    // Prerendered pages cannot 404 at request time, so gating means emitting
+    // no paths at all — otherwise the detail pages stay on disk and public
+    // even once the section is switched off.
+    if (!showProjects(import.meta.env)) return [];
+
     const projectEntries = await getCollection('projects');
     return projectEntries.map(entry => ({
         params: { slug: entry.id }, props: { entry },

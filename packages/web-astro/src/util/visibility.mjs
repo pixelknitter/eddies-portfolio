@@ -42,6 +42,24 @@ export function showBlog(env = {}) {
 }
 
 /**
+ * Whether the STAR career highlights section is enabled.
+ *
+ * Off until there are real stories to show. Draft filtering alone was doing
+ * this job by accident — every entry happened to be a draft — which meant
+ * marking one story publishable would have put the section live with no
+ * switch to hold it back.
+ *
+ * Note the absent DEV check: unlike showUnpublished, dev does not imply on.
+ * The section is hidden because the stories are not written yet, and that is
+ * equally true locally.
+ *
+ * @param {{DEV?: boolean, PUBLIC_SHOW_HIGHLIGHTS?: string | boolean}} env
+ */
+export function showHighlights(env = {}) {
+  return flagEnabled(env.PUBLIC_SHOW_HIGHLIGHTS);
+}
+
+/**
  * Whether the projects/works section is enabled.
  * @param {{PUBLIC_SHOW_PROJECTS?: string | boolean}} env
  */

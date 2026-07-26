@@ -1,11 +1,13 @@
 ---
 import { getCollection } from 'astro:content';
-import { showUnpublished } from '@util/visibility.mjs';
+import { showHighlights, showUnpublished } from '@util/visibility.mjs';
 
 // Drafts are hidden in production, matching the blog's behaviour.
-const entries = await getCollection('star', ({ data }) =>
-  showUnpublished(import.meta.env) || data.draft !== true
-);
+const entries = showHighlights(import.meta.env)
+  ? await getCollection('star', ({ data }) =>
+      showUnpublished(import.meta.env) || data.draft !== true
+    )
+  : [];
 
 // The site renders per-request (output: "server"), so picking here rotates the
 // spotlight on every visit rather than only on rebuild.

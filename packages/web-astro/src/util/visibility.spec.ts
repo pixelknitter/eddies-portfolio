@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { showUnpublished, showAIR } from './visibility.mjs';
+import { showUnpublished, showAIR, showHighlights } from './visibility.mjs';
 
 describe('showUnpublished', () => {
   it('is true in local dev', () => {
@@ -32,5 +32,22 @@ describe('showAIR', () => {
 
   it('is on when the flag is exactly "true"', () => {
     expect(showAIR({ PUBLIC_SHOW_AIR: 'true' })).toBe(true);
+  });
+});
+
+describe('showHighlights', () => {
+  it('is off unless explicitly enabled', () => {
+    expect(showHighlights({})).toBe(false);
+    expect(showHighlights({ PUBLIC_SHOW_HIGHLIGHTS: 'false' })).toBe(false);
+  });
+
+  it('is on for the exact string "true"', () => {
+    expect(showHighlights({ PUBLIC_SHOW_HIGHLIGHTS: 'true' })).toBe(true);
+  });
+
+  // Unlike showUnpublished, dev does not imply on: the section is hidden
+  // because the stories are not written yet, which is true everywhere.
+  it('is not implied by dev mode', () => {
+    expect(showHighlights({ DEV: true })).toBe(false);
   });
 });

@@ -64,7 +64,10 @@ const authors = defineCollection({
 // STAR (Situation / Task / Action / Result) career highlights. Rotated on the
 // home page; `draft` entries are hidden in production like blog posts.
 const star = defineCollection({
-  loader: glob({ pattern: '**/*.md', base: './src/content/star' }),
+  // `[!_]` keeps `_template.md` out of the collection. The glob loader does
+  // not skip underscore-prefixed files, so without this the spotlight can
+  // rotate onto the template and render its placeholder copy as a highlight.
+  loader: glob({ pattern: '**/[!_]*.md', base: './src/content/star' }),
   schema: z.object({
     title: z.string(),
     situation: z.string(),

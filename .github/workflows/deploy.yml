@@ -49,6 +49,7 @@ jobs:
           PUBLIC_SHOW_AIR: 'true'
           PUBLIC_SHOW_BLOG: 'true'
           PUBLIC_SHOW_PROJECTS: 'true'
+          PUBLIC_SHOW_HIGHLIGHTS: 'true'
         run: |
           # Stamp the pages with the commit actually checked out, and hand it
           # to the readiness gate so it can confirm this exact build is what

@@ -147,6 +147,42 @@ rotates on every visit. The section hides entirely when nothing is published.
 **What it buys.** Add highlights over time; the home page stays short and
 changes between visits.
 
+**Gating.** `PUBLIC_SHOW_HIGHLIGHTS` — off by default, on in the review
+tiers. Draft filtering used to hide the section by accident (every entry
+happened to be a draft), which meant publishing one story would have put it
+live with nothing holding it back. `_template.md` is excluded from the
+collection by the loader's `[!_]` glob, so the rotation can never land on the
+placeholder.
+
+---
+
+## Feature flags
+
+**Problem.** Unfinished sections were reachable in production. Gating the nav
+link is not enough: an unlisted page is still a public page if it responds,
+and `/works/` was serving the placeholder Project 1–4 fixtures to anyone with
+the URL.
+
+**Solution.** Four opt-in build-time flags, each requiring the exact string
+`"true"` (env vars arrive as strings, so a loose check would treat `"false"`
+as enabled):
+
+| Flag | Gates |
+|------|-------|
+| `PUBLIC_SHOW_BLOG` | `/blog/` and every post route |
+| `PUBLIC_SHOW_PROJECTS` | `/works/` and the prerendered `/projects/*` pages |
+| `PUBLIC_SHOW_AIR` | `/air/` |
+| `PUBLIC_SHOW_HIGHLIGHTS` | the STAR spotlight on the home page |
+| `PUBLIC_SHOW_UNPUBLISHED` | drafts and not-yet-due posts within an enabled section |
+
+Each flag gates the **route**, not just the link. `/projects/*` is
+prerendered and so cannot 404 at request time — its gate emits no paths at
+all, keeping the pages off disk.
+
+**What it buys.** Production shows only finished work, while staging and
+per-PR previews show everything for review. The production smoke test asserts
+both directions: gated routes must 404 and must not be linked.
+
 ---
 
 ## Discord deploy notifications
