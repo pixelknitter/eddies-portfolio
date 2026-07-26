@@ -50,7 +50,13 @@ jobs:
           PUBLIC_SHOW_AIR: 'true'
           PUBLIC_SHOW_BLOG: 'true'
           PUBLIC_SHOW_PROJECTS: 'true'
-        run: yarn nx build web-astro
+        run: |
+          # Stamp the pages with the commit actually checked out, and hand it
+          # to the readiness gate so it can confirm this exact build is what
+          # the edge is serving before anything is smoke-tested.
+          BUILD_SHA="$(git rev-parse HEAD)"
+          echo "BUILD_SHA=$BUILD_SHA" >> "$GITHUB_ENV"
+          PUBLIC_BUILD_SHA="$BUILD_SHA" yarn nx build web-astro
 
       - name: Generate staging Wrangler config
         env:
@@ -68,9 +74,11 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy -c packages/web-astro/dist/server/wrangler.staging.json
 
-      - name: Wait for staging to respond
+      - name: Wait for staging to serve this build
         env:
           TARGET_URL: https://${{ vars.STAGING_HOSTNAME || 'staging.eddie.engineering' }}
+          # Reachability alone let a stale version through — require the SHA.
+          EXPECT_BUILD_SHA: ${{ env.BUILD_SHA }}
         run: ./scripts/wait-for-http.sh "$TARGET_URL"
 
       - name: Smoke test staging
@@ -126,7 +134,13 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Build
-        run: yarn nx build web-astro
+        run: |
+          # Stamp the pages with the commit actually checked out, and hand it
+          # to the readiness gate so it can confirm this exact build is what
+          # the edge is serving before anything is smoke-tested.
+          BUILD_SHA="$(git rev-parse HEAD)"
+          echo "BUILD_SHA=$BUILD_SHA" >> "$GITHUB_ENV"
+          PUBLIC_BUILD_SHA="$BUILD_SHA" yarn nx build web-astro
 
       # Uses the committed wrangler.jsonc as-is, which declares the production
       # custom domain — no variant generation here.
@@ -137,9 +151,11 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy -c packages/web-astro/dist/server/wrangler.json
 
-      - name: Wait for production to respond
+      - name: Wait for production to serve this build
         env:
           TARGET_URL: https://${{ vars.PRODUCTION_HOSTNAME || 'eddie.engineering' }}
+          # Reachability alone let a stale version through — require the SHA.
+          EXPECT_BUILD_SHA: ${{ env.BUILD_SHA }}
         run: ./scripts/wait-for-http.sh "$TARGET_URL"
 
       # Production is public, so this always runs the full assertions.

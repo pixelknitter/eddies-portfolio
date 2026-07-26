@@ -81,6 +81,43 @@ all non-5xx; `smoke-test.mjs` retries 5xx (4xx stays definitive so an expected
 
 ---
 
+### Smoke test fails on flags the code clearly gates
+
+Symptom: the production smoke test reports sections that "should be hidden"
+are linked, but visiting the site by hand shows them correctly hidden, and the
+next deploy of the same code passes.
+
+**Cause.** The smoke test ran against the *previous* Worker version. For a
+moment after `wrangler deploy` returns, the edge still serves the old version.
+The readiness gate only required a non-5xx response, and the old version
+answers 200 perfectly well — so the gate passed under a second and handed the
+smoke test a stale page.
+
+This is how the deploy of the section-gating commit went red. The giveaway is
+in the gate's own output:
+
+```
+Deployed eddies-portfolio triggers
+ready after 1 attempt(s): /:200 /blog/:200 /works/:200 /air/:200
+```
+
+`/air/:200` — only the pre-gating build ever returned that; the new one 404s.
+
+**Fix.** Already handled: every page carries
+`<meta name="build-sha" content="...">`, and the deploy passes
+`EXPECT_BUILD_SHA` to `wait-for-http.sh`, which now waits until the served
+stamp matches the commit that was built. Do **not** set that variable against
+an Access-gated hostname — the login interstitial carries no stamp, so the
+gate could never be satisfied.
+
+**Check what is live by hand:**
+
+```bash
+curl -s https://eddie.engineering/ | grep build-sha
+```
+
+---
+
 ### Smoke test reports "gated by Cloudflare Access… skipping"
 
 **Cause.** No Access service token, so the suite can't reach a gated preview.
