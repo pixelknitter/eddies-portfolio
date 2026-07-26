@@ -961,13 +961,34 @@ Edit `src/styles/global.css`:
 
 ### Git Workflow
 
-1. **Branches:** Work on feature branches (e.g., `claude/feature-name`)
-2. **Commits:** Use descriptive commit messages
+**Trunk-based development.** `master` is the trunk; branches are short-lived
+and **rebased** onto it.
+
+> **Rebase feature branches onto `master`. Never merge `master` into a
+> feature branch.** Merge commits obscure history and topology.
+
+```bash
+git fetch origin master
+git rebase origin/master
+git push --force-with-lease      # never plain --force
+```
+
+Merge commits are disabled on the repository — land PRs with squash or
+rebase merge.
+
+This is not only aesthetic: `pull_request` workflows run the workflow file
+from **the PR's own branch**, so a branch cut before a pipeline fix keeps
+running the broken pipeline until it is rebased. If a PR fails in a way that
+looks environmental, rebase before investigating.
+
+1. **Branches:** `type/short-description` — `feat/`, `fix/`, `ci/`, `docs/`,
+   `test/`, `content/`. Keep unrelated work on separate branches.
+2. **Commits:** imperative subject, then the *why* in the body.
    - Good: "add dark mode toggle to navigation"
    - Bad: "fix stuff"
-3. **Testing:** Run `nx affected:test` before pushing
-4. **Linting:** Run `nx affected:lint` before committing
-5. **Type checking:** Run `nx check web-astro` before pushing
+3. **Before pushing:** `yarn ci` (check, lint, test, build) must be green.
+
+See `docs/WORKFLOW.md` for the full convention.
 
 ---
 

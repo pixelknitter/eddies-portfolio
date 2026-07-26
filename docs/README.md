@@ -5,6 +5,7 @@
 | [FEATURES.md](./FEATURES.md) | You want to know *what* a capability does and *which problem* it solves |
 | [RUNBOOK.md](./RUNBOOK.md) | Something is broken or you're about to change infrastructure |
 | [DEPLOYMENT.md](./DEPLOYMENT.md) | You need the environment/deploy reference: hostnames, secrets, Access |
+| [WORKFLOW.md](./WORKFLOW.md) | You're branching, updating a branch, or landing a PR |
 | [VOICE.md](./VOICE.md) | You're writing or editing a post |
 
 `CLAUDE.md` at the repo root covers codebase structure and conventions for
