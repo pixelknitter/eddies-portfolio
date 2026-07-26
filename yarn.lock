@@ -2524,6 +2524,12 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@eddie/obsidian-publish-core@workspace:packages/obsidian-publish-core":
+  version: 0.0.0-use.local
+  resolution: "@eddie/obsidian-publish-core@workspace:packages/obsidian-publish-core"
+  languageName: unknown
+  linkType: soft
+
 "@emmetio/abbreviation@npm:^2.3.3":
   version: 2.3.3
   resolution: "@emmetio/abbreviation@npm:2.3.3"
