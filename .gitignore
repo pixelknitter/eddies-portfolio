@@ -136,3 +136,10 @@ packages/mobile-expo-e2e/artifacts
 .nx/migrate-runs
 # wrangler local state
 .wrangler
+
+# Playwright run artifacts — traces, screenshots and the HTML report are
+# regenerated on every run and are large.
+test-results/
+playwright-report/
+blob-report/
+.playwright/

@@ -9,11 +9,18 @@
   ],
   "targets": {
     "e2e": {
-      "executor": "@nx/cypress:cypress",
+      "executor": "nx:run-commands",
       "options": {
-        "cypressConfig": "packages/web-astro-e2e/cypress.config.ts",
-        "devServerTarget": "web-astro:dev",
-        "testingType": "e2e"
+        "command": "playwright test",
+        "cwd": "packages/web-astro-e2e"
+      },
+      "configurations": {
+        "ui": {
+          "command": "playwright test --ui"
+        },
+        "deployed": {
+          "command": "playwright test"
+        }
       }
     },
     "lint": {

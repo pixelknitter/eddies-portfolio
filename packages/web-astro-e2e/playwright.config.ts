@@ -1,0 +1,72 @@
+import { defineConfig, devices } from '@playwright/test';
+
+/**
+ * E2E configuration for the portfolio.
+ *
+ * Tests run against the Astro dev server by default. Set E2E_BASE_URL to point
+ * them at a deployed environment instead — the same specs then act as a
+ * post-deploy behavioural check against a preview or staging URL.
+ */
+const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:4321';
+
+// Only manage a server when testing locally; a deployed target is already up.
+const isLocal = !process.env.E2E_BASE_URL;
+
+export default defineConfig({
+  testDir: './src/e2e',
+  // Fail the build if a `test.only` is committed.
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  // Serial locally keeps the shared dev server predictable; CI has the cores.
+  workers: process.env.CI ? 2 : 1,
+  reporter: process.env.CI
+    ? [['github'], ['html', { outputFolder: '../../dist/playwright-report', open: 'never' }]]
+    : [['list']],
+
+  use: {
+    baseURL,
+    trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+    // Cloudflare Access protects preview/staging; a service token lets the
+    // suite through without a browser login.
+    extraHTTPHeaders:
+      process.env.CF_ACCESS_CLIENT_ID && process.env.CF_ACCESS_CLIENT_SECRET
+        ? {
+            'CF-Access-Client-Id': process.env.CF_ACCESS_CLIENT_ID,
+            'CF-Access-Client-Secret': process.env.CF_ACCESS_CLIENT_SECRET,
+          }
+        : {},
+  },
+
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    // Mobile viewport catches the responsive navigation and grid collapse.
+    { name: 'mobile-chrome', use: { ...devices['Pixel 7'] } },
+  ],
+
+  webServer: isLocal
+    ? {
+        // Builds and serves the real Worker rather than the Vite dev server.
+        //
+        // `astro dev` cannot be used here: it manages a background daemon,
+        // and in some environments forces background mode outright, so
+        // Playwright only ever saw the process exit. Serving the build also
+        // exercises the same artifact that deploys — closer to production
+        // than a dev server.
+        //
+        // Feature flags are on so the suite can exercise every section;
+        // production gating is asserted separately by the smoke test.
+        command:
+          // Sections are enabled so the suite can reach them, but
+          // PUBLIC_SHOW_UNPUBLISHED stays off deliberately: the suite asserts
+          // production publication rules, and drafts must not be reachable.
+          'PUBLIC_SHOW_BLOG=true PUBLIC_SHOW_PROJECTS=true PUBLIC_SHOW_AIR=true ' +
+          'yarn astro build && ' +
+          'npx wrangler dev -c dist/server/wrangler.json --port 4321 --local',
+        url: baseURL,
+        cwd: '../web-astro',
+        reuseExistingServer: !process.env.CI,
+        timeout: 180_000,
+      }
+    : undefined,
+});

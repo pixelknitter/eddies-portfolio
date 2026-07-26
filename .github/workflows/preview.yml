@@ -28,7 +28,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CYPRESS_INSTALL_BINARY: '0'
   NX_DAEMON: 'false'
 
 jobs:
