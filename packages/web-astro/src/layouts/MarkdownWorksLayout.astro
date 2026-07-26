@@ -8,20 +8,38 @@ interface Props {
 }
 
 const { frontmatter } = Astro.props;
+
+// A label/value grid rather than badges run inline with their text, which
+// wrapped into an unreadable stack.
+const meta = [
+    { label: 'Platform', value: frontmatter.platform },
+    { label: 'Stack', value: frontmatter.stack },
+    { label: 'Website', value: frontmatter.website, href: frontmatter.website },
+    { label: 'Source', value: frontmatter.github, href: frontmatter.github },
+].filter((row) => row.value);
 ---
 <BaseLayout pageTitle={frontmatter.title}>
     <Hero alt="RaccoonLaptopGif" src="/laptop.webp"/>
-    <h2>{frontmatter.title}</h2>
-    <slot />
-    <ul class="badge__list">
-        <li><span class="badge badge--item">PLATFORM</span>{frontmatter.platform}</li>
-        <li><span class="badge badge--item">STACK</span>{frontmatter.stack}</li>
-        <li><span class="badge badge--item">WEBSITE</span><a class="badge__link" href={frontmatter.website} target="_blank">{frontmatter.website}</a></li>
-        <li><span class="badge badge--item">GITHUB</span><a class="badge__link" href={frontmatter.github} target="_blank">{frontmatter.github}</a></li>
-    </ul>
-    <div class="center">
-        <img class="pro-img" width="500px" height="281" src={frontmatter.worksImage1.url} alt={frontmatter.worksImage1.alt} />
-        <img class="pro-img" width="500px" height="281" src={frontmatter.worksImage2.url} alt={frontmatter.worksImage2.alt} />
-    </div>
-</BaseLayout>
+    <article>
+        <h2>{frontmatter.title}</h2>
+        <slot />
 
+        <dl class="meta-list">
+            {meta.map((row) => (
+                <>
+                    <dt><span class="badge">{row.label}</span></dt>
+                    <dd>
+                        {row.href
+                            ? <a href={row.href} target="_blank" rel="noopener noreferrer">{row.value}</a>
+                            : row.value}
+                    </dd>
+                </>
+            ))}
+        </dl>
+
+        <div class="mt-6 grid gap-4 md:grid-cols-2">
+            <img class="pro-img" width="500" height="281" src={frontmatter.worksImage1.url} alt={frontmatter.worksImage1.alt} />
+            <img class="pro-img" width="500" height="281" src={frontmatter.worksImage2.url} alt={frontmatter.worksImage2.alt} />
+        </div>
+    </article>
+</BaseLayout>

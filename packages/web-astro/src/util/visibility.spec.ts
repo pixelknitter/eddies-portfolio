@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { showUnpublished } from './visibility.mjs';
+import { showUnpublished, showAIR } from './visibility.mjs';
 
 describe('showUnpublished', () => {
   it('is true in local dev', () => {
@@ -21,5 +21,16 @@ describe('showUnpublished', () => {
     for (const value of ['false', '1', 'yes', 'TRUE', '', undefined]) {
       expect(showUnpublished({ PUBLIC_SHOW_UNPUBLISHED: value }), String(value)).toBe(false);
     }
+  });
+});
+
+describe('showAIR', () => {
+  it('is off unless explicitly enabled', () => {
+    expect(showAIR({})).toBe(false);
+    expect(showAIR({ PUBLIC_SHOW_AIR: 'false' })).toBe(false);
+  });
+
+  it('is on when the flag is exactly "true"', () => {
+    expect(showAIR({ PUBLIC_SHOW_AIR: 'true' })).toBe(true);
   });
 });

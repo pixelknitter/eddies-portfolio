@@ -19,11 +19,11 @@ export function AIResume() {
           <span> Hello there, </span>
           Welcome to A.I.R.! 👋
         </h1>
-        The AI-powered Resume. <span className="underline decoration-double decoration-indigo-600 underline-offset-4 decoration-2 italic">Ask away...</span>
+        The AI-powered Resume. <span className="underline decoration-underline dark:decoration-link underline-offset-4 decoration-2 italic">Ask away...</span>
       </div>
-      <div className="rounded-xl bg-purple-900 p-6 mt-4">
-          <input ref={inputRef} className="flex p-4 rounded-xl mt-2 w-full text-black" placeholder="What's something you want to know about Eddie?" onKeyDown={handleKeyDown} />
-          <div className="flex mt-4 p-4 rounded-xl bg-indigo-600"><span className="text-indigo-100">{question}</span></div>
+      <div className="surface p-6 mt-4">
+          <input ref={inputRef} className="w-full p-3 rounded-lg mt-2 bg-light dark:bg-dark text-dark dark:text-light border border-hairline dark:border-hairline-dark focus:outline-2 focus:outline-offset-2 focus:outline-underline dark:focus:outline-link" placeholder="What's something you want to know about Eddie?" onKeyDown={handleKeyDown} />
+          <div className="mt-4 p-4 rounded-lg bg-light dark:bg-dark border border-hairline dark:border-hairline-dark min-h-[3.5rem]"><span className="text-dark dark:text-light">{question}</span></div>
       </div>
     </div>
   );
