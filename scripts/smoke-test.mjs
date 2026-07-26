@@ -34,15 +34,28 @@ const hasAccessCreds = Boolean(accessClientId && accessClientSecret);
 const REQUEST_TIMEOUT_MS = 20_000;
 const RETRIES = 3;
 
-/** Routes asserted on every deploy. `contains` is checked case-sensitively. */
+/**
+ * Fixed routes asserted on every deploy. `contains` is checked
+ * case-sensitively.
+ *
+ * Deliberately no content URLs here. A hardcoded slug is a slow-motion
+ * failure: posts get scheduled, drafted or renamed, and the check then fails
+ * for a reason that has nothing to do with the deploy. Content pages are
+ * discovered from their index instead — see `contentSections` below.
+ */
 const checks = [
   { path: '/', status: 200, contains: 'Engineering by Eddie' },
   { path: '/blog/', status: 200, contains: 'Blog' },
   { path: '/works/', status: 200, contains: 'Projects' },
-  { path: '/projects/project-1/', status: 200 },
   { path: '/air/', status: 200 },
   // Unknown routes must 404 rather than render a page or error.
   { path: '/this-route-should-not-exist', status: 404 },
+];
+
+/** Index pages whose first entry is followed to prove detail pages render. */
+const contentSections = [
+  { name: 'blog post', index: '/blog/', pattern: /href="(\/blog\/[^"/]+\/?)"/ },
+  { name: 'project', index: '/works/', pattern: /href="(\/projects\/[^"/]+\/?)"/ },
 ];
 
 function headers() {
@@ -169,29 +182,36 @@ async function main() {
     }
   }
 
-  // Follow whatever the blog index actually publishes rather than hardcoding
-  // a slug: posts are scheduled and drafted, so any fixed URL eventually
-  // 404s. This still catches a post page that fails to render.
+  // Prove detail pages render by following the first entry each index
+  // actually links to. Nothing is hardcoded, so renaming, scheduling or
+  // drafting content can never break the deploy check.
   let extra = 0;
-  try {
-    const index = await fetchWithRetry(`${baseUrl}/blog/`);
-    const slug = /href="\/blog\/([^"/]+)\/?"/.exec(index.body)?.[1];
 
-    if (!slug) {
-      console.log('… no published posts listed; skipping the post-page check.');
-    } else {
-      extra = 1;
-      const post = await fetchWithRetry(`${baseUrl}/blog/${slug}/`);
-      if (post.response.status === 200) {
-        console.log(`✓ /blog/${slug}/ — 200 (first listed post)`);
-      } else {
-        failures.push(`/blog/${slug}/ — expected HTTP 200, got ${post.response.status}`);
-        console.log(`✖ /blog/${slug}/ — expected HTTP 200, got ${post.response.status}`);
+  for (const section of contentSections) {
+    try {
+      const index = await fetchWithRetry(`${baseUrl}${section.index}`);
+      const href = section.pattern.exec(index.body)?.[1];
+
+      if (!href) {
+        console.log(`… no ${section.name} listed on ${section.index}; skipping that check.`);
+        continue;
       }
+
+      extra += 1;
+      const detail = await fetchWithRetry(`${baseUrl}${href}`);
+
+      if (detail.response.status === 200) {
+        console.log(`✓ ${href} — 200 (first ${section.name})`);
+      } else {
+        const problem = `${href} — expected HTTP 200, got ${detail.response.status}`;
+        failures.push(problem);
+        console.log(`✖ ${problem}`);
+      }
+    } catch (error) {
+      const problem = `${section.index} — ${error.message}`;
+      failures.push(problem);
+      console.log(`✖ ${problem}`);
     }
-  } catch (error) {
-    failures.push(`blog index — ${error.message}`);
-    console.log(`✖ blog index — ${error.message}`);
   }
 
   const total = checks.length + extra;
