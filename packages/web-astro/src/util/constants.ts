@@ -29,18 +29,18 @@ export const buildingBlocks: Record<BlockCategory, Badge[]> = {
   ],
   'Platforms': [
       // Brand marks that no icon CDN serves reliably are self-hosted under
-      // public/icons — the previous OpenAI link 404'd after its source
+      // public/brand — the previous OpenAI link 404'd after its source
       // dropped the logo. See docs in the repo README for refreshing them.
-      { label: "Anthropic", tech: "anthropic", src: "/icons/anthropic.svg" },
-      { label: "OpenAI", tech: "openai", src: "/icons/openai.svg" },
+      { label: "Anthropic", tech: "anthropic", src: "/brand/anthropic.svg" },
+      { label: "OpenAI", tech: "openai", src: "/brand/openai.svg" },
       { label: "Android", tech: "android" },
       { label: "iOS", tech: "apple" },
       { label: "Expo", tech: "expo", src: "/expo.svg" }
   ],
   'Tools': [
-      { label: "Claude", tech: "claude", src: "/icons/claude.svg" },
-      { label: "Claude Code", tech: "claudecode", src: "/icons/claude-code.svg" },
-      { label: "Model Context Protocol", tech: "mcp", src: "/icons/modelcontextprotocol.svg" },
+      { label: "Claude", tech: "claude", src: "/brand/claude.svg" },
+      { label: "Claude Code", tech: "claudecode", src: "/brand/claude-code.svg" },
+      { label: "Model Context Protocol", tech: "mcp", src: "/brand/modelcontextprotocol.svg" },
       { label: "Vitest", tech: "vitest" },
       { label: "Jest", tech: "jest", iconSuffix: 'plain'},
       { label: "Gradle", tech: "gradle" },
@@ -54,7 +54,7 @@ export const buildingBlocks: Record<BlockCategory, Badge[]> = {
   ],
   'Infrastructure': [
       { label: "Cloudflare", tech: "cloudflare" },
-      { label: "Cloudflare Workers", tech: "cloudflareworkers", src: "/icons/cloudflareworkers.svg" },
+      { label: "Cloudflare Workers", tech: "cloudflareworkers", src: "/brand/cloudflareworkers.svg" },
       { label: "Vercel", tech: "vercel" },
       { label: "Amazon Web Services", tech: "amazonwebservices", iconSuffix: 'original-wordmark' },
       { label: "PostgreSQL", tech: "postgresql" },
