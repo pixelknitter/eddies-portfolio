@@ -24,8 +24,9 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
-    # Cloudflare + Discord credentials are stored as *environment* secrets,
-    # so the job must declare the environment to read them.
+    # Credentials are repo-level secrets; the environment is declared for
+    # GitHub deployment tracking, the environment URL, and optional
+    # protection rules (env-level secrets still override when set).
     environment:
       name: production
       url: ${{ steps.url.outputs.url }}

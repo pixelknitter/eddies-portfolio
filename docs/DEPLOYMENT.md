@@ -16,11 +16,66 @@ GitHub Actions pipelines. Preview deployments are private, gated by
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
 | `ci.yml` | push to `master`, any PR, manual | `check` → `lint` → `test` → `build` |
-| `preview.yml` | PR opened/updated | verify → build → `wrangler versions upload --preview-alias pr-<N>` → **smoke test** → comment the URL on the PR |
+| `preview.yml` | PR opened/updated | verify → build → deploy a **per-PR Worker** on `<branch>-staging.eddie.engineering` → **smoke test** → comment the URL |
+| `preview-cleanup.yml` | PR closed | delete that Worker, its Custom Domain and its KV namespace |
 | `deploy.yml` | after CI succeeds on `master`, manual | verify → build → `wrangler deploy` → **smoke test** |
 
-Preview uploads create a new Worker *version* without promoting it, so a PR
-preview never affects production traffic.
+## Domain model
+
+| Environment | Hostname | Service |
+|-------------|----------|---------|
+| Production | `eddie.engineering` | Worker `eddies-portfolio` |
+| Preview (per PR) | `<branch>-staging.eddie.engineering` | Worker `eddies-portfolio-pr-<N>` |
+
+**Why previews are separate Workers, not versions.** Cloudflare cannot serve
+[preview URLs](https://developers.cloudflare.com/workers/configuration/previews/)
+on a custom domain — they are limited to `workers.dev`. To get a real
+`<branch>-staging` hostname, each PR deploys its own Worker with its own
+Custom Domain, and `preview-cleanup.yml` tears it down when the PR closes.
+
+`scripts/make-preview-wrangler.mjs` builds the preview config by **replacing**
+`routes` (never appending), so a preview can never claim the production
+hostname even though it inherits the rest of the config.
+
+### Optional variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `PREVIEW_DOMAIN` | `eddie.engineering` | Zone that preview hostnames hang off |
+| `CF_SESSION_KV_ID` | *(unset)* | Pin previews to one shared `SESSION` KV namespace instead of provisioning one per preview Worker |
+
+## ⚠️ Production cutover checklist (one time)
+
+`wrangler.jsonc` declares `eddie.engineering` as a Custom Domain. **A hostname
+can only be bound to one service**, so it must be released by Cloudflare Pages
+*before* the first Workers deploy carrying that config — otherwise the deploy
+fails with the hostname already in use.
+
+Do this in order:
+
+1. **Pages → `eddies-portfolio` → Custom domains** — remove `eddie.engineering`
+   (and `staging.eddie.engineering`, now served by per-PR previews).
+2. **Merge the upgrade PR.** `deploy.yml` runs `wrangler deploy`, which claims
+   `eddie.engineering` for the Worker and issues its certificate.
+3. **Verify** — the deploy's smoke test asserts the live site; the Discord
+   deployments channel carries the URL.
+4. Optionally delete the now-unused Pages project.
+
+Rolling back means reversing step 1: detach from the Worker, re-attach to
+Pages. Expect a brief window while DNS and certificates settle.
+
+## Access for preview hostnames
+
+Previews now live on `*-staging.eddie.engineering`, not `*.pages.dev`, so the
+Access application must cover the new pattern:
+
+1. **Zero Trust → Access → Applications → Add → Self-hosted.**
+2. **Domain:** `*-staging.eddie.engineering`.
+3. **Policies:** an *Allow* policy for the people who may review, plus a
+   *Service Auth* policy including the CI service token so smoke tests can
+   authenticate.
+4. Leave `eddie.engineering` itself **outside** any Access policy so the
+   public site stays public.
 
 ## Testing gates
 
@@ -64,31 +119,6 @@ To enable real preview validation:
    environment secrets.
 
 Production is public, so it is always fully asserted.
-
-## First-time setup: bootstrap the Worker
-
-`preview.yml` uses `wrangler versions upload`, which **requires the Worker to
-already exist**. On a brand-new account/worker it fails with:
-
-```
-✘ [ERROR] You cannot upload a new version of a Worker that does not yet
-  exist. Please run the `deploy` command first.
-```
-
-So the Worker must be created once, by a production deploy. Either:
-
-**A. Locally (one command, no token needed):**
-```bash
-npx wrangler login                 # interactive OAuth
-yarn nx build web-astro
-npx wrangler deploy -c packages/web-astro/dist/server/wrangler.json
-```
-
-**B. Or merge to `master`** — CI passes, `deploy.yml` runs `wrangler deploy`,
-and the Worker is created. Every PR opened *after* that gets a preview.
-
-Once the Worker exists, previews work on every PR and this step never
-repeats.
 
 ## Worker configuration
 
@@ -143,7 +173,7 @@ Create a **custom token** scoped to your account only (these are
 | Account | **Workers Scripts** | Edit |
 | Account | **Workers KV Storage** | Edit |
 
-`Workers Scripts: Edit` covers `wrangler deploy` and `versions upload`;
+`Workers Scripts: Edit` covers `wrangler deploy` for both production and previews;
 `Workers KV Storage: Edit` lets Wrangler provision the `SESSION` namespace.
 The worker name is set in `wrangler.jsonc`, so no project-name variable is
 needed.
@@ -177,32 +207,6 @@ success).
 In Discord: **Channel → Edit → Integrations → Webhooks → New Webhook →
 Copy URL**. Create one in your deployments channel and one in your alerts
 channel, then store them as the two secrets above.
-
-## Private previews with Cloudflare Access
-
-Each PR gets a stable aliased preview URL:
-
-```
-https://pr-<N>-eddies-portfolio.<your-subdomain>.workers.dev
-```
-
-Workers has **built-in Access integration for preview URLs**, which is the
-simplest way to keep them private:
-
-1. **Workers & Pages dashboard → your Worker → Settings → Domains & Routes.**
-2. Under **Preview URLs**, click **Enable Cloudflare Access**.
-3. Add the emails allowed to view previews. Everyone else gets the Access
-   login screen.
-
-This gates *preview URLs only* — your production URL and any custom domain
-stay public.
-
-> **Migrating from the old Pages setup:** the previous Access application
-> targeting `*.eddies-portfolio.pages.dev` no longer matches anything, since
-> previews are now `*.workers.dev`. Remove it (or leave it, harmless) and use
-> the Preview URLs toggle above instead.
-
-Reference: [Workers preview URLs](https://developers.cloudflare.com/workers/configuration/previews/).
 
 ## Local commands
 

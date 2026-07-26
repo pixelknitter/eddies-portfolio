@@ -8,5 +8,16 @@
   "compatibility_flags": ["nodejs_compat"],
   // Required for *.workers.dev URLs and for per-version preview URLs.
   "workers_dev": true,
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  // Production hostname. A hostname can only be bound to one service, so
+  // `eddie.engineering` must be REMOVED from the Cloudflare Pages project
+  // before the first `wrangler deploy` that carries this config — otherwise
+  // the deploy fails with the hostname already in use. See the cutover
+  // checklist in docs/DEPLOYMENT.md.
+  //
+  // Preview deploys never inherit this: scripts/make-preview-wrangler.mjs
+  // replaces `routes` wholesale with the preview's own Custom Domain.
+  "routes": [
+    { "pattern": "eddie.engineering", "custom_domain": true }
+  ]
 }
