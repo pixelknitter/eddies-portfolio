@@ -8,7 +8,7 @@ heroImage:
   alt: 'Sample post'
 relatedPosts: []
 publishDate: 2024-01-01T09:00:00Z
-draft: true
+draft: false
 ---
 
 Fixture content. Marked `draft: true` so production stays clean, while dev and
