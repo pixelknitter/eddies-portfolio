@@ -110,7 +110,10 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in $(seq 1 30); do
-            code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$PREVIEW_URL" || echo 000)"
+            # Assign the fallback separately: `$(curl … || echo 000)` would
+            # concatenate curl's own "000" with the echo, yielding "000000"
+            # and passing the check on a host that never answered.
+            code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$PREVIEW_URL")" || code="000"
             # Any HTTP answer means DNS + TLS are live (302 = Access login).
             if [ "$code" != "000" ]; then
               echo "Hostname responding after ${attempt} attempt(s) (HTTP $code)."
