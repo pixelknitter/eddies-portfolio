@@ -28,7 +28,9 @@
 
 @layer components {
   .nav-link {
-    @apply mx-2.5 text-center text-dark dark:text-light hover:underline hover:decoration-underline hover:decoration-2 hover:underline-offset-[6px];
+    /* Vertical padding keeps links tappable and stops the stacked rows
+       colliding once the header wraps at narrow widths. */
+    @apply inline-block py-1 mx-2 text-center text-dark dark:text-light hover:underline hover:decoration-underline hover:decoration-2 hover:underline-offset-[6px];
   }
   .badge {
     @apply bg-tag text-light text-center rounded-md font-body font-semibold text-sm mx-1 my-2 px-2 py-1 whitespace-nowrap;
@@ -99,6 +101,15 @@
 }
 
 @layer base {
+  /* Nothing should force the page wider than the viewport. Hero and content
+     images carry intrinsic width/height for layout stability, which would
+     otherwise overflow a narrow screen and leave the page scrolled sideways. */
+  img,
+  svg,
+  video {
+    @apply max-w-full h-auto;
+  }
+
   html {
     @apply bg-light text-dark transition-colors duration-300;
   }
