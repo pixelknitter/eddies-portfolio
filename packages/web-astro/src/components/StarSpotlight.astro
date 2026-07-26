@@ -1,0 +1,46 @@
+---
+import { getCollection } from 'astro:content';
+
+// Drafts are hidden in production, matching the blog's behaviour.
+const entries = await getCollection('star', ({ data }) =>
+  import.meta.env.PROD ? data.draft !== true : true
+);
+
+// The site renders per-request (output: "server"), so picking here rotates the
+// spotlight on every visit rather than only on rebuild.
+const entry =
+  entries.length > 0
+    ? entries[Math.floor(Math.random() * entries.length)]
+    : undefined;
+---
+
+{entry && (
+  <section>
+    <h2 class="mt-6">Highlight</h2>
+    <figure class="bg-light dark:bg-dark p-5 rounded-lg shadow-md dark:shadow-light/10">
+      <h3 class="font-body text-xl mb-3 no-underline decoration-0">
+        {entry.data.title}
+      </h3>
+      <dl class="font-body text-base leading-relaxed">
+        <dt class="badge">Situation</dt>
+        <dd class="mt-2 mb-4">{entry.data.situation}</dd>
+
+        <dt class="badge">Task</dt>
+        <dd class="mt-2 mb-4">{entry.data.task}</dd>
+
+        <dt class="badge">Action</dt>
+        <dd class="mt-2 mb-4">{entry.data.action}</dd>
+
+        <dt class="badge">Result</dt>
+        <dd class="mt-2">{entry.data.result}</dd>
+      </dl>
+      {entry.data.tags.length > 0 && (
+        <div class="flex flex-wrap mt-4">
+          {entry.data.tags.map((tag: string) => (
+            <span class="badge">{tag}</span>
+          ))}
+        </div>
+      )}
+    </figure>
+  </section>
+)}
