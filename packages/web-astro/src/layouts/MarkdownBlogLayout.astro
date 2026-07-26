@@ -8,16 +8,29 @@ interface Props {
 
 const { frontmatter } = Astro.props;
 const { title, tags, author } = frontmatter;
+
+// Author ids are slugs; show them as names rather than raw kebab-case.
+const authorName = String(author.id)
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 ---
 <BaseLayout pageTitle={title}>
     <Hero alt="RaccoonLaptopGif" src="/laptop.webp"/>
-    <h2>{title}</h2>
-    <ul class="badge__list">
-        {tags.map((tag: string) => {
-            <li><span class="badge badge--item">{tag}</span></li>
-        })}
-    </ul>
-    <span class="font-semibold text-sm dark:text-violet-400 text-violet-600">{author.id}</span>
-    <slot />
+    <article>
+        <h2>{title}</h2>
+        <p class="font-body text-sm opacity-80 mt-2">{authorName}</p>
+        {tags.length > 0 && (
+            <ul class="flex flex-wrap gap-1 list-none p-0 mt-3">
+                {/* Previously a braced arrow function with no return, so the
+                    tags silently rendered nothing at all. */}
+                {tags.map((tag: string) => (
+                    <li><span class="badge">{tag}</span></li>
+                ))}
+            </ul>
+        )}
+        <div class="mt-6">
+            <slot />
+        </div>
+    </article>
 </BaseLayout>
-

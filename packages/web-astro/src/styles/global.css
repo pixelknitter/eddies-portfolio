@@ -14,6 +14,12 @@
   --color-underline: #348aa7;
   --color-emphasis: #525174;
   --color-tag: #584966;
+  /* Card/panel surfaces. The page and card previously shared --color-dark,
+     so cards were invisible except for a faint shadow. */
+  --color-surface: #fffdfe;
+  --color-surface-dark: #2a2740;
+  --color-hairline: #f0d7e5;
+  --color-hairline-dark: #3b3557;
   --color-disabled: #5c5b77;
 
   --font-header: "Pacifico", cursive;
@@ -41,6 +47,32 @@
   .hero-gif {
     @apply mt-5 flex mx-auto justify-center;
   }
+  /* Raised panel used by cards and any boxed content. */
+  .surface {
+    @apply bg-surface dark:bg-surface-dark border border-hairline dark:border-hairline-dark rounded-xl;
+  }
+
+  /* Metadata rows: a label badge beside its value, aligned in a grid rather
+     than run together inline. */
+  .meta-list {
+    @apply grid gap-y-2 mt-4 list-none p-0;
+    grid-template-columns: max-content 1fr;
+  }
+  .meta-list dt {
+    @apply self-center;
+  }
+  .meta-list dd {
+    @apply self-center ml-3 break-words;
+  }
+
+  .pro-img {
+    @apply rounded-xl mt-4 w-full h-auto border border-hairline dark:border-hairline-dark;
+  }
+
+  .center {
+    @apply text-center;
+  }
+
   .card-grid {
     @apply grid gap-4;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
