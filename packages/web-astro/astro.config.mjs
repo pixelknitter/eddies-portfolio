@@ -10,6 +10,11 @@ export default defineConfig({
   vite: {
     plugins: [tailwindcss()],
   },
+  // Astro's <Image> refuses remote sources unless the host is allowed.
+  // Sample project artwork comes from a placeholder generator.
+  image: {
+    domains: ['placehold.co'],
+  },
   syntaxHighlight: 'prism',
   output: "server",
   adapter: cloudflare({
