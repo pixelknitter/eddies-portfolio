@@ -11,5 +11,5 @@ export default defineConfig({
   integrations: [react(), tailwind(tailwindOptions)],
   syntaxHighlight: 'prism',
   output: "server",
-  adapter: cloudflare()
+  adapter: cloudflare({ imageService: 'passthrough' })
 });

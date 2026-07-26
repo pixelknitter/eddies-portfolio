@@ -1,0 +1,93 @@
+name: Discord notify
+description: >-
+  Post a status embed to a Discord channel webhook, with the pipeline run link
+  and (optionally) a deployment result URL. No-ops when the webhook is unset.
+
+inputs:
+  webhook-url:
+    description: Discord channel webhook URL (pass the relevant secret). Empty = skip.
+    required: true
+  status:
+    description: One of success | failure | info. Controls the embed color.
+    required: false
+    default: info
+  title:
+    description: Embed title.
+    required: true
+  description:
+    description: Embed description / summary line.
+    required: false
+    default: ''
+  result-url:
+    description: Optional result URL (e.g. the deployed site) shown as a field.
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Send Discord notification
+      shell: bash
+      env:
+        WEBHOOK_URL: ${{ inputs.webhook-url }}
+        STATUS: ${{ inputs.status }}
+        TITLE: ${{ inputs.title }}
+        DESCRIPTION: ${{ inputs.description }}
+        RESULT_URL: ${{ inputs.result-url }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        REPO: ${{ github.repository }}
+        REF_NAME: ${{ github.head_ref || github.ref_name }}
+        ACTOR: ${{ github.actor }}
+        SHORT_SHA: ${{ github.sha }}
+      run: |
+        set -euo pipefail
+        if [ -z "${WEBHOOK_URL:-}" ]; then
+          echo "No Discord webhook configured for this notification; skipping."
+          exit 0
+        fi
+
+        case "$STATUS" in
+          success) COLOR=3066993 ;;   # green
+          failure) COLOR=15158332 ;;  # red
+          *)       COLOR=3447003 ;;   # blue (info)
+        esac
+
+        payload="$(jq -n \
+          --arg title "$TITLE" \
+          --arg desc "$DESCRIPTION" \
+          --argjson color "$COLOR" \
+          --arg runurl "$RUN_URL" \
+          --arg repo "$REPO" \
+          --arg ref "$REF_NAME" \
+          --arg sha "${SHORT_SHA:0:7}" \
+          --arg actor "$ACTOR" \
+          --arg resulturl "$RESULT_URL" \
+          '{
+            embeds: [{
+              title: $title,
+              description: $desc,
+              url: $runurl,
+              color: $color,
+              fields: (
+                [
+                  {name: "Repository", value: $repo, inline: true},
+                  {name: "Branch", value: $ref, inline: true},
+                  {name: "Commit", value: $sha, inline: true},
+                  {name: "Triggered by", value: $actor, inline: true}
+                ]
+                + (if $resulturl != "" then [{name: "Result URL", value: $resulturl}] else [] end)
+                + [{name: "Pipeline", value: $runurl}]
+              )
+            }]
+          }')"
+
+        # Retry a few times so a transient Discord hiccup does not fail the job.
+        for attempt in 1 2 3; do
+          if curl -sf -H "Content-Type: application/json" -d "$payload" "$WEBHOOK_URL"; then
+            echo "Discord notification sent."
+            exit 0
+          fi
+          echo "Discord POST failed (attempt $attempt), retrying..."
+          sleep "$attempt"
+        done
+        echo "::warning::Discord notification failed after retries (non-fatal)."
