@@ -8,6 +8,7 @@ heroImage:
   alt: 'Blog Post Image'
 relatedPosts:
   - step-by-step
+publishDate: 2023-12-05T09:00:00Z
 draft: true
 ---
 
