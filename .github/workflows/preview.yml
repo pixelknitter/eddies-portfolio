@@ -136,7 +136,11 @@ jobs:
           CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: node scripts/smoke-test.mjs "$PREVIEW_URL"
 
+      # The upserted comment doubles as the "already announced" marker: if it
+      # was missing, this is the PR's first successful preview, which is the
+      # only success worth pinging Discord about (the URL is stable per PR).
       - name: Comment preview URL on the PR
+        id: comment
         if: success()
         uses: actions/github-script@v7
         env:
@@ -167,9 +171,18 @@ jobs:
                 issue_number: context.issue.number, body,
               });
             }
+            core.setOutput('first', existing ? 'false' : 'true');
 
-      - name: Notify deployments channel (success)
-        if: success()
+      # Announce only the first successful preview per PR. Every later push
+      # updates the same comment silently — the URL never changes, so repeat
+      # pings are pure noise. Failures always notify (see the next step).
+      # Override with the PREVIEW_DEPLOY_NOTIFY variable: `always` or `never`.
+      - name: Notify deployments channel (first successful preview)
+        if: >-
+          success() &&
+          (vars.PREVIEW_DEPLOY_NOTIFY == 'always' ||
+           (vars.PREVIEW_DEPLOY_NOTIFY != 'never' &&
+            steps.comment.outputs.first == 'true'))
         uses: ./.github/actions/discord-notify
         with:
           webhook-url: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}

@@ -42,6 +42,7 @@ hostname even though it inherits the rest of the config.
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `PREVIEW_DOMAIN` | `eddie.engineering` | Zone that preview hostnames hang off |
+| `PREVIEW_DEPLOY_NOTIFY` | *(first only)* | `always` to ping Discord on every preview deploy, `never` to stay silent on preview successes. Failures always notify. |
 | `CF_SESSION_KV_ID` | *(unset)* | Pin previews to one shared `SESSION` KV namespace instead of provisioning one per preview Worker |
 
 ## ⚠️ Production cutover checklist (one time)
@@ -189,7 +190,9 @@ protection rules are configured today.
 Two channels, mapped by event type:
 
 - **Deployments channel** (`DISCORD_DEPLOY_WEBHOOK_URL`)
-  - ✅ Preview deployed (per PR) — includes the preview URL
+  - ✅ Preview deployed — **only the first success per PR**, since the preview
+    URL is stable and later pushes would just repeat it. The PR comment is
+    still updated on every deploy.
   - 🚀 Production deployed — includes the production URL
 - **Alerts channel** (`DISCORD_ALERT_WEBHOOK_URL`)
   - ❌ CI failed (check/lint/test/build)
