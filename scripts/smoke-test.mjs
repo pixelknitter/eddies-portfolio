@@ -64,6 +64,8 @@ function isAccessInterstitial(response, body) {
   );
 }
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function fetchWithRetry(url) {
   let lastError;
   for (let attempt = 1; attempt <= RETRIES; attempt++) {
@@ -74,6 +76,19 @@ async function fetchWithRetry(url) {
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
       const body = await response.text();
+
+      // A 5xx immediately after a deploy is usually propagation, not a real
+      // fault: the entry Worker answers before its assets are fully
+      // available, so routes that read them fail briefly. Retry those rather
+      // than failing the deploy on a race. 4xx is definitive — an expected
+      // 404 check must not be retried into a timeout.
+      if (response.status >= 500 && attempt < RETRIES) {
+        const delay = attempt * 5000;
+        console.log(`  … ${url} returned ${response.status}, retrying in ${delay}ms`);
+        await sleep(delay);
+        continue;
+      }
+
       return { response, body };
     } catch (error) {
       lastError = error;
@@ -81,11 +96,17 @@ async function fetchWithRetry(url) {
       if (attempt < RETRIES) {
         const delay = attempt * 3000;
         console.log(`  … ${url} failed (${error.message}), retrying in ${delay}ms`);
-        await new Promise((resolve) => setTimeout(resolve, delay));
+        await sleep(delay);
       }
     }
   }
-  throw lastError;
+  if (lastError) throw lastError;
+  // Exhausted retries on a persistent 5xx — report it as the real result.
+  return fetch(url, {
+    headers: headers(),
+    redirect: 'follow',
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  }).then(async (response) => ({ response, body: await response.text() }));
 }
 
 async function main() {
