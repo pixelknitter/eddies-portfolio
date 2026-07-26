@@ -1,7 +1,7 @@
 ---
 import { Image } from "astro:assets";
 import { iconUrl } from '@util/constants'
-interface Props extends Badge {};
+type Props = Badge;
 
 const { label, tech, src, iconSuffix = "original" } = Astro.props
 
@@ -23,6 +23,9 @@ const SKILL_SIZE = 46;
 </div>
 
 <style>
+  /* Tailwind 4 needs an explicit reference to resolve @apply / theme tokens
+     inside Astro's scoped component styles. */
+  @reference "../styles/global.css";
   .badge-container {
     @apply inline-block;
     animation: float 3s ease-in-out infinite;
@@ -32,7 +35,7 @@ const SKILL_SIZE = 46;
     transition: transform var(--animate-duration), rotate var(--animate-duration), box-shadow var(--animate-duration);
   }
   .tooltip {
-    @apply absolute -top-10 left-1/2 transform -translate-x-1/2 bg-dark text-light dark:bg-light dark:text-dark px-2 py-1 rounded text-sm whitespace-nowrap;
+    @apply absolute -top-10 left-1/2 -translate-x-1/2 bg-dark text-light dark:bg-light dark:text-dark px-2 py-1 rounded text-sm whitespace-nowrap;
     transition: opacity var(--animate-duration);
   }
   @media (prefers-reduced-motion: no-preference) {

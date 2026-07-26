@@ -1,10 +1,28 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+/* The site toggles a `.dark` class on <html>; keep class-based dark mode
+   instead of Tailwind 4's default prefers-color-scheme behaviour. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Design tokens (migrated from the former tailwind.config.cjs theme). */
+@theme {
+  --color-dark: #1e1e2e;
+  --color-light: #fdebf3;
+  --color-button: #5dd39e;
+  --color-link: #5dd39e;
+  --color-underline: #348aa7;
+  --color-emphasis: #525174;
+  --color-tag: #584966;
+  --color-disabled: #5c5b77;
+
+  --font-header: "Pacifico", cursive;
+  --font-body: "Josefin Sans", sans-serif;
+}
 
 @layer components {
   .nav-link {
-    @apply mx-2.5 text-center text-dark dark:text-light hover:underline hover:decoration-underline hover:decoration-2 hover:underline-offset-6;
+    @apply mx-2.5 text-center text-dark dark:text-light hover:underline hover:decoration-underline hover:decoration-2 hover:underline-offset-[6px];
   }
   .badge {
     @apply bg-tag text-light text-center rounded-md font-body font-semibold text-sm mx-1 my-2 px-2 py-1 whitespace-nowrap;
@@ -24,7 +42,8 @@
     @apply mt-5 flex mx-auto justify-center;
   }
   .card-grid {
-    @apply grid grid-cols-auto-fill-250 gap-4;
+    @apply grid gap-4;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   }
   /* Icons */
   .git-icon {
@@ -64,10 +83,10 @@
     @apply text-4xl mb-1;
   }
   h2 {
-    @apply text-3xl mb-4 underline decoration-underline decoration-4 underline-offset-6;
+    @apply text-3xl mb-4 underline decoration-underline decoration-4 underline-offset-[6px];
   }
   h3 {
-    @apply text-2xl mb-2 underline decoration-emphasis decoration-4 underline-offset-6;
+    @apply text-2xl mb-2 underline decoration-emphasis decoration-4 underline-offset-[6px];
   }
   h4 {
     @apply text-xl;

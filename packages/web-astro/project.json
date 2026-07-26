@@ -6,27 +6,43 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nxtensions/astro:build",
-      "options": {}
+      "executor": "nx:run-commands",
+      "cache": true,
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
+      "options": {
+        "command": "astro build",
+        "cwd": "packages/web-astro"
+      }
     },
     "dev": {
-      "executor": "@nxtensions/astro:dev",
-      "options": {}
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "astro dev",
+        "cwd": "packages/web-astro"
+      }
     },
     "preview": {
       "dependsOn": [
-        {
-          "target": "build"
-        }
+        "build"
       ],
-      "executor": "@nxtensions/astro:preview",
-      "options": {}
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "astro preview",
+        "cwd": "packages/web-astro"
+      }
     },
     "check": {
-      "executor": "@nxtensions/astro:check"
+      "executor": "nx:run-commands",
+      "cache": true,
+      "options": {
+        "command": "astro check",
+        "cwd": "packages/web-astro"
+      }
     },
     "lint": {
-      "executor": "@nx/linter:eslint",
+      "executor": "@nx/eslint:lint",
       "outputs": [
         "{options.outputFile}"
       ],

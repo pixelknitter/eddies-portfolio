@@ -112,6 +112,7 @@ yarn-error.log
 
 # nx
 .nx/cache
+.nx/workspace-data
 migrations.json
 
 packages/mobile-expo-e2e/artifacts
@@ -129,3 +130,9 @@ packages/mobile-expo-e2e/artifacts
 
 # Env
 .env*
+.claude/worktrees
+.nx/polygraph
+.nx/self-healing
+.nx/migrate-runs
+# wrangler local state
+.wrangler

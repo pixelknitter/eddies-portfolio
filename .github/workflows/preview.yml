@@ -17,11 +17,12 @@ jobs:
   preview:
     name: Build & deploy preview
     runs-on: ubuntu-latest
-    # Cloudflare + Discord credentials are stored as *environment* secrets,
-    # so the job must declare the environment to read them.
+    # Credentials are repo-level secrets; the environment is declared for
+    # GitHub deployment tracking, the environment URL, and optional
+    # protection rules (env-level secrets still override when set).
     environment:
       name: staging
-      url: ${{ steps.deploy.outputs.pages-deployment-alias-url || steps.deploy.outputs.deployment-url }}
+      url: ${{ steps.preview.outputs.url }}
     permissions:
       contents: read
       pull-requests: write
@@ -46,19 +47,83 @@ jobs:
       - name: Build
         run: yarn nx build web-astro
 
-      # Deploy under a per-PR branch name so Cloudflare mints a stable preview
-      # alias. The alias is derived from the numeric PR number, so it is
-      # inherently safe to interpolate and always a valid DNS label.
-      - name: Deploy preview to Cloudflare Pages
+      # Preview URLs cannot be served on a custom domain, so a preview that
+      # needs a real hostname must be its own Worker with its own Custom
+      # Domain. Derive both from the branch name — read from env and
+      # slugified, since branch names are attacker-controllable and must also
+      # be a valid DNS label.
+      - name: Compute preview identity
+        id: meta
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PREVIEW_DOMAIN: ${{ vars.PREVIEW_DOMAIN || 'eddie.engineering' }}
+        run: |
+          set -euo pipefail
+          slug="$(printf '%s' "$HEAD_REF" \
+            | tr '[:upper:]' '[:lower:]' \
+            | tr -c 'a-z0-9-' '-' \
+            | sed -E 's/-+/-/g; s/^-+//; s/-+$//' \
+            | cut -c1-30 \
+            | sed -E 's/-+$//')"
+          [ -n "$slug" ] || slug="pr-${PR_NUMBER}"
+          # Worker is named by PR number so cleanup on close is unambiguous.
+          worker="eddies-portfolio-pr-${PR_NUMBER}"
+          hostname="${slug}-staging.${PREVIEW_DOMAIN}"
+          echo "worker=${worker}" >> "$GITHUB_OUTPUT"
+          echo "hostname=${hostname}" >> "$GITHUB_OUTPUT"
+          echo "Worker:   ${worker}"
+          echo "Hostname: ${hostname}"
+
+      - name: Generate preview Wrangler config
+        env:
+          SESSION_KV_ID: ${{ vars.CF_SESSION_KV_ID }}
+          WORKER: ${{ steps.meta.outputs.worker }}
+          HOSTNAME_OUT: ${{ steps.meta.outputs.hostname }}
+        run: |
+          node scripts/make-preview-wrangler.mjs \
+            "$WORKER" "$HOSTNAME_OUT" "${SESSION_KV_ID:-}"
+
+      - name: Deploy preview Worker
         id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: >-
-            pages deploy dist/packages/web-astro
-            --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME || 'eddies-portfolio' }}
-            --branch=pr-${{ github.event.pull_request.number }}
+          command: deploy -c packages/web-astro/dist/server/wrangler.preview.json
+
+      - name: Resolve preview URL
+        id: preview
+        env:
+          HOSTNAME_OUT: ${{ steps.meta.outputs.hostname }}
+        run: |
+          set -euo pipefail
+          echo "url=https://${HOSTNAME_OUT}" >> "$GITHUB_OUTPUT"
+          echo "Preview URL: https://${HOSTNAME_OUT}"
+
+      # A newly-created Custom Domain needs DNS + edge certificate propagation
+      # before it answers, so wait for it rather than letting the smoke test
+      # fail on a cold hostname.
+      - name: Wait for the preview hostname to respond
+        env:
+          PREVIEW_URL: ${{ steps.preview.outputs.url }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            # Assign the fallback separately: `$(curl … || echo 000)` would
+            # concatenate curl's own "000" with the echo, yielding "000000"
+            # and passing the check on a host that never answered.
+            code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$PREVIEW_URL")" || code="000"
+            # Any HTTP answer means DNS + TLS are live (302 = Access login).
+            if [ "$code" != "000" ]; then
+              echo "Hostname responding after ${attempt} attempt(s) (HTTP $code)."
+              exit 0
+            fi
+            echo "  attempt ${attempt}: no response yet, waiting…"
+            sleep 10
+          done
+          echo "::error::Preview hostname did not respond within ~5 minutes."
+          exit 1
 
       # Validate the deployment actually serves before calling it a success.
       # Previews are gated by Cloudflare Access: without a service token the
@@ -66,16 +131,20 @@ jobs:
       # Access login page.
       - name: Smoke test the deployment
         env:
-          PREVIEW_URL: ${{ steps.deploy.outputs.pages-deployment-alias-url || steps.deploy.outputs.deployment-url }}
+          PREVIEW_URL: ${{ steps.preview.outputs.url }}
           CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: node scripts/smoke-test.mjs "$PREVIEW_URL"
 
+      # The upserted comment doubles as the "already announced" marker: if it
+      # was missing, this is the PR's first successful preview, which is the
+      # only success worth pinging Discord about (the URL is stable per PR).
       - name: Comment preview URL on the PR
+        id: comment
         if: success()
         uses: actions/github-script@v7
         env:
-          PREVIEW_URL: ${{ steps.deploy.outputs.pages-deployment-alias-url || steps.deploy.outputs.deployment-url }}
+          PREVIEW_URL: ${{ steps.preview.outputs.url }}
         with:
           script: |
             const url = process.env.PREVIEW_URL;
@@ -102,16 +171,25 @@ jobs:
                 issue_number: context.issue.number, body,
               });
             }
+            core.setOutput('first', existing ? 'false' : 'true');
 
-      - name: Notify deployments channel (success)
-        if: success()
+      # Announce only the first successful preview per PR. Every later push
+      # updates the same comment silently — the URL never changes, so repeat
+      # pings are pure noise. Failures always notify (see the next step).
+      # Override with the PREVIEW_DEPLOY_NOTIFY variable: `always` or `never`.
+      - name: Notify deployments channel (first successful preview)
+        if: >-
+          success() &&
+          (vars.PREVIEW_DEPLOY_NOTIFY == 'always' ||
+           (vars.PREVIEW_DEPLOY_NOTIFY != 'never' &&
+            steps.comment.outputs.first == 'true'))
         uses: ./.github/actions/discord-notify
         with:
           webhook-url: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
           status: success
           title: '🔎 Preview deployed — PR #${{ github.event.pull_request.number }}'
           description: ${{ github.event.pull_request.title }}
-          result-url: ${{ steps.deploy.outputs.pages-deployment-alias-url || steps.deploy.outputs.deployment-url }}
+          result-url: ${{ steps.preview.outputs.url }}
 
       - name: Notify alerts channel (failure)
         if: failure()

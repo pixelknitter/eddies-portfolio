@@ -1,48 +1,25 @@
 {
-  "plugins": [
-    "@nxtensions/astro"
-  ],
   "targetDefaults": {
     "test": {
       "inputs": [
         "default",
-        "^default",
-        "{workspaceRoot}/jest.preset.js"
+        "^default"
       ],
       "cache": true
     },
     "lint": {
       "inputs": [
         "default",
-        "{workspaceRoot}/.eslintrc.json",
-        "{workspaceRoot}/.eslintignore"
+        "{workspaceRoot}/eslint.config.mjs"
       ],
       "cache": true
-    },
-    "@nxtensions/astro:build": {
-      "cache": true,
-      "inputs": [
-        "default",
-        "^default"
-      ],
-      "outputs": [
-        "{workspaceRoot}/dist/{projectRoot}"
-      ]
-    },
-    "@nxtensions/astro:check": {
-      "cache": true,
-      "inputs": [
-        "default",
-        "^default"
-      ]
-    },
-    "@nxtensions/astro:preview": {
-      "dependsOn": [
-        "build"
-      ]
     },
     "build": {
-      "cache": true
+      "cache": true,
+      "inputs": [
+        "default",
+        "^default"
+      ]
     },
     "e2e": {
       "cache": true
@@ -51,20 +28,6 @@
       "cache": true
     }
   },
-  "generators": {
-    "@nx/react": {
-      "application": {
-        "babel": true
-      }
-    },
-    "@nx/next": {
-      "application": {
-        "style": "css",
-        "linter": "eslint"
-      }
-    }
-  },
   "defaultProject": "web-astro",
-  "extends": "nx/presets/npm.json",
-  "nxCloudAccessToken": "Mjk3MjU5OTgtZTMzYi00MTYxLWE0MDItYzc3Y2E1YjlmMzVmfHJlYWQtd3JpdGU="
+  "extends": "nx/presets/npm.json"
 }

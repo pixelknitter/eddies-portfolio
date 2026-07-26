@@ -14,7 +14,7 @@ const blogEntries = await getCollection('blog', ({ data }) => {
     <!-- TODO: connect this to Medium/Substack -->
     <ul role="list" class="card-grid">
         {blogEntries.map((card) => <Card
-            url={`/blog/${card.slug}/`}
+            url={`/blog/${card.id}/`}
             image={card.data.heroImage.url}
             title={card.data.title}
             body={card.data.blurb}

@@ -24,11 +24,12 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
-    # Cloudflare + Discord credentials are stored as *environment* secrets,
-    # so the job must declare the environment to read them.
+    # Credentials are repo-level secrets; the environment is declared for
+    # GitHub deployment tracking, the environment URL, and optional
+    # protection rules (env-level secrets still override when set).
     environment:
       name: production
-      url: ${{ steps.deploy.outputs.deployment-url }}
+      url: ${{ steps.url.outputs.url }}
     permissions:
       contents: read
       deployments: write
@@ -47,23 +48,36 @@ jobs:
       - name: Build
         run: yarn nx build web-astro
 
-      - name: Publish to Cloudflare Pages
+      # The Astro Cloudflare adapter targets Workers (it dropped Pages
+      # support), emitting dist/server/wrangler.json with the entry point,
+      # the static-asset binding (../client) and the session KV binding.
+      - name: Publish to Cloudflare Workers
         id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # `--branch` must match the Pages project's production branch,
-          # otherwise this lands as a preview deployment.
-          command: >-
-            pages deploy dist/packages/web-astro
-            --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME || 'eddies-portfolio' }}
-            --branch=master
+          command: deploy -c packages/web-astro/dist/server/wrangler.json
+
+      - name: Resolve production URL
+        id: url
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.deployment-url }}
+          CMD_OUTPUT: ${{ steps.deploy.outputs.command-output }}
+        run: |
+          set -euo pipefail
+          url="$DEPLOY_URL"
+          if [ -z "$url" ]; then
+            url="$(printf '%s' "$CMD_OUTPUT" \
+              | grep -oE 'https://[a-z0-9.-]+\.workers\.dev' | head -1 || true)"
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Production URL: ${url:-<none>}"
 
       # Production is public, so this runs the full assertions with no token.
       - name: Smoke test production
         env:
-          PROD_URL: ${{ steps.deploy.outputs.deployment-url }}
+          PROD_URL: ${{ steps.url.outputs.url }}
         run: node scripts/smoke-test.mjs "$PROD_URL"
 
       - name: Notify deployments channel (success)
@@ -74,7 +88,7 @@ jobs:
           status: success
           title: '🚀 Production deployed'
           description: 'Smoke tests passed against the live deployment.'
-          result-url: ${{ steps.deploy.outputs.deployment-url }}
+          result-url: ${{ steps.url.outputs.url }}
 
       - name: Notify alerts channel (failure)
         if: failure()
