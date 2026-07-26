@@ -40,7 +40,6 @@ const checks = [
   { path: '/blog/', status: 200, contains: 'Blog' },
   { path: '/works/', status: 200, contains: 'Projects' },
   { path: '/projects/project-1/', status: 200 },
-  { path: '/blog/step-by-step/', status: 200 },
   { path: '/air/', status: 200 },
   // Unknown routes must 404 rather than render a page or error.
   { path: '/this-route-should-not-exist', status: 404 },
@@ -170,12 +169,39 @@ async function main() {
     }
   }
 
+  // Follow whatever the blog index actually publishes rather than hardcoding
+  // a slug: posts are scheduled and drafted, so any fixed URL eventually
+  // 404s. This still catches a post page that fails to render.
+  let extra = 0;
+  try {
+    const index = await fetchWithRetry(`${baseUrl}/blog/`);
+    const slug = /href="\/blog\/([^"/]+)\/?"/.exec(index.body)?.[1];
+
+    if (!slug) {
+      console.log('… no published posts listed; skipping the post-page check.');
+    } else {
+      extra = 1;
+      const post = await fetchWithRetry(`${baseUrl}/blog/${slug}/`);
+      if (post.response.status === 200) {
+        console.log(`✓ /blog/${slug}/ — 200 (first listed post)`);
+      } else {
+        failures.push(`/blog/${slug}/ — expected HTTP 200, got ${post.response.status}`);
+        console.log(`✖ /blog/${slug}/ — expected HTTP 200, got ${post.response.status}`);
+      }
+    }
+  } catch (error) {
+    failures.push(`blog index — ${error.message}`);
+    console.log(`✖ blog index — ${error.message}`);
+  }
+
+  const total = checks.length + extra;
+
   console.log('');
   if (failures.length) {
-    console.error(`✖ Smoke test failed: ${failures.length} of ${checks.length} checks.`);
+    console.error(`✖ Smoke test failed: ${failures.length} of ${total} checks.`);
     process.exit(1);
   }
-  console.log(`✓ Smoke test passed: ${checks.length}/${checks.length} checks.`);
+  console.log(`✓ Smoke test passed: ${total}/${total} checks.`);
 }
 
 main().catch((error) => {

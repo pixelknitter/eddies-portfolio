@@ -1,22 +1,27 @@
 ---
-import { getCollection, render } from 'astro:content';
+import { getEntry, render } from 'astro:content';
 import MarkdownBlogLayout from '@layouts/MarkdownBlogLayout.astro';
+import { isPublished } from '@util/posts.mjs';
 
-// build static html for dynamic pages
-export const prerender = true;
+// Rendered per request rather than prerendered. A scheduled post must 404
+// until its publishDate passes, and a prerendered page would already exist on
+// disk and be reachable by direct URL. Serving this route from the Worker is
+// what lets scheduling work with no rebuild, cron, or deploy.
+const { slug } = Astro.params;
 
-export async function getStaticPaths() {
-    const blogEntries = await getCollection('blog');
-    return blogEntries.map(entry => ({
-        params: { slug: entry.id }, props: { entry },
-    }));
+const entry = slug ? await getEntry('blog', slug) : undefined;
+
+// Drafts and not-yet-due posts are indistinguishable from missing in
+// production; locally everything is viewable so scheduled work can be checked.
+const visible = entry && (import.meta.env.PROD ? isPublished(entry.data) : true);
+
+if (!entry || !visible) {
+    return new Response(null, { status: 404, statusText: 'Not found' });
 }
 
-const { entry } = Astro.props;
 const { Content } = await render(entry);
 ---
 
 <MarkdownBlogLayout frontmatter={entry.data}>
     <Content />
 </MarkdownBlogLayout>
-

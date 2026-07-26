@@ -40,6 +40,10 @@ const BlogSchema = z.object({
     alt: z.string(),
   }),
   draft: z.boolean(),
+  // When set, the post stays hidden until this moment. The site renders per
+  // request, so a scheduled post goes live on its own — no rebuild needed.
+  // Omit it to publish as soon as `draft` is false.
+  publishDate: z.coerce.date().optional(),
 });
 
 const blog = defineCollection({

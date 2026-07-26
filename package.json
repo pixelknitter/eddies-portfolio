@@ -11,7 +11,9 @@
     "check": "nx check web-astro",
     "lint": "nx lint web-astro",
     "ci": "nx run-many --targets=check,lint,test,build --projects=web-astro",
-    "smoke": "node scripts/smoke-test.mjs"
+    "smoke": "node scripts/smoke-test.mjs",
+    "posts:queue": "node scripts/posts-queue.mjs",
+    "posts:next": "node scripts/posts-queue.mjs --next"
   },
   "private": true,
   "devDependencies": {
