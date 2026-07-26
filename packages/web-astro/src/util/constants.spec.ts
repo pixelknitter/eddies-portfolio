@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { execFileSync } from 'node:child_process';
 import { buildingBlocks, iconUrl } from './constants';
 
 /**
@@ -37,6 +38,39 @@ describe('buildingBlocks', () => {
   it('has unique labels across all categories', () => {
     const labels = allBadges.map((b) => b.label);
     expect(new Set(labels).size).toBe(labels.length);
+  });
+
+  /**
+   * Existing on disk is not enough. A global gitignore pattern (`Icon?`,
+   * matching the `icons` directory case-insensitively) once meant these files
+   * were present locally but never committed — so every deployed page showed
+   * broken images while local builds looked fine. Assert they are tracked.
+   */
+  it('has every locally-hosted icon committed to git', () => {
+    const localSrcs = allBadges
+      .map((b) => b.src)
+      .filter((src): src is string => typeof src === 'string' && src.startsWith('/'));
+
+    expect(localSrcs.length, 'expected some self-hosted icons').toBeGreaterThan(0);
+
+    // Vitest's import.meta.url is not a file: URL, so resolve from the
+    // process cwd — Vitest runs rooted at the package directory.
+    const tracked = new Set(
+      execFileSync('git', ['ls-files', 'public'], {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+      })
+        .split('\n')
+        .filter(Boolean)
+        .map((p) => `/${p.replace(/^public\//, '')}`)
+    );
+
+    for (const src of localSrcs) {
+      expect(
+        tracked.has(src),
+        `${src} is referenced but not tracked in git — it will 404 once deployed`
+      ).toBe(true);
+    }
   });
 
   it('only uses known optional fields', () => {

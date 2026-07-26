@@ -57,4 +57,86 @@ const authors = defineCollection({
   schema: AuthorSchema,
 });
 
-export const collections = { projects, blog, authors };
+// STAR (Situation / Task / Action / Result) career highlights. Rotated on the
+// home page; `draft` entries are hidden in production like blog posts.
+const star = defineCollection({
+  loader: glob({ pattern: '**/*.md', base: './src/content/star' }),
+  schema: z.object({
+    title: z.string(),
+    situation: z.string(),
+    task: z.string(),
+    action: z.string(),
+    result: z.string(),
+    tags: z.array(z.string()).default([]),
+    draft: z.boolean().default(false),
+  }),
+});
+
+/**
+ * Recently updated public repositories, fetched at build time and baked into
+ * the page — no runtime API call, no token in the Worker, and a GitHub outage
+ * cannot affect the live site.
+ *
+ * Failures are deliberately non-fatal: a rate-limited or unreachable API
+ * yields an empty collection and the section simply does not render, rather
+ * than breaking the build (and therefore every deploy).
+ */
+const latestWork = defineCollection({
+  loader: async () => {
+    const user = process.env.GITHUB_USER ?? 'pixelknitter';
+    const token = process.env.GITHUB_TOKEN;
+    const url =
+      `https://api.github.com/users/${user}/repos` +
+      `?sort=pushed&direction=desc&per_page=12&type=owner`;
+
+    try {
+      const response = await fetch(url, {
+        headers: {
+          Accept: 'application/vnd.github+json',
+          'User-Agent': 'eddies-portfolio-build',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        signal: AbortSignal.timeout(15_000),
+      });
+
+      if (!response.ok) {
+        console.warn(
+          `[latest-work] GitHub responded ${response.status}; section will be omitted.`
+        );
+        return [];
+      }
+
+      const repos = (await response.json()) as Array<Record<string, unknown>>;
+
+      return repos
+        .filter((repo) => !repo.fork && !repo.archived && !repo.private)
+        .slice(0, 6)
+        .map((repo) => ({
+          id: String(repo.name),
+          name: String(repo.name),
+          description: repo.description ? String(repo.description) : null,
+          url: String(repo.html_url),
+          language: repo.language ? String(repo.language) : null,
+          stars: Number(repo.stargazers_count ?? 0),
+          pushedAt: String(repo.pushed_at),
+        }));
+    } catch (error) {
+      console.warn(
+        `[latest-work] Could not reach GitHub (${
+          error instanceof Error ? error.message : error
+        }); section will be omitted.`
+      );
+      return [];
+    }
+  },
+  schema: z.object({
+    name: z.string(),
+    description: z.string().nullable(),
+    url: z.string().url(),
+    language: z.string().nullable(),
+    stars: z.number(),
+    pushedAt: z.string(),
+  }),
+});
+
+export const collections = { projects, blog, authors, star, latestWork };

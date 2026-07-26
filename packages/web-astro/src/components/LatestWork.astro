@@ -1,0 +1,55 @@
+---
+import { getCollection } from 'astro:content';
+
+// Baked in at build time by the `latestWork` loader. If GitHub was
+// unreachable the collection is empty and this renders nothing at all.
+const repos = await getCollection('latestWork');
+
+const dateFormat = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  year: 'numeric',
+});
+---
+
+{repos.length > 0 && (
+  <section>
+    <h2 class="mt-6">Latest Work</h2>
+    <p class="font-body text-lg mb-6">
+      Recently active repositories, pulled from GitHub when this site was built.
+    </p>
+    <ul role="list" class="card-grid">
+      {repos.map((repo) => (
+        <li class="list-none bg-light dark:bg-dark p-4 rounded-lg shadow-md dark:shadow-light/10 hover:shadow-lg dark:hover:shadow-light/20 transition-shadow duration-300 group">
+          <a
+            class="no-underline text-dark dark:text-light flex h-full flex-col"
+            href={repo.data.url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <h3 class="font-body text-xl mb-2 no-underline decoration-0 transition-colors duration-300 group-hover:text-link">
+              {repo.data.name}
+            </h3>
+            {repo.data.description && (
+              <p class="text-base leading-relaxed text-left mb-3">
+                {repo.data.description}
+              </p>
+            )}
+            <div class="mt-auto flex flex-wrap items-center gap-2 text-sm">
+              {repo.data.language && (
+                <span class="badge">{repo.data.language}</span>
+              )}
+              {repo.data.stars > 0 && (
+                <span aria-label={`${repo.data.stars} stars`}>
+                  ★ {repo.data.stars}
+                </span>
+              )}
+              <span class="opacity-70">
+                {dateFormat.format(new Date(repo.data.pushedAt))}
+              </span>
+            </div>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </section>
+)}
