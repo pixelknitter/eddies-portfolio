@@ -3,6 +3,24 @@ name: Dev Preview Deploy
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    # A preview provisions a Worker, a Custom Domain and a DNS record, so it
+    # is not worth spending on a PR that cannot change what gets served.
+    #
+    # This is a denylist rather than an allowlist on purpose: a new directory
+    # should default to *getting* a preview. Silently skipping a deployable
+    # change is the worse failure.
+    #
+    # Note `*.md` matches only root-level files (a path filter's `*` does not
+    # cross `/`), so posts under src/content/**/*.md still trigger a preview —
+    # those are deployable content.
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - 'LICENSE'
+      - '.vscode/**'
+      - '.editorconfig'
+      - '.gitignore'
+      - '.prettierignore'
 
 # One preview per PR; newer pushes supersede in-flight runs.
 concurrency:

@@ -16,7 +16,7 @@ GitHub Actions pipelines. Preview deployments are private, gated by
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
 | `ci.yml` | push to `master`, any PR, manual | `check` → `lint` → `test` → `build` |
-| `preview.yml` | PR opened/updated | verify → build → deploy a **per-PR dev Worker** on `<branch>-dev.eddie.engineering` → smoke test → comment the URL |
+| `preview.yml` | PR opened/updated (skipped for docs-only changes) | verify → build → deploy a **per-PR dev Worker** on `<branch>-dev.eddie.engineering` → smoke test → comment the URL |
 | `preview-cleanup.yml` | PR closed | delete that Worker, its Custom Domain and its KV namespace |
 | `deploy.yml` | after CI succeeds on `master`, manual | **staging** (automatic) → *approval* → **production** |
 
