@@ -42,7 +42,11 @@ jobs:
       - name: Verify (check, lint, test)
         run: yarn nx run-many --targets=check,lint,test --projects=web-astro
 
+      # Staging is a pre-production review tier, so it shows unpublished
+      # content. The production job below deliberately does not.
       - name: Build
+        env:
+          PUBLIC_SHOW_UNPUBLISHED: 'true'
         run: yarn nx build web-astro
 
       - name: Generate staging Wrangler config

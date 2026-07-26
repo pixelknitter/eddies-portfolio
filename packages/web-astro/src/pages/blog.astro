@@ -3,14 +3,15 @@ import Layout from '@layouts/Layout.astro';
 import Card from '@components/Card.astro';
 import { getCollection } from "astro:content";
 import { publishedPosts } from "@util/posts.mjs";
+import { showUnpublished } from "@util/visibility.mjs";
 import Hero from "@components/Hero.astro";
 const pageTitle = "Posts";
-// In production a post must be non-draft *and* past its publishDate. Locally
-// everything is shown so scheduled work is easy to preview.
+// Production shows only published posts. Dev and the dev/staging deploys
+// reveal drafts and scheduled work so those tiers aren't empty to review.
 const allEntries = await getCollection('blog');
-const blogEntries = import.meta.env.PROD
-    ? publishedPosts(allEntries)
-    : allEntries;
+const blogEntries = showUnpublished(import.meta.env)
+    ? allEntries
+    : publishedPosts(allEntries);
 ---
 <Layout pageTitle={pageTitle}>
     <Hero alt="RaccoonLaptopGif" src="/blog.webp"/>

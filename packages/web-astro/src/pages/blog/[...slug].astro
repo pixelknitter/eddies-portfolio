@@ -2,6 +2,7 @@
 import { getEntry, render } from 'astro:content';
 import MarkdownBlogLayout from '@layouts/MarkdownBlogLayout.astro';
 import { isPublished } from '@util/posts.mjs';
+import { showUnpublished } from '@util/visibility.mjs';
 
 // Rendered per request rather than prerendered. A scheduled post must 404
 // until its publishDate passes, and a prerendered page would already exist on
@@ -13,7 +14,7 @@ const entry = slug ? await getEntry('blog', slug) : undefined;
 
 // Drafts and not-yet-due posts are indistinguishable from missing in
 // production; locally everything is viewable so scheduled work can be checked.
-const visible = entry && (import.meta.env.PROD ? isPublished(entry.data) : true);
+const visible = entry && (showUnpublished(import.meta.env) || isPublished(entry.data));
 
 if (!entry || !visible) {
     return new Response(null, { status: 404, statusText: 'Not found' });
