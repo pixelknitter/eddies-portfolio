@@ -1,34 +1,45 @@
 #!/usr/bin/env node
 /**
- * Generate a preview Wrangler config from the adapter-generated one.
+ * Generate a Wrangler config variant from the adapter-generated one.
  *
+ * Used for every non-production tier (per-branch dev previews and staging).
  * Preview URLs cannot be served on a custom domain
- * (https://developers.cloudflare.com/workers/configuration/previews/), so a
- * per-PR preview that needs a real hostname has to be its own Worker with its
- * own Custom Domain rather than a version of the production Worker.
+ * (https://developers.cloudflare.com/workers/configuration/previews/), so any
+ * tier that needs a real hostname has to be its own Worker with its own
+ * Custom Domain rather than a version of the production Worker.
  *
  * This reads `dist/server/wrangler.json` (written by @astrojs/cloudflare) and
  * writes a sibling config with:
- *   - `name`   replaced by the preview Worker name
- *   - `routes` REPLACED (never appended) by the preview Custom Domain, so a
- *              preview can never claim the production hostname
+ *   - `name`   replaced by the variant's Worker name
+ *   - `routes` REPLACED (never appended) by the variant's Custom Domain, so a
+ *              non-production tier can never claim the production hostname
  *   - `kv_namespaces` pinned to a shared namespace when one is supplied,
- *              avoiding a new namespace per preview Worker
+ *              avoiding a new namespace per Worker
  *
  * It is written next to the original because `main` and `assets.directory`
  * are resolved relative to the config file.
  *
  * Usage:
- *   node scripts/make-preview-wrangler.mjs <worker-name> <hostname> [session-kv-id]
+ *   node scripts/make-worker-variant.mjs <worker-name> <hostname> <out-name> [session-kv-id]
+ *
+ * `out-name` is the filename written beside dist/server/wrangler.json, e.g.
+ * `wrangler.dev.json` or `wrangler.staging.json`.
  */
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-const [workerName, hostname, sessionKvId] = process.argv.slice(2);
+const [workerName, hostname, outName, sessionKvId] = process.argv.slice(2);
 
-if (!workerName || !hostname) {
-  console.error('Usage: make-preview-wrangler.mjs <worker-name> <hostname> [session-kv-id]');
+if (!workerName || !hostname || !outName) {
+  console.error(
+    'Usage: make-worker-variant.mjs <worker-name> <hostname> <out-name> [session-kv-id]'
+  );
+  process.exit(1);
+}
+
+if (!/^wrangler\.[a-z0-9-]+\.json$/.test(outName)) {
+  console.error(`✖ Invalid output name: ${JSON.stringify(outName)}`);
   process.exit(1);
 }
 
@@ -46,13 +57,13 @@ if (!HOST_RE.test(hostname)) {
 }
 
 const sourcePath = 'packages/web-astro/dist/server/wrangler.json';
-const outPath = join(dirname(sourcePath), 'wrangler.preview.json');
+const outPath = join(dirname(sourcePath), outName);
 
 const config = JSON.parse(readFileSync(sourcePath, 'utf8'));
 
 config.name = workerName;
-// Replace, never append — this is what keeps a preview off the production
-// hostname even though it inherits the rest of the production config.
+// Replace, never append — this is what keeps a non-production tier off the
+// production hostname even though it inherits the rest of the config.
 config.routes = [{ pattern: hostname, custom_domain: true }];
 
 if (Array.isArray(config.kv_namespaces) && config.kv_namespaces.length && sessionKvId) {
@@ -61,7 +72,7 @@ if (Array.isArray(config.kv_namespaces) && config.kv_namespaces.length && sessio
 
 writeFileSync(outPath, JSON.stringify(config, null, 2) + '\n');
 
-console.log(`Preview config written to ${outPath}`);
+console.log(`Wrangler variant written to ${outPath}`);
 console.log(`  name:   ${config.name}`);
 console.log(`  domain: ${hostname}`);
 console.log(`  kv:     ${JSON.stringify(config.kv_namespaces ?? [])}`);

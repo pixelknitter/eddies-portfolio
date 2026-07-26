@@ -16,16 +16,51 @@ GitHub Actions pipelines. Preview deployments are private, gated by
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
 | `ci.yml` | push to `master`, any PR, manual | `check` → `lint` → `test` → `build` |
-| `preview.yml` | PR opened/updated | verify → build → deploy a **per-PR Worker** on `<branch>-staging.eddie.engineering` → **smoke test** → comment the URL |
+| `preview.yml` | PR opened/updated | verify → build → deploy a **per-PR dev Worker** on `<branch>-dev.eddie.engineering` → smoke test → comment the URL |
 | `preview-cleanup.yml` | PR closed | delete that Worker, its Custom Domain and its KV namespace |
-| `deploy.yml` | after CI succeeds on `master`, manual | verify → build → `wrangler deploy` → **smoke test** |
+| `deploy.yml` | after CI succeeds on `master`, manual | **staging** (automatic) → *approval* → **production** |
 
-## Domain model
+## Environments
 
-| Environment | Hostname | Service |
-|-------------|----------|---------|
-| Production | `eddie.engineering` | Worker `eddies-portfolio` |
-| Preview (per PR) | `<branch>-staging.eddie.engineering` | Worker `eddies-portfolio-pr-<N>` |
+Three tiers, each its own Worker on its own hostname. The naming is
+consistent across hostname, Worker, and GitHub environment:
+
+| Tier | Hostname | Worker | GitHub environment | Deployed by |
+|------|----------|--------|--------------------|-------------|
+| **Production** | `eddie.engineering` | `eddies-portfolio` | `production` | `deploy.yml`, after approval |
+| **Staging** (pre-prod) | `staging.eddie.engineering` | `eddies-portfolio-staging` | `staging` | `deploy.yml`, automatically on green `master` |
+| **Dev** (per PR) | `<branch>-dev.eddie.engineering` | `eddies-portfolio-pr-<N>` | `development` | `preview.yml`, on every PR push |
+
+> **Naming:** `-dev` is per-branch and ephemeral; `staging` is the single
+> shared pre-production slot tracking `master`. They were both called
+> "staging" briefly — the `-dev` suffix disambiguates them.
+
+## Promotion flow
+
+```
+push to master
+   └─ CI (check, lint, test, build)
+        └─ deploy.yml
+             ├─ staging   → staging.eddie.engineering   (automatic, smoke-tested)
+             └─ production → eddie.engineering          (waits for approval)
+```
+
+Both stages live in **one workflow run**, so production only ever promotes a
+commit that is already live and smoke-tested on staging.
+
+When staging succeeds, Discord posts *"🧪 Staging deployed — ready to
+promote"*. Its **Pipeline** link points at that same run, where the
+production job is waiting — so the notification doubles as the promote
+button.
+
+### Enabling the approval gate
+
+Without required reviewers, production deploys straight after staging. To
+make it pause:
+
+**Settings → Environments → `production` → Required reviewers** → add
+yourself. GitHub then holds the production job until it is approved from the
+run page.
 
 **Why previews are separate Workers, not versions.** Cloudflare cannot serve
 [preview URLs](https://developers.cloudflare.com/workers/configuration/previews/)
@@ -41,37 +76,31 @@ hostname even though it inherits the rest of the config.
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `PREVIEW_DOMAIN` | `eddie.engineering` | Zone that preview hostnames hang off |
+| `PREVIEW_DOMAIN` | `eddie.engineering` | Zone that dev preview hostnames hang off |
+| `STAGING_HOSTNAME` | `staging.eddie.engineering` | Staging hostname |
+| `PRODUCTION_HOSTNAME` | `eddie.engineering` | Production hostname |
 | `PREVIEW_DEPLOY_NOTIFY` | *(first only)* | `always` to ping Discord on every preview deploy, `never` to stay silent on preview successes. Failures always notify. |
 | `CF_SESSION_KV_ID` | *(unset)* | Pin previews to one shared `SESSION` KV namespace instead of provisioning one per preview Worker |
 
-## ⚠️ Production cutover checklist (one time)
+## Production custom domain
 
-`wrangler.jsonc` declares `eddie.engineering` as a Custom Domain. **A hostname
-can only be bound to one service**, so it must be released by Cloudflare Pages
-*before* the first Workers deploy carrying that config — otherwise the deploy
-fails with the hostname already in use.
+`wrangler.jsonc` declares `eddie.engineering` as a Custom Domain, so
+`wrangler deploy` claims it. A hostname binds to only one service, so it had
+to be released by the old Cloudflare Pages project first — that cutover is
+complete. If it ever needs redoing: remove the domain under
+*Pages project → Custom domains*, then deploy the Worker.
 
-Do this in order:
-
-1. **Pages → `eddies-portfolio` → Custom domains** — remove `eddie.engineering`
-   (and `staging.eddie.engineering`, now served by per-PR previews).
-2. **Merge the upgrade PR.** `deploy.yml` runs `wrangler deploy`, which claims
-   `eddie.engineering` for the Worker and issues its certificate.
-3. **Verify** — the deploy's smoke test asserts the live site; the Discord
-   deployments channel carries the URL.
-4. Optionally delete the now-unused Pages project.
-
-Rolling back means reversing step 1: detach from the Worker, re-attach to
-Pages. Expect a brief window while DNS and certificates settle.
+Preview and staging configs are generated by
+`scripts/make-worker-variant.mjs`, which **replaces** `routes` rather than
+appending, so no non-production tier can ever claim the production hostname.
 
 ## Access for preview hostnames
 
-Previews now live on `*-staging.eddie.engineering`, not `*.pages.dev`, so the
+Dev previews live on `*-dev.eddie.engineering`, so the
 Access application must cover the new pattern:
 
 1. **Zero Trust → Access → Applications → Add → Self-hosted.**
-2. **Domain:** `*-staging.eddie.engineering`.
+2. **Domain:** `*-dev.eddie.engineering` (add `staging.eddie.engineering` too if staging should be gated).
 3. **Policies:** an *Allow* policy for the people who may review, plus a
    *Service Auth* policy including the CI service token so smoke tests can
    authenticate.
@@ -193,10 +222,13 @@ Two channels, mapped by event type:
   - ✅ Preview deployed — **only the first success per PR**, since the preview
     URL is stable and later pushes would just repeat it. The PR comment is
     still updated on every deploy.
+  - 🧪 Staging deployed — includes the staging URL, and its Pipeline link is
+    the promote-to-production gate
   - 🚀 Production deployed — includes the production URL
 - **Alerts channel** (`DISCORD_ALERT_WEBHOOK_URL`)
   - ❌ CI failed (check/lint/test/build)
   - ❌ Preview deploy failed
+  - ❌ Staging deploy failed (production is not attempted)
   - ❌ Production deploy failed
 
 Every notification links back to the **pipeline run**; deployment
@@ -217,4 +249,5 @@ channel, then store them as the two secrets above.
 yarn ci            # check + lint + test + build (what CI runs)
 yarn astro:build   # production build -> packages/web-astro/dist
 yarn smoke <url>   # smoke test a deployed URL
+./scripts/wait-for-http.sh <url>   # block until a host answers
 ```
