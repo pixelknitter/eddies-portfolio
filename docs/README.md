@@ -1,0 +1,25 @@
+# Documentation
+
+| Document | Read it when |
+|----------|--------------|
+| [FEATURES.md](./FEATURES.md) | You want to know *what* a capability does and *which problem* it solves |
+| [RUNBOOK.md](./RUNBOOK.md) | Something is broken or you're about to change infrastructure |
+| [DEPLOYMENT.md](./DEPLOYMENT.md) | You need the environment/deploy reference: hostnames, secrets, Access |
+| [VOICE.md](./VOICE.md) | You're writing or editing a post |
+
+`CLAUDE.md` at the repo root covers codebase structure and conventions for
+AI assistants.
+
+## Quick reference
+
+```bash
+yarn ci                  # check + lint + test + build (what CI runs)
+yarn posts:queue         # what's live, scheduled, drafted
+yarn smoke <url>         # assert a deployment actually serves
+```
+
+| Tier | Hostname |
+|------|----------|
+| Production | `eddie.engineering` |
+| Staging | `staging.eddie.engineering` |
+| Dev (per PR) | `<branch>-dev.eddie.engineering` |

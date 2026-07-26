@@ -730,7 +730,14 @@ Cloudflare credentials and Discord webhooks are **repo-level secrets**;
 environments are declared for deployment tracking and the production
 approval gate.
 
-See `docs/DEPLOYMENT.md` for the token permissions and Access setup.
+Documentation lives in `docs/`:
+
+| Doc | Purpose |
+|-----|---------|
+| `docs/FEATURES.md` | What each capability does and which problem it solves |
+| `docs/RUNBOOK.md` | Known failure modes and operational procedures |
+| `docs/DEPLOYMENT.md` | Environment/deploy reference: hostnames, secrets, Access |
+| `docs/VOICE.md` | Writing voice for posts |
 
 ### Build Process
 
