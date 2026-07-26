@@ -7,6 +7,8 @@ import Hero from '@components/Hero.astro';
 import MyBlocksSection from "@components/MyBlocksSection.astro";
 import { buildingBlocks } from "@util/constants";
 import AnimateOnScroll from "@components/AnimateOnScroll.astro";
+import StarSpotlight from "@components/StarSpotlight.astro";
+import LatestWork from "@components/LatestWork.astro";
 
 const { title: pageTitle, badges, subject } = aboutMatter;
 ---
@@ -19,6 +21,12 @@ const { title: pageTitle, badges, subject } = aboutMatter;
     <Prose>
         <About />
     </Prose>
+    <AnimateOnScroll>
+        <StarSpotlight />
+    </AnimateOnScroll>
+    <AnimateOnScroll>
+        <LatestWork />
+    </AnimateOnScroll>
     <h2 class="mt-6">My Building Blocks</h2>
     <p class="font-body text-lg mb-6">As a product engineer, how I build is ever-changing, but below are a good number of the blocks I've used in my engineering.</p>
     {Object.entries(buildingBlocks).map(([category, tech]) => (

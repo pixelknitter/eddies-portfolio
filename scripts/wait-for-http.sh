@@ -22,20 +22,39 @@ if [ -z "$url" ]; then
   exit 1
 fi
 
-for attempt in $(seq 1 "$attempts"); do
-  # Assign the fallback separately: `$(curl … || echo 000)` would concatenate
-  # curl's own "000" output with the echo, yielding "000000" — which is not
-  # equal to "000" and would pass the check against a host that never answered.
-  code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$url")" || code="000"
+# Probe several representative routes, not just `/`. The entry Worker starts
+# answering before its assets have fully propagated, so `/` can return 200
+# while an asset-backed or prerendered route is still 500ing — which is
+# exactly how a deploy raced past this gate and failed the smoke test.
+paths=("/" "/blog/" "/works/" "/air/")
 
-  if [ "$code" != "000" ]; then
-    echo "$url responding after ${attempt} attempt(s) (HTTP ${code})."
+for attempt in $(seq 1 "$attempts"); do
+  all_ready=1
+  status_line=""
+
+  for path in "${paths[@]}"; do
+    # Assign the fallback separately: `$(curl … || echo 000)` would concatenate
+    # curl's own "000" output with the echo, yielding "000000" — which is not
+    # equal to "000" and would pass the check against a host that never
+    # answered.
+    code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "${url%/}${path}")" || code="000"
+    status_line="${status_line} ${path}:${code}"
+
+    # Not ready if unreachable (000) or still erroring (5xx). A 302 to the
+    # Cloudflare Access login counts as ready — DNS and TLS are live.
+    if [ "$code" = "000" ] || [ "$code" -ge 500 ] 2>/dev/null; then
+      all_ready=0
+    fi
+  done
+
+  if [ "$all_ready" -eq 1 ]; then
+    echo "${url} ready after ${attempt} attempt(s):${status_line}"
     exit 0
   fi
 
-  echo "  attempt ${attempt}/${attempts}: no response yet, waiting ${delay}s…"
+  echo "  attempt ${attempt}/${attempts}: not ready yet —${status_line}"
   sleep "$delay"
 done
 
-echo "::error::${url} did not respond within $((attempts * delay))s."
+echo "::error::${url} did not become ready within $((attempts * delay))s."
 exit 1
