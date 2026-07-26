@@ -8,7 +8,7 @@ import {
   extractInlineTags,
   collectEmbeddedAssets,
   convertNote,
-} from './obsidian.mjs';
+} from './convert.mjs';
 
 describe('parseFrontmatter', () => {
   it('returns the whole document as body when there is no frontmatter', () => {
