@@ -2,13 +2,13 @@
 title: 'Project 1'
 description: 'Neque porro quisquam est qui dolorem ipsum quia dolor sit amet, consectetur, adipisci'
 image:
-  url: '/GitHub.webp'
+  url: 'https://placehold.co/904x508/2a2740/fdebf3/png?text=Project+One'
   alt: 'GitHub wallpaper'
 worksImage1:
-  url: '/image-1.webp'
+  url: 'https://placehold.co/1000x562/2a2740/fdebf3/png?text=Wireframes'
   alt: 'first image of your project.'
 worksImage2:
-  url: '/image-2.webp'
+  url: 'https://placehold.co/1000x562/2a2740/fdebf3/png?text=Dashboard'
   alt: 'second image of your project.'
 platform: Web
 stack: Astro, JavaScript

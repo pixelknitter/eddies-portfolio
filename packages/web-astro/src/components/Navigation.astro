@@ -7,11 +7,11 @@ const airEnabled = showAIR(import.meta.env);
 const blogEnabled = showBlog(import.meta.env);
 const projectsEnabled = showProjects(import.meta.env);
 ---
-<div class="grid grid-cols-1 md:grid-cols-2 mt-3">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-y-2 mt-4 mb-2">
     <div class="text-lg font-header text-center md:text-justify self-center">
         <a class="nav-link" href="/">Engineering by Eddie</a>
     </div>
-    <div class="font-body text-lg flex items-center text-center justify-center md:justify-end">
+    <div class="font-body text-lg flex flex-wrap items-center gap-x-1 gap-y-1 text-center justify-center md:justify-end">
         {projectsEnabled && <a class="nav-link" href="/works/">Works</a>}
         {blogEnabled && <a class="nav-link" href="/blog/">Blog</a>}
         {airEnabled && <a class="nav-link" href="/air/">A.I.R.</a>}
@@ -19,4 +19,3 @@ const projectsEnabled = showProjects(import.meta.env);
         <ThemeIcon />
     </div>
 </div>
-

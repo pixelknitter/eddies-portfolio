@@ -14,6 +14,17 @@
   --color-underline: #348aa7;
   --color-emphasis: #525174;
   --color-tag: #584966;
+  /* Card/panel surfaces. The page and card previously shared --color-dark,
+     so cards were invisible except for a faint shadow.
+     Measured against the page background: the first attempt at #2a2740 was
+     only 1.14:1, which reads as "almost the same colour". These sit at
+     1.42:1 (dark) with the border a further step up at 1.57:1, so the edge
+     defines the card without the fill washing out. Body text stays at
+     10.1:1, far above the 4.5:1 AA threshold. */
+  --color-surface: #ffffff;
+  --color-surface-dark: #3b3458;
+  --color-hairline: #e9c5da;
+  --color-hairline-dark: #574f85;
   --color-disabled: #5c5b77;
 
   --font-header: "Pacifico", cursive;
@@ -22,7 +33,9 @@
 
 @layer components {
   .nav-link {
-    @apply mx-2.5 text-center text-dark dark:text-light hover:underline hover:decoration-underline hover:decoration-2 hover:underline-offset-[6px];
+    /* Vertical padding keeps links tappable and stops the stacked rows
+       colliding once the header wraps at narrow widths. */
+    @apply inline-block py-1 mx-2 text-center text-dark dark:text-light hover:underline hover:decoration-underline hover:decoration-2 hover:underline-offset-[6px];
   }
   .badge {
     @apply bg-tag text-light text-center rounded-md font-body font-semibold text-sm mx-1 my-2 px-2 py-1 whitespace-nowrap;
@@ -41,6 +54,32 @@
   .hero-gif {
     @apply mt-5 flex mx-auto justify-center;
   }
+  /* Raised panel used by cards and any boxed content. */
+  .surface {
+    @apply bg-surface dark:bg-surface-dark border border-hairline dark:border-hairline-dark rounded-xl;
+  }
+
+  /* Metadata rows: a label badge beside its value, aligned in a grid rather
+     than run together inline. */
+  .meta-list {
+    @apply grid gap-y-2 mt-4 list-none p-0;
+    grid-template-columns: max-content 1fr;
+  }
+  .meta-list dt {
+    @apply self-center;
+  }
+  .meta-list dd {
+    @apply self-center ml-3 break-words;
+  }
+
+  .pro-img {
+    @apply rounded-xl mt-4 w-full h-auto border border-hairline dark:border-hairline-dark;
+  }
+
+  .center {
+    @apply text-center;
+  }
+
   .card-grid {
     @apply grid gap-4;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -67,6 +106,15 @@
 }
 
 @layer base {
+  /* Nothing should force the page wider than the viewport. Hero and content
+     images carry intrinsic width/height for layout stability, which would
+     otherwise overflow a narrow screen and leave the page scrolled sideways. */
+  img,
+  svg,
+  video {
+    @apply max-w-full h-auto;
+  }
+
   html {
     @apply bg-light text-dark transition-colors duration-300;
   }
