@@ -17,7 +17,9 @@ env:
 
 jobs:
   verify:
-    name: Type-check, lint, test, build
+    # Name kept short and stable: this string is a required status check in
+    # the branch ruleset, so changing it silently unprotects master.
+    name: tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -53,7 +55,8 @@ jobs:
           description: 'Type-check, lint, test, or build failed. See the pipeline for logs.'
 
   e2e:
-    name: End-to-end (Playwright)
+    # Also a ruleset contract name — see the note on `tests` above.
+    name: e2e
     runs-on: ubuntu-latest
     # Runs after verify so an E2E failure is unambiguous: the unit suite and
     # build already passed, so the fault is in the served application.
