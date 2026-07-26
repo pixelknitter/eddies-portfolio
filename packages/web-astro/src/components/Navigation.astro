@@ -1,17 +1,20 @@
 ---
-// Feature-flagged nav links (A.I.R./Works/Blog) are commented out below.
-// Re-import { showAIR, showBlog, showProjects } from "@util/constants" when
-// wiring them back up.
 import ThemeIcon from './ThemeIcon.astro';
+import { showAIR, showBlog, showProjects } from '@util/visibility.mjs';
+
+// Unfinished sections stay unlinked in production; review tiers turn them on.
+const airEnabled = showAIR(import.meta.env);
+const blogEnabled = showBlog(import.meta.env);
+const projectsEnabled = showProjects(import.meta.env);
 ---
 <div class="grid grid-cols-1 md:grid-cols-2 mt-3">
     <div class="text-lg font-header text-center md:text-justify self-center">
         <a class="nav-link" href="/">Engineering by Eddie</a>
     </div>
     <div class="font-body text-lg flex items-center text-center justify-center md:justify-end">
-        <!-- {showAIR ? <a class="nav-link" href="/air/">A.I.R.</a> : null}
-        {showProjects ? <a class="nav-link" href="/works/">Works</a> : null}
-        {showBlog ? <a class="nav-link" href="/blog/">Blog</a> : null} -->
+        {projectsEnabled && <a class="nav-link" href="/works/">Works</a>}
+        {blogEnabled && <a class="nav-link" href="/blog/">Blog</a>}
+        {airEnabled && <a class="nav-link" href="/air/">A.I.R.</a>}
         <a class="nav-link" href="https://github.com/pixelknitter/eddies-portfolio" target="_blank">GitHub</a>
         <ThemeIcon />
     </div>
