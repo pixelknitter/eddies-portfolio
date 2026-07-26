@@ -53,7 +53,9 @@ jobs:
           description: 'Type-check, lint, test, or build failed. See the pipeline for logs.'
 
   e2e:
-    name: End-to-end (Playwright)
+    # Short, stable name because this string is a required status check in the
+    # branch ruleset — renaming it silently unprotects master.
+    name: e2e
     runs-on: ubuntu-latest
     # Runs after verify so an E2E failure is unambiguous: the unit suite and
     # build already passed, so the fault is in the served application.
