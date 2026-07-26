@@ -1,5 +1,6 @@
 # Deployment & CI/CD
 
+<<<<<<< HEAD
 This repo deploys the `web-astro` app to **Cloudflare Workers** and runs three
 GitHub Actions pipelines. Preview deployments are private, gated by
 **Cloudflare Access**.
@@ -10,17 +11,30 @@ GitHub Actions pipelines. Preview deployments are private, gated by
 > `packages/web-astro/dist/server` (the Worker entry plus a generated
 > `wrangler.json`). Deploying that tree with `wrangler pages deploy` produces
 > a site that 404s on every route — use `wrangler deploy`.
+=======
+This repo deploys the `web-astro` app to **Cloudflare Pages** and runs three
+GitHub Actions pipelines. Preview deployments are private, gated by
+**Cloudflare Access**, and every deployment is smoke-tested before it is
+reported as successful.
+>>>>>>> origin/master
 
 ## Pipelines
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
 | `ci.yml` | push to `master`, any PR, manual | `check` → `lint` → `test` → `build` |
+<<<<<<< HEAD
 | `preview.yml` | PR opened/updated | verify → build → `wrangler versions upload --preview-alias pr-<N>` → **smoke test** → comment the URL on the PR |
 | `deploy.yml` | after CI succeeds on `master`, manual | verify → build → `wrangler deploy` → **smoke test** |
 
 Preview uploads create a new Worker *version* without promoting it, so a PR
 preview never affects production traffic.
+=======
+| `preview.yml` | PR opened/updated | verify → build → deploy a **private per-PR preview** → **smoke test** → comment the URL on the PR |
+| `deploy.yml` | after CI succeeds on `master`, manual | verify → build → deploy **production** → **smoke test** |
+
+Build output is `dist/packages/web-astro`.
+>>>>>>> origin/master
 
 ## Testing gates
 
@@ -65,6 +79,7 @@ To enable real preview validation:
 
 Production is public, so it is always fully asserted.
 
+<<<<<<< HEAD
 ## First-time setup: bootstrap the Worker
 
 `preview.yml` uses `wrangler versions upload`, which **requires the Worker to
@@ -102,6 +117,8 @@ pass to `wrangler -c`.
 Wrangler provisions the `SESSION` KV namespace automatically on first deploy;
 no manual setup required.
 
+=======
+>>>>>>> origin/master
 ## Required GitHub secrets & variables
 
 Secrets are stored as **environment secrets** (not repo-level) under
@@ -112,6 +129,7 @@ Secrets are stored as **environment secrets** (not repo-level) under
 | `staging` | `preview.yml`, `ci.yml` (alert job) | Per-PR preview deploys + CI failure alerts |
 | `production` | `deploy.yml` | Production deploys |
 
+<<<<<<< HEAD
 Each environment holds the same four secrets:
 
 | Name | Purpose |
@@ -122,6 +140,16 @@ Each environment holds the same four secrets:
 | `DISCORD_ALERT_WEBHOOK_URL` | Webhook for the **alerts** channel (failures) |
 | `CF_ACCESS_CLIENT_ID` | *(optional, `staging`)* Access service token for smoke-testing previews |
 | `CF_ACCESS_CLIENT_SECRET` | *(optional, `staging`)* Access service token secret |
+=======
+| Name | Environment | Purpose |
+|------|-------------|---------|
+| `CLOUDFLARE_API_TOKEN` | both | Cloudflare API token — **Account → Cloudflare Pages → Edit** |
+| `CLOUDFLARE_ACCOUNT_ID` | both | Your Cloudflare account ID |
+| `DISCORD_DEPLOY_WEBHOOK_URL` | both | Webhook for the **deployments** channel (success + URLs) |
+| `DISCORD_ALERT_WEBHOOK_URL` | both | Webhook for the **alerts** channel (failures) |
+| `CF_ACCESS_CLIENT_ID` | `staging` | *(optional)* Access service token for smoke-testing previews |
+| `CF_ACCESS_CLIENT_SECRET` | `staging` | *(optional)* Access service token secret |
+>>>>>>> origin/master
 
 > **Why jobs declare `environment:`** — environment secrets are only readable
 > by a job that names its environment. That's why `preview.yml` declares
@@ -132,6 +160,7 @@ Each environment holds the same four secrets:
 > If a Discord webhook secret is not set, the notification step **no-ops**
 > (it never fails the pipeline).
 
+<<<<<<< HEAD
 ### API token permissions
 
 Create a **custom token** scoped to your account only (these are
@@ -153,6 +182,17 @@ Because `deploy.yml` now targets the `production` environment, you can add
 **required reviewers** or a **wait timer** under
 *Settings → Environments → production* to gate production releases. No
 protection rules are configured today.
+=======
+### Variables (optional)
+| Name | Default | Purpose |
+|------|---------|---------|
+| `CLOUDFLARE_PROJECT_NAME` | `eddies-portfolio` | Cloudflare Pages project name |
+
+### Environment protection (optional)
+Because `deploy.yml` targets the `production` environment, you can add
+**required reviewers** or a **wait timer** under
+*Settings → Environments → production* to gate production releases.
+>>>>>>> origin/master
 
 ## Discord alert routing
 
@@ -163,6 +203,7 @@ Two channels, mapped by event type:
   - 🚀 Production deployed — includes the production URL
 - **Alerts channel** (`DISCORD_ALERT_WEBHOOK_URL`)
   - ❌ CI failed (check/lint/test/build)
+<<<<<<< HEAD
   - ❌ Preview deploy failed
   - ❌ Production deploy failed
 
@@ -172,6 +213,14 @@ notifications also carry the **result URL**. The embed color encodes status
 `./.github/actions/discord-notify` composite action — add or move steps there
 to change what each channel receives (e.g. to also ping deployments on CI
 success).
+=======
+  - ❌ Preview failed (verify, deploy, or smoke test)
+  - ❌ Production deploy failed (verify, deploy, or smoke test)
+
+Every notification links back to the **pipeline run**; deployment
+notifications also carry the **result URL**. The embed color encodes status
+(green = success, red = failure).
+>>>>>>> origin/master
 
 ### Creating the webhooks
 In Discord: **Channel → Edit → Integrations → Webhooks → New Webhook →
@@ -180,6 +229,7 @@ channel, then store them as the two secrets above.
 
 ## Private previews with Cloudflare Access
 
+<<<<<<< HEAD
 Each PR gets a stable aliased preview URL:
 
 ```
@@ -203,11 +253,32 @@ stay public.
 > the Preview URLs toggle above instead.
 
 Reference: [Workers preview URLs](https://developers.cloudflare.com/workers/configuration/previews/).
+=======
+Each PR deploys to a per-PR preview alias (`pr-<N>.<project>.pages.dev`). To
+keep previews private:
+
+1. **Zero Trust dashboard → Access → Applications → Add an application →
+   Self-hosted.**
+2. **Application domain:** `*.<project>.pages.dev` to cover per-branch and
+   per-commit previews.
+   > Keep your **production custom domain** on a separate application (or no
+   > Access policy) so the public site stays open.
+3. **Policies:** add an **Allow** policy scoped to who may review — e.g.
+   *Emails* = your address, or *Emails ending in* your domain.
+4. Optionally add the **Service Auth** policy described above so CI can smoke
+   test previews.
+>>>>>>> origin/master
 
 ## Local commands
 
 ```bash
+<<<<<<< HEAD
 yarn ci            # check + lint + test + build (what CI runs)
 yarn astro:build   # production build -> packages/web-astro/dist
 yarn smoke <url>   # smoke test a deployed URL
+=======
+yarn ci                        # check + lint + test + build (what CI runs)
+yarn astro:build               # production build -> dist/packages/web-astro
+yarn smoke <url>               # smoke test a deployed URL
+>>>>>>> origin/master
 ```

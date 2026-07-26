@@ -21,7 +21,11 @@ jobs:
     # so the job must declare the environment to read them.
     environment:
       name: staging
+<<<<<<< HEAD
       url: ${{ steps.preview.outputs.url }}
+=======
+      url: ${{ steps.deploy.outputs.pages-deployment-alias-url || steps.deploy.outputs.deployment-url }}
+>>>>>>> origin/master
     permissions:
       contents: read
       pull-requests: write
@@ -46,17 +50,25 @@ jobs:
       - name: Build
         run: yarn nx build web-astro
 
+<<<<<<< HEAD
       # Upload a new Worker version *without* promoting it to production and
       # give it a stable per-PR alias. The alias is derived from the numeric
       # PR number, so it is inherently safe to interpolate and always a valid
       # DNS label. Gate preview URLs with Cloudflare Access (docs/DEPLOYMENT.md).
       - name: Upload preview version to Cloudflare Workers
+=======
+      # Deploy under a per-PR branch name so Cloudflare mints a stable preview
+      # alias. The alias is derived from the numeric PR number, so it is
+      # inherently safe to interpolate and always a valid DNS label.
+      - name: Deploy preview to Cloudflare Pages
+>>>>>>> origin/master
         id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: >-
+<<<<<<< HEAD
             versions upload
             -c packages/web-astro/dist/server/wrangler.json
             --preview-alias pr-${{ github.event.pull_request.number }}
@@ -79,6 +91,11 @@ jobs:
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Preview URL: ${url:-<none>}"
           [ -n "$url" ] || echo "::warning::Could not parse a preview URL from wrangler output."
+=======
+            pages deploy dist/packages/web-astro
+            --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME || 'eddies-portfolio' }}
+            --branch=pr-${{ github.event.pull_request.number }}
+>>>>>>> origin/master
 
       # Validate the deployment actually serves before calling it a success.
       # Previews are gated by Cloudflare Access: without a service token the
@@ -86,7 +103,11 @@ jobs:
       # Access login page.
       - name: Smoke test the deployment
         env:
+<<<<<<< HEAD
           PREVIEW_URL: ${{ steps.preview.outputs.url }}
+=======
+          PREVIEW_URL: ${{ steps.deploy.outputs.pages-deployment-alias-url || steps.deploy.outputs.deployment-url }}
+>>>>>>> origin/master
           CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: node scripts/smoke-test.mjs "$PREVIEW_URL"
@@ -95,7 +116,11 @@ jobs:
         if: success()
         uses: actions/github-script@v7
         env:
+<<<<<<< HEAD
           PREVIEW_URL: ${{ steps.preview.outputs.url }}
+=======
+          PREVIEW_URL: ${{ steps.deploy.outputs.pages-deployment-alias-url || steps.deploy.outputs.deployment-url }}
+>>>>>>> origin/master
         with:
           script: |
             const url = process.env.PREVIEW_URL;
@@ -131,7 +156,11 @@ jobs:
           status: success
           title: '🔎 Preview deployed — PR #${{ github.event.pull_request.number }}'
           description: ${{ github.event.pull_request.title }}
+<<<<<<< HEAD
           result-url: ${{ steps.preview.outputs.url }}
+=======
+          result-url: ${{ steps.deploy.outputs.pages-deployment-alias-url || steps.deploy.outputs.deployment-url }}
+>>>>>>> origin/master
 
       - name: Notify alerts channel (failure)
         if: failure()
