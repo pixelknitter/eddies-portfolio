@@ -176,7 +176,7 @@ import { TECH_STACK } from '@util/constants';
 ### Deployment
 - **@astrojs/cloudflare 14** - Cloudflare **Workers** adapter (Wrangler 4). Pages is no longer supported by the adapter.
 - **GitHub Actions** - CI (`.github/workflows/ci.yml`) + deploy
-  (`deploy.yml`); local Nx caching (Nx Cloud removed)
+  (`deploy.yml`, staging → production); local Nx caching (Nx Cloud removed)
 
 ---
 
@@ -709,13 +709,27 @@ export default defineConfig({
 
 - **`.github/workflows/ci.yml`** — runs `check`, `lint`, `test`, `build` on
   push/PR.
-- **`.github/workflows/preview.yml`** — per-PR `wrangler versions upload
-  --preview-alias pr-<N>`, giving a private preview URL commented on the PR.
-- **`.github/workflows/deploy.yml`** — on successful CI on `master`, builds
-  and runs `wrangler deploy`.
+- **`.github/workflows/preview.yml`** — per-PR **dev** Worker on
+  `<branch>-dev.eddie.engineering`, smoke-tested, URL commented on the PR.
+- **`.github/workflows/preview-cleanup.yml`** — tears that Worker down when
+  the PR closes.
+- **`.github/workflows/deploy.yml`** — on green `master`: deploys **staging**
+  (`staging.eddie.engineering`) automatically, then **production**
+  (`eddie.engineering`) after approval, in one run.
 
-Secrets are **environment-scoped** (`staging` for previews/CI alerts,
-`production` for prod), so each job declares `environment:` to read them.
+Three tiers, each its own Worker so a lower tier can never claim the
+production hostname:
+
+| Tier | Hostname | Worker | GitHub environment |
+|------|----------|--------|--------------------|
+| Production | `eddie.engineering` | `eddies-portfolio` | `production` |
+| Staging | `staging.eddie.engineering` | `eddies-portfolio-staging` | `staging` |
+| Dev (per PR) | `<branch>-dev.eddie.engineering` | `eddies-portfolio-pr-<N>` | `development` |
+
+Cloudflare credentials and Discord webhooks are **repo-level secrets**;
+environments are declared for deployment tracking and the production
+approval gate.
+
 See `docs/DEPLOYMENT.md` for the token permissions and Access setup.
 
 ### Build Process

@@ -1,4 +1,4 @@
-name: Preview Deploy
+name: Dev Preview Deploy
 
 on:
   pull_request:
@@ -21,7 +21,7 @@ jobs:
     # GitHub deployment tracking, the environment URL, and optional
     # protection rules (env-level secrets still override when set).
     environment:
-      name: staging
+      name: development
       url: ${{ steps.preview.outputs.url }}
     permissions:
       contents: read
@@ -69,28 +69,28 @@ jobs:
           [ -n "$slug" ] || slug="pr-${PR_NUMBER}"
           # Worker is named by PR number so cleanup on close is unambiguous.
           worker="eddies-portfolio-pr-${PR_NUMBER}"
-          hostname="${slug}-staging.${PREVIEW_DOMAIN}"
+          hostname="${slug}-dev.${PREVIEW_DOMAIN}"
           echo "worker=${worker}" >> "$GITHUB_OUTPUT"
           echo "hostname=${hostname}" >> "$GITHUB_OUTPUT"
           echo "Worker:   ${worker}"
           echo "Hostname: ${hostname}"
 
-      - name: Generate preview Wrangler config
+      - name: Generate dev Wrangler config
         env:
           SESSION_KV_ID: ${{ vars.CF_SESSION_KV_ID }}
           WORKER: ${{ steps.meta.outputs.worker }}
           HOSTNAME_OUT: ${{ steps.meta.outputs.hostname }}
         run: |
-          node scripts/make-preview-wrangler.mjs \
-            "$WORKER" "$HOSTNAME_OUT" "${SESSION_KV_ID:-}"
+          node scripts/make-worker-variant.mjs \
+            "$WORKER" "$HOSTNAME_OUT" wrangler.dev.json "${SESSION_KV_ID:-}"
 
-      - name: Deploy preview Worker
+      - name: Deploy dev preview Worker
         id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy -c packages/web-astro/dist/server/wrangler.preview.json
+          command: deploy -c packages/web-astro/dist/server/wrangler.dev.json
 
       - name: Resolve preview URL
         id: preview
@@ -101,29 +101,10 @@ jobs:
           echo "url=https://${HOSTNAME_OUT}" >> "$GITHUB_OUTPUT"
           echo "Preview URL: https://${HOSTNAME_OUT}"
 
-      # A newly-created Custom Domain needs DNS + edge certificate propagation
-      # before it answers, so wait for it rather than letting the smoke test
-      # fail on a cold hostname.
       - name: Wait for the preview hostname to respond
         env:
           PREVIEW_URL: ${{ steps.preview.outputs.url }}
-        run: |
-          set -euo pipefail
-          for attempt in $(seq 1 30); do
-            # Assign the fallback separately: `$(curl … || echo 000)` would
-            # concatenate curl's own "000" with the echo, yielding "000000"
-            # and passing the check on a host that never answered.
-            code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$PREVIEW_URL")" || code="000"
-            # Any HTTP answer means DNS + TLS are live (302 = Access login).
-            if [ "$code" != "000" ]; then
-              echo "Hostname responding after ${attempt} attempt(s) (HTTP $code)."
-              exit 0
-            fi
-            echo "  attempt ${attempt}: no response yet, waiting…"
-            sleep 10
-          done
-          echo "::error::Preview hostname did not respond within ~5 minutes."
-          exit 1
+        run: ./scripts/wait-for-http.sh "$PREVIEW_URL"
 
       # Validate the deployment actually serves before calling it a success.
       # Previews are gated by Cloudflare Access: without a service token the

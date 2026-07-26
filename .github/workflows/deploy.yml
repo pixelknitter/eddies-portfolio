@@ -1,7 +1,7 @@
-name: Deploy to Cloudflare Pages
+name: Deploy (staging → production)
 
 on:
-  # Deploy only after CI passes on the default branch.
+  # Runs once CI passes on the default branch.
   workflow_run:
     workflows: [CI]
     types: [completed]
@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deploy-production
+  group: deploy-pipeline
   cancel-in-progress: false
 
 env:
@@ -17,19 +17,18 @@ env:
   NX_DAEMON: 'false'
 
 jobs:
-  deploy:
-    name: Build & deploy
+  # ---------------------------------------------------------------- staging
+  # Every green commit on master lands here automatically. Staging is its own
+  # Worker on its own hostname, so it can never take over production.
+  staging:
+    name: Deploy staging
     runs-on: ubuntu-latest
-    # Guard: only run if the triggering CI run succeeded (or manual dispatch).
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
-    # Credentials are repo-level secrets; the environment is declared for
-    # GitHub deployment tracking, the environment URL, and optional
-    # protection rules (env-level secrets still override when set).
     environment:
-      name: production
-      url: ${{ steps.url.outputs.url }}
+      name: staging
+      url: https://${{ vars.STAGING_HOSTNAME || 'staging.eddie.engineering' }}
     permissions:
       contents: read
       deployments: write
@@ -40,45 +39,107 @@ jobs:
       - name: Setup Node & install
         uses: ./.github/actions/setup
 
-      # Re-verify at the deployed commit. CI already ran, but this job can also
-      # be dispatched manually against any ref.
       - name: Verify (check, lint, test)
         run: yarn nx run-many --targets=check,lint,test --projects=web-astro
 
       - name: Build
         run: yarn nx build web-astro
 
-      # The Astro Cloudflare adapter targets Workers (it dropped Pages
-      # support), emitting dist/server/wrangler.json with the entry point,
-      # the static-asset binding (../client) and the session KV binding.
-      - name: Publish to Cloudflare Workers
-        id: deploy
+      - name: Generate staging Wrangler config
+        env:
+          SESSION_KV_ID: ${{ vars.CF_SESSION_KV_ID }}
+          STAGING_HOSTNAME: ${{ vars.STAGING_HOSTNAME || 'staging.eddie.engineering' }}
+        run: |
+          node scripts/make-worker-variant.mjs \
+            eddies-portfolio-staging "$STAGING_HOSTNAME" \
+            wrangler.staging.json "${SESSION_KV_ID:-}"
+
+      - name: Deploy staging Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy -c packages/web-astro/dist/server/wrangler.staging.json
+
+      - name: Wait for staging to respond
+        env:
+          TARGET_URL: https://${{ vars.STAGING_HOSTNAME || 'staging.eddie.engineering' }}
+        run: ./scripts/wait-for-http.sh "$TARGET_URL"
+
+      - name: Smoke test staging
+        env:
+          TARGET_URL: https://${{ vars.STAGING_HOSTNAME || 'staging.eddie.engineering' }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+        run: node scripts/smoke-test.mjs "$TARGET_URL"
+
+      # The Pipeline link on this message points at *this* run, where the
+      # production job is waiting for approval — so it doubles as the
+      # "promote to production" button.
+      - name: Notify deployments channel (staging live)
+        if: success()
+        uses: ./.github/actions/discord-notify
+        with:
+          webhook-url: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
+          status: success
+          title: '🧪 Staging deployed — ready to promote'
+          description: >-
+            Smoke tests passed on staging. Open the Pipeline link below and
+            approve the production job to promote this commit.
+          result-url: https://${{ vars.STAGING_HOSTNAME || 'staging.eddie.engineering' }}
+
+      - name: Notify alerts channel (failure)
+        if: failure()
+        uses: ./.github/actions/discord-notify
+        with:
+          webhook-url: ${{ secrets.DISCORD_ALERT_WEBHOOK_URL }}
+          status: failure
+          title: '❌ Staging deploy failed'
+          description: 'Verification, deployment, or the staging smoke test failed. Production was not attempted.'
+
+  # ------------------------------------------------------------- production
+  # Only promotes a commit that is already live and smoke-tested on staging.
+  # Add required reviewers to the `production` environment to make this pause
+  # for approval — that pause is the promotion gate (see docs/DEPLOYMENT.md).
+  production:
+    name: Deploy production
+    needs: staging
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://${{ vars.PRODUCTION_HOSTNAME || 'eddie.engineering' }}
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node & install
+        uses: ./.github/actions/setup
+
+      - name: Build
+        run: yarn nx build web-astro
+
+      # Uses the committed wrangler.jsonc as-is, which declares the production
+      # custom domain — no variant generation here.
+      - name: Deploy production Worker
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy -c packages/web-astro/dist/server/wrangler.json
 
-      - name: Resolve production URL
-        id: url
+      - name: Wait for production to respond
         env:
-          DEPLOY_URL: ${{ steps.deploy.outputs.deployment-url }}
-          CMD_OUTPUT: ${{ steps.deploy.outputs.command-output }}
-        run: |
-          set -euo pipefail
-          url="$DEPLOY_URL"
-          if [ -z "$url" ]; then
-            url="$(printf '%s' "$CMD_OUTPUT" \
-              | grep -oE 'https://[a-z0-9.-]+\.workers\.dev' | head -1 || true)"
-          fi
-          echo "url=$url" >> "$GITHUB_OUTPUT"
-          echo "Production URL: ${url:-<none>}"
+          TARGET_URL: https://${{ vars.PRODUCTION_HOSTNAME || 'eddie.engineering' }}
+        run: ./scripts/wait-for-http.sh "$TARGET_URL"
 
-      # Production is public, so this runs the full assertions with no token.
+      # Production is public, so this always runs the full assertions.
       - name: Smoke test production
         env:
-          PROD_URL: ${{ steps.url.outputs.url }}
-        run: node scripts/smoke-test.mjs "$PROD_URL"
+          TARGET_URL: https://${{ vars.PRODUCTION_HOSTNAME || 'eddie.engineering' }}
+        run: node scripts/smoke-test.mjs "$TARGET_URL"
 
       - name: Notify deployments channel (success)
         if: success()
@@ -87,8 +148,8 @@ jobs:
           webhook-url: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
           status: success
           title: '🚀 Production deployed'
-          description: 'Smoke tests passed against the live deployment.'
-          result-url: ${{ steps.url.outputs.url }}
+          description: 'Promoted from staging. Smoke tests passed against the live site.'
+          result-url: https://${{ vars.PRODUCTION_HOSTNAME || 'eddie.engineering' }}
 
       - name: Notify alerts channel (failure)
         if: failure()
@@ -97,4 +158,4 @@ jobs:
           webhook-url: ${{ secrets.DISCORD_ALERT_WEBHOOK_URL }}
           status: failure
           title: '❌ Production deploy failed'
-          description: 'Verification, deployment, or the post-deploy smoke test failed. See the pipeline for logs.'
+          description: 'Deployment or the production smoke test failed. See the pipeline for logs.'
