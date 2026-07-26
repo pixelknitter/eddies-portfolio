@@ -1,9 +1,10 @@
 ---
 import { getCollection } from 'astro:content';
+import { showUnpublished } from '@util/visibility.mjs';
 
 // Drafts are hidden in production, matching the blog's behaviour.
 const entries = await getCollection('star', ({ data }) =>
-  import.meta.env.PROD ? data.draft !== true : true
+  showUnpublished(import.meta.env) || data.draft !== true
 );
 
 // The site renders per-request (output: "server"), so picking here rotates the

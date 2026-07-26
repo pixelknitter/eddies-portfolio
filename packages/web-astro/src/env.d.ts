@@ -3,7 +3,15 @@
 
 interface ImportMetaEnv {
   readonly OPEN_AI_TOKEN: string;
-  // more env variables...
+  /**
+   * Build-time feature flags. The PUBLIC_ prefix is required: Vite only
+   * substitutes prefixed names into import.meta.env, so a bare name is
+   * silently inert.
+   */
+  readonly PUBLIC_SHOW_UNPUBLISHED?: string;
+  readonly PUBLIC_SHOW_AIR?: string;
+  readonly PUBLIC_SHOW_BLOG?: string;
+  readonly PUBLIC_SHOW_PROJECTS?: string;
 }
 
 interface ImportMeta {

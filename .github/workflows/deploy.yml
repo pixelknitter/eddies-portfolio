@@ -42,7 +42,14 @@ jobs:
       - name: Verify (check, lint, test)
         run: yarn nx run-many --targets=check,lint,test --projects=web-astro
 
+      # Staging is a pre-production review tier, so it shows unpublished
+      # content. The production job below deliberately does not.
       - name: Build
+        env:
+          PUBLIC_SHOW_UNPUBLISHED: 'true'
+          PUBLIC_SHOW_AIR: 'true'
+          PUBLIC_SHOW_BLOG: 'true'
+          PUBLIC_SHOW_PROJECTS: 'true'
         run: yarn nx build web-astro
 
       - name: Generate staging Wrangler config
@@ -139,6 +146,8 @@ jobs:
       - name: Smoke test production
         env:
           TARGET_URL: https://${{ vars.PRODUCTION_HOSTNAME || 'eddie.engineering' }}
+          # Production must not expose feature-flagged sections.
+          SMOKE_STRICT_FLAGS: 'true'
         run: node scripts/smoke-test.mjs "$TARGET_URL"
 
       - name: Notify deployments channel (success)

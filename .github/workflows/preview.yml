@@ -62,7 +62,14 @@ jobs:
       - name: Unit tests
         run: yarn nx test web-astro
 
+      # Dev previews exist to review work in progress, so they reveal drafts
+      # and scheduled posts. Production never sets this.
       - name: Build
+        env:
+          PUBLIC_SHOW_UNPUBLISHED: 'true'
+          PUBLIC_SHOW_AIR: 'true'
+          PUBLIC_SHOW_BLOG: 'true'
+          PUBLIC_SHOW_PROJECTS: 'true'
         run: yarn nx build web-astro
 
       # Preview URLs cannot be served on a custom domain, so a preview that
