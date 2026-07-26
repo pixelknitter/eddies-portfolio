@@ -1,0 +1,16 @@
+{
+  "name": "@eddie/obsidian-publish-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Convert Obsidian notes into Astro content-collection entries. Pure and dependency-free so it runs in Node and in workerd.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.mjs",
+  "exports": {
+    ".": "./src/index.mjs",
+    "./convert": "./src/convert.mjs",
+    "./frontmatter": "./src/frontmatter.mjs"
+  },
+  "files": ["src"],
+  "sideEffects": false
+}

@@ -2,9 +2,9 @@
 /**
  * Import an Obsidian note into the blog content collection.
  *
- * Conversion logic lives in packages/web-astro/src/util/obsidian.mjs and is
- * unit-tested; this script is the filesystem and frontmatter-mapping shell
- * around it.
+ * Conversion and frontmatter mapping live in
+ * packages/obsidian-publish-core and are unit-tested; this script is only the
+ * filesystem shell around them.
  *
  * Usage:
  *   node scripts/obsidian-import.mjs <note.md> [--vault <dir>] [--slug <slug>]
@@ -48,8 +48,9 @@ if (!existsSync(notePath)) {
   process.exit(1);
 }
 
-const { convertNote, slugify } = await import(
-  pathToFileURL(resolve(`${APP}/src/util/obsidian.mjs`)).href
+const CORE = 'packages/obsidian-publish-core/src/index.mjs';
+const { convertNote, slugify, toEntry, serialiseFrontmatter } = await import(
+  pathToFileURL(resolve(CORE)).href
 );
 
 
@@ -63,24 +64,21 @@ const knownSlugs = new Set(
     : []
 );
 
-const { body, tags, assets, frontmatter } = convertNote(raw, { knownSlugs });
+const converted = convertNote(raw, { knownSlugs });
+const { assets } = converted;
 
-const firstHeading = /^#\s+(.+)$/m.exec(body)?.[1];
-const title = String(frontmatter.title || firstHeading || basename(notePath, '.md')).trim();
+// The site's required schema fields are supplied here, not baked into the
+// package — it stays reusable by any Astro site.
+const entry = toEntry(converted, {
+  filename: basename(notePath),
+  defaults: { author: 'eddie-freeman', relatedPosts: [] },
+  publish: has('publish'),
+});
+
+const title = entry.frontmatter.title;
 const slug = flag('slug') || slugify(title);
-
-const firstParagraph = body
-  .split(/\n{2,}/)
-  .map((p) => p.trim())
-  .find((p) => p && !p.startsWith('#') && !p.startsWith('!') && !p.startsWith('>'));
-
-const blurb = String(
-  frontmatter.blurb || frontmatter.description || frontmatter.summary ||
-  (firstParagraph ? firstParagraph.replace(/\s+/g, ' ').slice(0, 200) : title)
-).trim();
-
-const hero = frontmatter.hero || frontmatter.heroImage || frontmatter.cover;
-const heroFile = hero ? basename(String(hero)) : undefined;
+const tags = entry.frontmatter.tags;
+const heroFile = entry.heroAsset;
 
 const vault = flag('vault') || dirname(notePath);
 const dryRun = has('dry-run');
@@ -114,24 +112,13 @@ for (const asset of toCopy) {
   copied.push({ from: source, to: join(ASSET_DIR, asset) });
 }
 
-const frontMatterOut = [
-  '---',
-  `title: ${JSON.stringify(title)}`,
-  'author: ' + JSON.stringify(String(frontmatter.author || 'eddie-freeman')),
-  'relatedPosts: []',
-  `blurb: ${JSON.stringify(blurb)}`,
-  `tags: [${tags.map((t) => JSON.stringify(t)).join(', ')}]`,
-  'heroImage:',
-  `  url: ${JSON.stringify(heroFile ? `/blog-assets/${heroFile}` : '/blog-post.webp')}`,
-  `  alt: ${JSON.stringify(title)}`,
-  `draft: ${has('publish') ? 'false' : 'true'}`,
-  '---',
-  '',
-].join('\n');
+// Fall back to the site's default hero when the note supplies none.
+if (!entry.frontmatter.heroImage) {
+  entry.frontmatter.heroImage = { url: '/blog-post.webp', alt: title };
+}
 
-// Astro renders the frontmatter title as the page heading, so a leading H1 in
-// the body would duplicate it.
-const outBody = body.replace(/^#\s+.+\n+/, '');
+const frontMatterOut = serialiseFrontmatter(entry.frontmatter);
+const outBody = entry.body;
 const outPath = join(CONTENT_DIR, `${slug}.md`);
 
 console.log(`  note    ${notePath}`);

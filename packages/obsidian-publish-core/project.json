@@ -1,0 +1,25 @@
+{
+  "name": "obsidian-publish-core",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "packages/obsidian-publish-core/src",
+  "tags": [],
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "options": {
+        "command": "vitest run",
+        "cwd": "packages/obsidian-publish-core"
+      },
+      "configurations": { "watch": { "command": "vitest" } }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["packages/obsidian-publish-core/**/*.{js,mjs,ts}"]
+      }
+    }
+  }
+}
