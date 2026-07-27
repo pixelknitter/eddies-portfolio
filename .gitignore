@@ -152,3 +152,6 @@ blob-report/
 # .envrc.example is the committed template.
 .envrc
 .direnv/
+# ...but the template must be committed. An earlier `.env*` rule catches it,
+# so this negation has to come after both.
+!.envrc.example
