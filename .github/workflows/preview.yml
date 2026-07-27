@@ -103,6 +103,7 @@ jobs:
           PUBLIC_SHOW_AIR: 'true'
           PUBLIC_SHOW_BLOG: 'true'
           PUBLIC_SHOW_PROJECTS: 'true'
+          PUBLIC_SHOW_HIGHLIGHTS: 'true'
         run: yarn nx build web-astro
 
       # Preview URLs cannot be served on a custom domain, so a preview that

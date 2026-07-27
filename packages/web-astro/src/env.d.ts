@@ -12,6 +12,7 @@ interface ImportMetaEnv {
   readonly PUBLIC_SHOW_AIR?: string;
   readonly PUBLIC_SHOW_BLOG?: string;
   readonly PUBLIC_SHOW_PROJECTS?: string;
+  readonly PUBLIC_SHOW_HIGHLIGHTS?: string;
   /** Git SHA of the build, stamped into every page by Layout.astro. */
   readonly PUBLIC_BUILD_SHA?: string;
 }

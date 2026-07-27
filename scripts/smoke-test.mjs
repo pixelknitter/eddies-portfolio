@@ -39,16 +39,28 @@ const strictFlags = process.env.SMOKE_STRICT_FLAGS === 'true';
 const REQUEST_TIMEOUT_MS = 20_000;
 const RETRIES = 3;
 
+/**
+ * Routes behind a feature flag. Review tiers switch the flags on and must
+ * serve these; production leaves them off and must not serve them at all.
+ *
+ * Asserting a flat 200 here is what made this suite contradict itself once
+ * the flags started gating routes rather than only nav links.
+ */
+const gatedRoutes = [
+  { path: '/blog/', contains: 'Blog' },
+  { path: '/works/', contains: 'Projects' },
+  { path: '/projects/project-1/' },
+  { path: '/air/' },
+];
+
 /** Routes asserted on every deploy. `contains` is checked case-sensitively. */
 const checks = [
-  // Nothing feature-flagged belongs here: /air/ is gated by PUBLIC_SHOW_AIR,
-  // so asserting 200 fails wherever the flag is off — production's default.
   { path: '/', status: 200, contains: 'Engineering by Eddie' },
-  { path: '/blog/', status: 200, contains: 'Blog' },
-  { path: '/works/', status: 200, contains: 'Projects' },
-  { path: '/projects/project-1/', status: 200 },
   // Unknown routes must 404 rather than render a page or error.
   { path: '/this-route-should-not-exist', status: 404 },
+  ...gatedRoutes.map(({ path, contains }) =>
+    strictFlags ? { path, status: 404 } : { path, status: 200, contains }
+  ),
 ];
 
 /**
@@ -189,25 +201,29 @@ async function main() {
   // a slug: posts are scheduled and drafted, so any fixed URL eventually
   // 404s. This still catches a post page that fails to render.
   let extra = 0;
-  try {
-    const index = await fetchWithRetry(`${baseUrl}/blog/`);
-    const slug = /href="\/blog\/([^"/]+)\/?"/.exec(index.body)?.[1];
+  if (strictFlags) {
+    console.log('… blog is gated off in this tier; skipping the post-page check.');
+  } else {
+    try {
+      const index = await fetchWithRetry(`${baseUrl}/blog/`);
+      const slug = /href="\/blog\/([^"/]+)\/?"/.exec(index.body)?.[1];
 
-    if (!slug) {
-      console.log('… no published posts listed; skipping the post-page check.');
-    } else {
-      extra = 1;
-      const post = await fetchWithRetry(`${baseUrl}/blog/${slug}/`);
-      if (post.response.status === 200) {
-        console.log(`✓ /blog/${slug}/ — 200 (first listed post)`);
+      if (!slug) {
+        console.log('… no published posts listed; skipping the post-page check.');
       } else {
-        failures.push(`/blog/${slug}/ — expected HTTP 200, got ${post.response.status}`);
-        console.log(`✖ /blog/${slug}/ — expected HTTP 200, got ${post.response.status}`);
+        extra = 1;
+        const post = await fetchWithRetry(`${baseUrl}/blog/${slug}/`);
+        if (post.response.status === 200) {
+          console.log(`✓ /blog/${slug}/ — 200 (first listed post)`);
+        } else {
+          failures.push(`/blog/${slug}/ — expected HTTP 200, got ${post.response.status}`);
+          console.log(`✖ /blog/${slug}/ — expected HTTP 200, got ${post.response.status}`);
+        }
       }
+    } catch (error) {
+      failures.push(`blog index — ${error.message}`);
+      console.log(`✖ blog index — ${error.message}`);
     }
-  } catch (error) {
-    failures.push(`blog index — ${error.message}`);
-    console.log(`✖ blog index — ${error.message}`);
   }
 
   // Negative assertions: prove the unfinished sections are not reachable and
