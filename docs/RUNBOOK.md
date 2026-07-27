@@ -117,8 +117,8 @@ One-time setup, in order:
 cd packages/web-astro
 
 # 1. Onboard the sending domain. Approval emails come from
-#    connect@simply.build, so simply.build must be enabled for Email Sending.
-npx wrangler email sending enable simply.build
+#    connect@eddie.engineering, so that domain must be enabled for sending.
+npx wrangler email sending enable eddie.engineering
 npx wrangler email sending list          # confirm it is listed
 
 # 2. Secrets, per Worker (production and staging are separate Workers).
@@ -134,7 +134,7 @@ revoke access in bulk.
 
 **The flow.** Visitor submits an address and a note → Discord post with an
 approval link → clicking it emails them a personal code from
-`connect@simply.build` → they paste it into the access field.
+`connect@eddie.engineering` → they paste it into the access field.
 
 The approval link is **idempotent rather than single-use**: the token carries
 the requester's address inside the signature, so clicking twice re-sends the
@@ -158,7 +158,7 @@ silently dropping requests.
 **Cause.** The `EMAIL` binding is missing, or the sending domain is not
 onboarded. Check `npx wrangler email sending list`.
 
-**Fix.** `npx wrangler email sending enable simply.build`. The approval page
+**Fix.** `npx wrangler email sending enable eddie.engineering`. The approval page
 shows the code inline in this case, so you can send it by hand — a person
 waiting in front of you should not be blocked on a binding.
 
