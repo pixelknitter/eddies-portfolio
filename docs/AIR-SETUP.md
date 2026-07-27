@@ -244,6 +244,33 @@ was not quite done.
 
 ---
 
+## Comparing models
+
+The live eval suite runs the golden set against several models and reports
+them side by side:
+
+```bash
+ANTHROPIC_API_KEY=... node scripts/air-eval.mjs \
+  --models claude-opus-5,claude-sonnet-5,claude-haiku-4-5 \
+  --report report.md
+```
+
+In CI it is **Actions → A.I.R. evals → Run workflow**, which also runs weekly
+so model drift surfaces on its own. The table lands on the run summary and as
+a downloadable artifact.
+
+**Read the report per category, never as a total.** It scores guardrail
+adherence, not answer quality — a model that declines every question aces
+`boundary` and `security` and fails only `grounding`. A blended number would
+rank that model first. Read the first two as "stays inside the lines", the
+third as "still useful", and use latency and cost to choose between models
+that hold both.
+
+The *Where the models disagree* section is the part worth reading closely: it
+is the only place a model switch would actually change behaviour.
+
+---
+
 ## Day-of quick reference
 
 - **Someone wants access** → they use the card code, or hit *"Ask Eddie for
