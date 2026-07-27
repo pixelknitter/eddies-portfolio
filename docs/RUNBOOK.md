@@ -194,8 +194,18 @@ knowing:
   not in a public repository. A sealed story is unsealed at build time and
   feeds A.I.R. exactly as an unsealed one does.
 
+Install the pre-commit guard once per clone — CI's `check` runs *after* a
+commit exists, and history cannot be un-published:
+
 ```bash
-# once: generate a key and store it as the CONTENT_SEAL_KEY Actions secret
+yarn hooks:install
+```
+
+```bash
+# once: pick a passphrase and store it as the CONTENT_SEAL_KEY Actions secret.
+# `keygen` only suggests one — any long, unguessable phrase works, because it
+# is stretched with scrypt rather than used as key material. Prefer something
+# you can retrieve in a year over something you must never lose.
 node scripts/seal-content.mjs keygen
 
 # per post

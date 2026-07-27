@@ -31,6 +31,18 @@
  * treat a leaked key as "every post ever sealed with it is public" and rotate
  * by re-sealing with a new key rather than assuming history is clean.
  *
+ * ## Key handling
+ *
+ * `CONTENT_SEAL_KEY` is a **passphrase**, not raw key material. It is stretched
+ * with scrypt against a per-file random salt, so a memorable phrase is as safe
+ * to use as a base64 blob — and losing the key is the failure mode most likely
+ * to actually happen to a solo maintainer. The salt lives in the sealed file,
+ * which is what lets every file derive independently.
+ *
+ * Sealed files are self-describing JSON (`v`, `algo`, `kdf`, `salt`, `iv`,
+ * `tag`, `data`) so a future format change can be detected rather than
+ * mis-decrypted.
+ *
  * Usage:
  *   CONTENT_SEAL_KEY=... node scripts/seal-content.mjs keygen
  *   CONTENT_SEAL_KEY=... node scripts/seal-content.mjs seal   src/content/blog/post.md
@@ -38,7 +50,7 @@
  *   node scripts/seal-content.mjs check
  */
 
-import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto';
 import { readFileSync, writeFileSync, unlinkSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -56,19 +68,24 @@ function hasKey() {
   return Boolean(process.env.CONTENT_SEAL_KEY);
 }
 
-function key() {
+const FORMAT_VERSION = 1;
+/** scrypt cost. 2^15 keeps a wrong-guess expensive without stalling a build. */
+const SCRYPT_N = 32768;
+
+function passphrase() {
   const raw = process.env.CONTENT_SEAL_KEY;
-  if (!raw) {
+  if (!raw || raw.trim() === '') {
     console.error('✖ CONTENT_SEAL_KEY is not set.');
-    console.error('  Generate one with: node scripts/seal-content.mjs keygen');
+    console.error('  Generate a suggestion with: node scripts/seal-content.mjs keygen');
+    console.error('  Any passphrase works — it is stretched with scrypt, not used directly.');
     process.exit(1);
   }
-  const bytes = Buffer.from(raw, 'base64');
-  if (bytes.length !== 32) {
-    console.error(`✖ CONTENT_SEAL_KEY must decode to 32 bytes, got ${bytes.length}.`);
-    process.exit(1);
-  }
-  return bytes;
+  return raw;
+}
+
+/** @param {Buffer} salt */
+function deriveKey(salt) {
+  return scryptSync(passphrase(), salt, 32, { N: SCRYPT_N, r: 8, p: 1, maxmem: 64 * 1024 * 1024 });
 }
 
 /**
@@ -76,18 +93,47 @@ function key() {
  * would decrypt to garbage and be published as a post.
  */
 function seal(plaintext) {
+  const salt = randomBytes(16);
   const iv = randomBytes(12);
-  const cipher = createCipheriv('aes-256-gcm', key(), iv);
-  const body = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
-  return `${iv.toString('base64')}.${cipher.getAuthTag().toString('base64')}.${body.toString('base64')}\n`;
+  const cipher = createCipheriv('aes-256-gcm', deriveKey(salt), iv);
+  const data = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+
+  return `${JSON.stringify(
+    {
+      v: FORMAT_VERSION,
+      algo: 'aes-256-gcm',
+      kdf: 'scrypt',
+      salt: salt.toString('hex'),
+      iv: iv.toString('hex'),
+      tag: cipher.getAuthTag().toString('hex'),
+      data: data.toString('base64'),
+    },
+    null,
+    2
+  )}\n`;
 }
 
 function unseal(blob) {
-  const [iv, tag, body] = blob.trim().split('.');
-  if (!iv || !tag || !body) throw new Error('malformed sealed file');
+  let envelope;
+  try {
+    envelope = JSON.parse(blob);
+  } catch {
+    throw new Error('malformed sealed file — expected JSON');
+  }
 
-  const decipher = createDecipheriv('aes-256-gcm', key(), Buffer.from(iv, 'base64'));
-  decipher.setAuthTag(Buffer.from(tag, 'base64'));
+  // Refuse a format we do not understand rather than mis-decrypting it into
+  // something that looks like a post.
+  if (envelope.v !== FORMAT_VERSION) {
+    throw new Error(`unsupported sealed format v${envelope.v}; this build understands v${FORMAT_VERSION}`);
+  }
+  if (envelope.algo !== 'aes-256-gcm' || envelope.kdf !== 'scrypt') {
+    throw new Error(`unsupported algo/kdf: ${envelope.algo}/${envelope.kdf}`);
+  }
+
+  const key = deriveKey(Buffer.from(envelope.salt, 'hex'));
+  const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(envelope.iv, 'hex'));
+  decipher.setAuthTag(Buffer.from(envelope.tag, 'hex'));
+  const body = envelope.data;
 
   try {
     return Buffer.concat([
@@ -156,8 +202,12 @@ try {
     case 'keygen': {
       console.log(randomBytes(32).toString('base64'));
       console.log('');
-      console.log('Store as CONTENT_SEAL_KEY — a GitHub Actions secret, and somewhere you');
-      console.log('will still have it in a year. Losing it means losing every sealed post.');
+      console.log('A suggestion, not a requirement — CONTENT_SEAL_KEY is a passphrase and is');
+      console.log('stretched with scrypt, so anything long and unguessable works. Prefer');
+      console.log('something you can retrieve in a year over something you must never lose.');
+      console.log('');
+      console.log('Store it as a GitHub Actions secret AND in your password manager.');
+      console.log('Losing it means losing every sealed file.');
       break;
     }
 

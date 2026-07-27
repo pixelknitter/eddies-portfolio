@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Refuse to commit the plaintext of a sealed file.
+#
+# CI already runs `seal-content.mjs check`, but CI runs *after* the commit
+# exists. For this threat model that is too late — git history is append-only,
+# so a plaintext post that reaches a commit is public even if the next commit
+# removes it. This hook is the only guard that runs while the mistake is still
+# undoable.
+#
+# Install with: yarn hooks:install
+set -euo pipefail
+
+CONTENT_ROOT="packages/web-astro/src/content"
+violations=""
+
+# Only files staged for this commit; unstaged working-copy plaintext is fine
+# and expected while editing.
+while IFS= read -r path; do
+  [ -n "$path" ] || continue
+  case "$path" in
+    "$CONTENT_ROOT"/*.md)
+      if [ -f "${path}.sealed" ]; then
+        violations="${violations}  ${path}"$'\n'
+      fi
+      ;;
+  esac
+done < <(git diff --cached --name-only --diff-filter=ACM)
+
+if [ -n "$violations" ]; then
+  cat >&2 <<MSG
+
+✖ Refusing to commit the plaintext of sealed content:
+
+${violations}
+  A .sealed file exists for each of these, so committing the plaintext would
+  put in history exactly what the sealing was meant to keep out — and history
+  cannot be un-published.
+
+  Unstage them:
+    git restore --staged <path>
+
+  If a file should no longer be sealed, delete its .sealed twin deliberately
+  and re-run: node scripts/seal-content.mjs check
+
+MSG
+  exit 1
+fi
