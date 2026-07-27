@@ -171,3 +171,34 @@ describe('convertNote', () => {
     expect(result.body).not.toContain('/blog/missing-note/');
   });
 });
+
+describe('tag-only lines', () => {
+  it('removes a trailing tag block entirely, not just its hashes', () => {
+    const { body, tags } = extractInlineTags('Some prose.\n\n#astro #cloudflare #testing\n');
+
+    expect(tags).toEqual(['astro', 'cloudflare', 'testing']);
+    // The bug this guards: stripping only the marker left the words behind as
+    // a stray line at the end of the published post.
+    expect(body).not.toContain('astro');
+    expect(body.trim()).toBe('Some prose.');
+  });
+
+  it('keeps the word when a tag is part of a sentence', () => {
+    const { body, tags } = extractInlineTags('I build with #astro every day.');
+    expect(body).toBe('I build with astro every day.');
+    expect(tags).toEqual(['astro']);
+  });
+
+  it('leaves markdown headings alone', () => {
+    const { body, tags } = extractInlineTags('# A heading\n\n## Another');
+    expect(body).toBe('# A heading\n\n## Another');
+    expect(tags).toEqual([]);
+  });
+
+  it('leaves tags inside fenced code alone', () => {
+    const source = '```\n#astro\n```';
+    const { body, tags } = extractInlineTags(source);
+    expect(body).toBe(source);
+    expect(tags).toEqual([]);
+  });
+});
