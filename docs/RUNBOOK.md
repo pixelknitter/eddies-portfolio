@@ -109,6 +109,61 @@ bundle is public — assume anything in it is compromised.
 
 ---
 
+### Setting up A.I.R. access requests
+
+One-time setup, in order:
+
+```bash
+cd packages/web-astro
+
+# 1. Onboard the sending domain. Approval emails come from
+#    connect@simply.build, so simply.build must be enabled for Email Sending.
+npx wrangler email sending enable simply.build
+npx wrangler email sending list          # confirm it is listed
+
+# 2. Secrets, per Worker (production and staging are separate Workers).
+npx wrangler secret put ANTHROPIC_API_KEY
+npx wrangler secret put AIR_ACCESS_CODE            # the code on the card
+npx wrangler secret put AIR_SIGNING_SECRET         # any long random string
+npx wrangler secret put DISCORD_ACCESS_WEBHOOK_URL # its own channel
+```
+
+`AIR_SIGNING_SECRET` signs both approval links and issued access codes.
+**Rotating it invalidates every code already emailed** — which is also how you
+revoke access in bulk.
+
+**The flow.** Visitor submits an address and a note → Discord post with an
+approval link → clicking it emails them a personal code from
+`connect@simply.build` → they paste it into the access field.
+
+The approval link is **idempotent rather than single-use**: the token carries
+the requester's address inside the signature, so clicking twice re-sends the
+same code to the same person and nothing else. That is deliberate — strict
+single-use would need a datastore, and would turn the commonest failure (the
+email never arrived) into a whole new request instead of a second click.
+
+---
+
+### A.I.R. requests return 503 "not open right now"
+
+**Cause.** `AIR_SIGNING_SECRET` or `DISCORD_ACCESS_WEBHOOK_URL` is unset.
+
+**Fix.** Set both (above). Until then the form fails closed rather than
+silently dropping requests.
+
+---
+
+### Approval says "the email did not send"
+
+**Cause.** The `EMAIL` binding is missing, or the sending domain is not
+onboarded. Check `npx wrangler email sending list`.
+
+**Fix.** `npx wrangler email sending enable simply.build`. The approval page
+shows the code inline in this case, so you can send it by hand — a person
+waiting in front of you should not be blocked on a binding.
+
+---
+
 ### A.I.R. returns 401 for everyone
 
 **Cause.** `AIR_ACCESS_CODE` is not set on the Worker. The gate fails closed on

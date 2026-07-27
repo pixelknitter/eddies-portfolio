@@ -32,12 +32,49 @@ const SUGGESTED = [
 
 export function AIResume() {
   const [accessCode, setAccessCode] = React.useState('');
+  const [requesting, setRequesting] = React.useState(false);
+  const [requestEmail, setRequestEmail] = React.useState('');
+  const [requestReason, setRequestReason] = React.useState('');
+  const [requestState, setRequestState] = React.useState<
+    { status: 'idle' | 'sending' } | { status: 'sent' | 'failed'; message: string }
+  >({ status: 'idle' });
   const [question, setQuestion] = React.useState('');
   const [answer, setAnswer] = React.useState<Answer | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
 
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const requestEmailRef = React.useRef<HTMLInputElement>(null);
+
+  // Move focus into the dialog when it opens, so keyboard and screen-reader
+  // users land inside it rather than behind it.
+  React.useEffect(() => {
+    if (requesting) requestEmailRef.current?.focus();
+  }, [requesting]);
+
+  async function submitRequest(event: React.FormEvent) {
+    event.preventDefault();
+    if (requestState.status === 'sending') return;
+
+    setRequestState({ status: 'sending' });
+
+    try {
+      const response = await fetch('/api/air/request', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: requestEmail, reason: requestReason }),
+      });
+      const body = await response.json();
+
+      setRequestState(
+        response.ok
+          ? { status: 'sent', message: body.message ?? 'Sent.' }
+          : { status: 'failed', message: body.error ?? 'Could not send that. Try again.' }
+      );
+    } catch {
+      setRequestState({ status: 'failed', message: 'Could not reach the site. Try again.' });
+    }
+  }
 
   async function ask(asked: string) {
     const trimmed = asked.trim();
@@ -92,6 +129,14 @@ export function AIResume() {
           autoComplete="off"
         />
 
+        <button
+          type="button"
+          onClick={() => setRequesting(true)}
+          className="font-body text-sm underline decoration-underline dark:decoration-link underline-offset-4 mt-2"
+        >
+          Don&rsquo;t have one? Ask Eddie for access
+        </button>
+
         <label htmlFor="air-question" className="block font-body font-semibold mb-2 mt-6">
           Ask a question
         </label>
@@ -128,6 +173,78 @@ export function AIResume() {
           </ul>
         </div>
       </div>
+
+      {requesting && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="air-request-title"
+          className="surface p-4 sm:p-6 mt-6"
+        >
+          <h2 id="air-request-title" className="font-body text-xl mb-2 no-underline decoration-0">
+            Ask for access
+          </h2>
+          <p className="font-body text-sm opacity-70 mb-4">
+            Eddie reads these himself and approves them by hand. Tell him who you are and what
+            you&rsquo;re hoping to find out.
+          </p>
+
+          <form onSubmit={submitRequest}>
+            <label htmlFor="air-request-email" className="block font-body font-semibold mb-2">
+              Your email
+            </label>
+            <input
+              id="air-request-email"
+              ref={requestEmailRef}
+              type="email"
+              required
+              value={requestEmail}
+              onChange={(event) => setRequestEmail(event.target.value)}
+              className="w-full p-3 rounded-lg bg-light dark:bg-dark text-dark dark:text-light border border-hairline dark:border-hairline-dark focus:outline-2 focus:outline-offset-2 focus:outline-underline dark:focus:outline-link"
+              placeholder="you@company.com"
+            />
+
+            <label htmlFor="air-request-reason" className="block font-body font-semibold mb-2 mt-4">
+              Why you&rsquo;re reaching out
+            </label>
+            <textarea
+              id="air-request-reason"
+              required
+              rows={4}
+              value={requestReason}
+              onChange={(event) => setRequestReason(event.target.value)}
+              className="w-full p-3 rounded-lg bg-light dark:bg-dark text-dark dark:text-light border border-hairline dark:border-hairline-dark focus:outline-2 focus:outline-offset-2 focus:outline-underline dark:focus:outline-link"
+              placeholder="Hiring for a platform role and wanted to understand how you work."
+            />
+
+            <div className="flex flex-wrap gap-3 mt-4">
+              <button
+                type="submit"
+                disabled={requestState.status === 'sending'}
+                className="btn px-4 py-2 rounded-lg border border-hairline dark:border-hairline-dark hover:border-underline dark:hover:border-link transition-colors disabled:opacity-50"
+              >
+                {requestState.status === 'sending' ? 'Sending…' : 'Send request'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setRequesting(false)}
+                className="font-body text-sm underline decoration-underline dark:decoration-link underline-offset-4"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+
+          <div aria-live="polite">
+            {requestState.status === 'sent' && (
+              <p className="font-body mt-4">{requestState.message}</p>
+            )}
+            {requestState.status === 'failed' && (
+              <p className="font-body mt-4">{requestState.message}</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* aria-live so an arriving answer is announced, not just painted. */}
       <div aria-live="polite" aria-busy={pending}>

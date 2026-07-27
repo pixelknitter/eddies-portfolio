@@ -12,6 +12,8 @@ import {
   verifyAnswer,
 } from '@util/air/prompt.mjs';
 import { createRateLimiter, isAuthorised } from '@util/air/access.mjs';
+import { readSecret } from '@util/air/runtime.mjs';
+import { verifyAccessCode } from '@util/air/requests.mjs';
 
 /**
  * A.I.R. question endpoint.
@@ -37,28 +39,6 @@ function json(body: unknown, status = 200, headers: Record<string, string> = {})
   });
 }
 
-/**
- * Read a secret from the Workers runtime environment.
- *
- * Astro 7 exposes it through `cloudflare:workers`; `Astro.locals.runtime.env`
- * was removed in Astro 6 and throws if touched.
- *
- * There is deliberately no `import.meta.env` fallback. Astro exposes the build
- * machine's environment through `import.meta.env` on the server, so Vite
- * inlines whatever it finds into the bundle — a fallback here silently baked a
- * real API key into `dist/` during development, and would ship any key present
- * in the CI environment inside the deployed artifact. Locally, put these in
- * `packages/web-astro/.dev.vars`, which populates this same runtime env.
- */
-async function readEnv(key: string): Promise<string | undefined> {
-  try {
-    const { env } = await import(/* @vite-ignore */ 'cloudflare:workers');
-    return (env as Record<string, string | undefined>)?.[key] || undefined;
-  } catch {
-    // Not running on Workers (astro dev, tests) — no secrets available.
-    return undefined;
-  }
-}
 
 export async function POST(context: APIContext): Promise<Response> {
   // The section is gated, and so is its API. A flagged-off feature whose
@@ -67,10 +47,17 @@ export async function POST(context: APIContext): Promise<Response> {
     return new Response(null, { status: 404, statusText: 'Not found' });
   }
 
-  const accessCode = await readEnv('AIR_ACCESS_CODE');
   const supplied = context.request.headers.get('x-air-access') ?? undefined;
+  const sharedCode = await readSecret('AIR_ACCESS_CODE');
+  const signingSecret = await readSecret('AIR_SIGNING_SECRET');
 
-  if (!isAuthorised(supplied, accessCode)) {
+  // Two ways in: the shared code handed out on a card, or a personal code
+  // issued to one address by the request-and-approve flow. The personal code
+  // carries the address it was issued to, signed, so it verifies with no
+  // lookup — and a leaked one is attributable.
+  const personal = signingSecret ? await verifyAccessCode(signingSecret, supplied) : { ok: false };
+
+  if (!personal.ok && !isAuthorised(supplied, sharedCode)) {
     // Deliberately identical whether the code is wrong or unconfigured — the
     // difference is operator information, not visitor information.
     return json({ error: 'This resume is available by invitation.' }, 401);
@@ -121,7 +108,7 @@ export async function POST(context: APIContext): Promise<Response> {
     });
   }
 
-  const apiKey = await readEnv('ANTHROPIC_API_KEY');
+  const apiKey = await readSecret('ANTHROPIC_API_KEY');
   if (!apiKey) {
     console.error('[air] ANTHROPIC_API_KEY is not configured');
     return json({ error: 'A.I.R. is not configured right now.' }, 503);
