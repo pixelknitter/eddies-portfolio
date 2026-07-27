@@ -3,24 +3,11 @@ name: Dev Preview Deploy
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    # A preview provisions a Worker, a Custom Domain and a DNS record, so it
-    # is not worth spending on a PR that cannot change what gets served.
-    #
-    # This is a denylist rather than an allowlist on purpose: a new directory
-    # should default to *getting* a preview. Silently skipping a deployable
-    # change is the worse failure.
-    #
-    # Note `*.md` matches only root-level files (a path filter's `*` does not
-    # cross `/`), so posts under src/content/**/*.md still trigger a preview —
-    # those are deployable content.
-    paths-ignore:
-      - 'docs/**'
-      - '*.md'
-      - 'LICENSE'
-      - '.vscode/**'
-      - '.editorconfig'
-      - '.gitignore'
-      - '.prettierignore'
+    # Deliberately no `paths-ignore` here. Filtering at the workflow level
+    # means a docs-only PR never starts the workflow at all, so a required
+    # status check for this job would sit Pending forever and block the merge.
+    # The filter lives in the `changes` job below instead: a job skipped by an
+    # `if:` still reports a conclusion, which satisfies a required check.
 
 # One preview per PR; newer pushes supersede in-flight runs.
 concurrency:
@@ -31,8 +18,55 @@ env:
   NX_DAEMON: 'false'
 
 jobs:
+  # Decides whether the PR can change what gets served. A preview provisions a
+  # Worker, a Custom Domain and a DNS record, so it is not worth spending on a
+  # PR that cannot affect the site.
+  changes:
+    name: Detect deployable changes
+    runs-on: ubuntu-latest
+    outputs:
+      deployable: ${{ steps.filter.outputs.deployable }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Needed to diff against the merge base rather than a shallow tip.
+          fetch-depth: 0
+
+      - name: Classify changed paths
+        id: filter
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+
+          # Three dots: changes on this branch since it diverged, so commits
+          # landing on master meanwhile do not count as this PR's changes.
+          changed="$(git diff --name-only "origin/${BASE_REF}...HEAD")"
+          echo "Changed files:"
+          echo "$changed" | sed 's/^/  /'
+
+          # A denylist rather than an allowlist on purpose: a new directory
+          # should default to *getting* a preview. Silently skipping a
+          # deployable change is the worse failure.
+          #
+          # `^[^/]+\.md$` is root-level markdown only, so posts under
+          # src/content/**/*.md still count as deployable content.
+          ignored='^(docs/|\.vscode/|LICENSE$|\.editorconfig$|\.gitignore$|\.prettierignore$|[^/]+\.md$)'
+
+          if echo "$changed" | grep -qvE "$ignored"; then
+            echo "deployable=true" >> "$GITHUB_OUTPUT"
+            echo "→ deployable changes present; preview will run."
+          else
+            echo "deployable=false" >> "$GITHUB_OUTPUT"
+            echo "→ documentation-only change; skipping the preview."
+          fi
+
   preview:
-    name: Build & deploy preview
+    # Ruleset contract name — see .github/workflows/ci.yml.
+    name: preview
+    needs: changes
+    if: needs.changes.outputs.deployable == 'true'
     runs-on: ubuntu-latest
     # Credentials are repo-level secrets; the environment is declared for
     # GitHub deployment tracking, the environment URL, and optional
