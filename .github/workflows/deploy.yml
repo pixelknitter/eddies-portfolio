@@ -43,6 +43,11 @@ jobs:
 
       # Staging is a pre-production review tier, so it shows unpublished
       # content. The production job below deliberately does not.
+      - name: Unseal scheduled content
+        env:
+          CONTENT_SEAL_KEY: ${{ secrets.CONTENT_SEAL_KEY }}
+        run: node scripts/seal-content.mjs unseal-all --require-key
+
       - name: Build
         env:
           PUBLIC_SHOW_UNPUBLISHED: 'true'
@@ -132,6 +137,11 @@ jobs:
 
       - name: Setup Node & install
         uses: ./.github/actions/setup
+
+      - name: Unseal scheduled content
+        env:
+          CONTENT_SEAL_KEY: ${{ secrets.CONTENT_SEAL_KEY }}
+        run: node scripts/seal-content.mjs unseal-all --require-key
 
       - name: Build
         run: |

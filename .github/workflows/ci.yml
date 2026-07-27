@@ -40,6 +40,17 @@ jobs:
       - name: Unit tests
         run: yarn nx test web-astro
 
+      # Sealed posts are encrypted in the repo. Forks cannot read the key, so
+      # this warns and builds without them rather than failing a contribution
+      # over content it has no business seeing.
+      - name: Unseal scheduled content
+        env:
+          CONTENT_SEAL_KEY: ${{ secrets.CONTENT_SEAL_KEY }}
+        run: node scripts/seal-content.mjs unseal-all
+
+      - name: Check no sealed post's plaintext is committed
+        run: node scripts/seal-content.mjs check
+
       - name: Build
         run: yarn nx build web-astro
 

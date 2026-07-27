@@ -178,6 +178,52 @@ ruby -ryaml -e 'Dir.glob(".github/workflows/*.yml").each { |f| YAML.load_file(f)
 
 ---
 
+### Sealing content that should not be public in the repo
+
+The `publishDate` gate stops a scheduled post being *served* early. It does
+nothing about the repo, which is public — a scheduled post sits readable on
+GitHub from the moment it is committed. Sealing closes that.
+
+One key covers **every collection**, not just the blog. The two cases worth
+knowing:
+
+- **Scheduled posts** — the obvious one. Written now, readable by nobody until
+  their date.
+- **STAR stories** — the quieter one. A career story can carry a client name,
+  a revenue figure, or a detail under NDA that belongs in A.I.R.'s answers but
+  not in a public repository. A sealed story is unsealed at build time and
+  feeds A.I.R. exactly as an unsealed one does.
+
+```bash
+# once: generate a key and store it as the CONTENT_SEAL_KEY Actions secret
+node scripts/seal-content.mjs keygen
+
+# per post
+CONTENT_SEAL_KEY=... node scripts/seal-content.mjs seal \
+  packages/web-astro/src/content/blog/my-post.md
+```
+
+That writes `my-post.md.sealed`, deletes the plaintext, and adds it to a
+managed block in `.gitignore`. **Commit the `.sealed` file and the `.gitignore`
+change together.** To work on it again, `unseal` it, edit, and `seal` it back.
+
+CI decrypts during the build. Pull requests from forks cannot read the secret,
+so there it warns and builds without the sealed posts; deploys pass
+`--require-key` and fail rather than shipping a site with a due post missing.
+
+`node scripts/seal-content.mjs check` runs in CI and fails if a sealed post's
+plaintext is also committed — sealing is pointless while the plaintext is
+sitting next to the blob.
+
+**Losing `CONTENT_SEAL_KEY` means losing every sealed post.** Store it
+somewhere you will still have in a year, not only in GitHub. And note that
+rotating it does not un-publish anything: the old blobs remain in git history,
+so treat a leaked key as "everything ever sealed with it is public".
+
+---
+
+---
+
 ## Procedures
 
 ### Move a custom domain between services
