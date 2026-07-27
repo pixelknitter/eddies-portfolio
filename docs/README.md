@@ -3,6 +3,7 @@
 | Document | Read it when |
 |----------|--------------|
 | [FEATURES.md](./FEATURES.md) | You want to know *what* a capability does and *which problem* it solves |
+| `AIR-SETUP.md` | One-time setup for A.I.R.: email DNS, secrets, Discord webhook |
 | [RUNBOOK.md](./RUNBOOK.md) | Something is broken or you're about to change infrastructure |
 | [DEPLOYMENT.md](./DEPLOYMENT.md) | You need the environment/deploy reference: hostnames, secrets, Access |
 | [WORKFLOW.md](./WORKFLOW.md) | You're branching, updating a branch, or landing a PR |
