@@ -15,17 +15,39 @@ so the DNS records are added for you rather than needing a trip to a registrar.
 Approval emails are sent from `connect@eddie.engineering`, so that domain has to be
 onboarded to Cloudflare Email Sending before anything will send.
 
+**First, turn Email Sending on for the account.** It is an open beta, and
+until the account is entitled every CLI call returns `Unauthorized [code:
+2036]` — even with a token carrying `email_sending:write`. Cloudflare
+dashboard → the `Eddie@ninjasudo.com` account → **Email → Email Sending** →
+enable. If it is not offered there, the beta is not open to the account yet;
+see the fallback at the end of this section.
+
+Then, from a shell logged into the right account:
+
 ```bash
 cd packages/web-astro
+
+# wrangler resolves a stale account id after switching logins, so pin it.
+# Without this it looks for the zone in the wrong account and reports
+# "Could not find a zone for eddie.engineering" — which is misleading.
+export CLOUDFLARE_ACCOUNT_ID=631de303454b0687e7a2aeee17d3d65f
+
 npx wrangler email sending enable eddie.engineering
 ```
 
-`eddie.engineering` is already a Cloudflare zone — it is where the site is
-served from — so the SPF and DKIM records are added automatically. There is
-nothing to copy into a registrar.
+> **Check which account you are in first.** `npx wrangler whoami` should show
+> `Eddie@ninjasudo.com's Account`. That is the one holding `eddie.engineering`,
+> `simply.build` and `wanderinghearth.studio` — not the `yourcurlfriend.com`
+> account.
 
-The sending records are TXT only. They do not touch the A/CNAME records the
-Worker's custom domain uses, so this cannot disturb the live site.
+`eddie.engineering` is a zone in that account, so the SPF and DKIM records are
+added for you. They are TXT records only and do not touch the A/CNAME records
+the Worker's custom domain serves the site from.
+
+**If Email Sending is not available to the account**, A.I.R. still works — the
+approval page shows the code inline whenever the email binding is missing or a
+send fails, so you can read it to someone or paste it into a message. The card
+code path is unaffected. Email is a convenience here, not a dependency.
 
 Confirm it landed:
 
