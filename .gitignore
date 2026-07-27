@@ -146,36 +146,14 @@ blob-report/
 
 # BEGIN sealed-content (managed by scripts/seal-content.mjs)
 # Plaintext of sealed posts. Regenerated at build time; never committed.
-# END sealed-content
-
-# BEGIN sealed-content (managed by scripts/seal-content.mjs)
-# Plaintext of sealed posts. Regenerated at build time; never committed.
-# END sealed-content
-
-# BEGIN sealed-content (managed by scripts/seal-content.mjs)
-# Plaintext of sealed posts. Regenerated at build time; never committed.
-# END sealed-content
-
-# BEGIN sealed-content (managed by scripts/seal-content.mjs)
-# Plaintext of sealed posts. Regenerated at build time; never committed.
-# END sealed-content
-
-# BEGIN sealed-content (managed by scripts/seal-content.mjs)
-# Plaintext of sealed posts. Regenerated at build time; never committed.
-# END sealed-content
-
-# BEGIN sealed-content (managed by scripts/seal-content.mjs)
-# Plaintext of sealed posts. Regenerated at build time; never committed.
-# END sealed-content
-
-# BEGIN sealed-content (managed by scripts/seal-content.mjs)
-# Plaintext of sealed posts. Regenerated at build time; never committed.
-# END sealed-content
-
-# BEGIN sealed-content (managed by scripts/seal-content.mjs)
-# Plaintext of sealed posts. Regenerated at build time; never committed.
-# END sealed-content
-
-# BEGIN sealed-content (managed by scripts/seal-content.mjs)
-# Plaintext of sealed posts. Regenerated at build time; never committed.
+/packages/web-astro/src/content/star/data-driven-android-launch-ticketfly.md
+/packages/web-astro/src/content/star/event-search-performance-ticketfly.md
+/packages/web-astro/src/content/star/intern-team-mvp-kamino-care.md
+/packages/web-astro/src/content/star/multi-agent-business-operations-platform.md
+/packages/web-astro/src/content/star/observability-triage-eight-sleep.md
+/packages/web-astro/src/content/star/payroll-audit-automation.md
+/packages/web-astro/src/content/star/platform-extraction-owned-infrastructure.md
+/packages/web-astro/src/content/star/release-confidence-cicd-eight-sleep.md
+/packages/web-astro/src/content/star/swift-migration-ticketfly.md
+/packages/web-astro/src/content/star/zero-to-platform-nike.md
 # END sealed-content

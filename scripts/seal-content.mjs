@@ -180,12 +180,18 @@ function syncGitignore() {
 
   const path = '.gitignore';
   const current = readFileSync(path, 'utf8');
-  const pattern = new RegExp(`${GITIGNORE_START}[\\s\\S]*?${GITIGNORE_END}`, 'm');
-
-  writeFileSync(
-    path,
-    pattern.test(current) ? current.replace(pattern, block) : `${current.trimEnd()}\n\n${block}\n`
+  // The markers contain "(", ")" and "." — regex metacharacters — so they must
+  // be escaped before interpolation, or the pattern never matches its own
+  // block and every run appends a fresh one instead of replacing. The global
+  // flag also collapses any duplicate blocks a previous unescaped build left.
+  const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(
+    `${escape(GITIGNORE_START)}[\\s\\S]*?${escape(GITIGNORE_END)}\\n?`,
+    'g'
   );
+
+  const without = current.replace(pattern, '').trimEnd();
+  writeFileSync(path, `${without}\n\n${block}\n`);
 }
 
 function isTracked(path) {
