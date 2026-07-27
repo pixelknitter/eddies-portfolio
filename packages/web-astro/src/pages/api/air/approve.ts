@@ -30,7 +30,7 @@ type EmailBinding = {
 };
 
 /** The alias approvals are sent from. Its domain must be onboarded to Email Sending. */
-const FROM_ADDRESS = 'connect@simply.build';
+const FROM_ADDRESS = 'connect@eddie.engineering';
 const FROM_NAME = 'Eddie Freeman';
 
 function page(title: string, body: string, status = 200) {

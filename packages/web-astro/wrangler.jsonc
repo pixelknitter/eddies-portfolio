@@ -11,7 +11,7 @@
   "observability": { "enabled": true },
   // Transactional email for A.I.R. access approvals. No API key — the binding
   // authenticates as the Worker. The `from` domain must be onboarded first:
-  //   npx wrangler email sending enable simply.build
+  //   npx wrangler email sending enable eddie.engineering
   "send_email": [{ "name": "EMAIL" }],
   // Production hostname. A hostname can only be bound to one service, so
   // `eddie.engineering` must be REMOVED from the Cloudflare Pages project

@@ -4,27 +4,28 @@ Everything that has to be configured outside the codebase before A.I.R. works
 in production. Nothing here is in the repo — these are secrets, DNS, and a
 Discord webhook.
 
-**Do step 1 first.** DNS propagation is the only thing here you cannot rush,
-and everything else takes about ten minutes.
+**Do step 1 first.** It is the only step with a wait attached — everything
+else takes about ten minutes. `eddie.engineering` already lives on Cloudflare,
+so the DNS records are added for you rather than needing a trip to a registrar.
 
 ---
 
-## 1. Email sending for `simply.build`
+## 1. Email sending for `eddie.engineering`
 
-Approval emails are sent from `connect@simply.build`, so that domain has to be
+Approval emails are sent from `connect@eddie.engineering`, so that domain has to be
 onboarded to Cloudflare Email Sending before anything will send.
 
 ```bash
 cd packages/web-astro
-npx wrangler email sending enable simply.build
+npx wrangler email sending enable eddie.engineering
 ```
 
-**What happens next depends on where `simply.build`'s DNS lives:**
+`eddie.engineering` is already a Cloudflare zone — it is where the site is
+served from — so the SPF and DKIM records are added automatically. There is
+nothing to copy into a registrar.
 
-- **On Cloudflare** — the records (SPF, DKIM) are added for you. Nothing else
-  to do but wait for propagation.
-- **Anywhere else** — the command prints the records to add. Copy them into
-  your registrar's DNS panel exactly as printed.
+The sending records are TXT only. They do not touch the A/CNAME records the
+Worker's custom domain uses, so this cannot disturb the live site.
 
 Confirm it landed:
 
@@ -32,11 +33,11 @@ Confirm it landed:
 npx wrangler email sending list
 ```
 
-`simply.build` should appear as enabled. If it shows pending, DNS has not
-propagated yet — that can take anywhere from minutes to a few hours, which is
-why this is step 1.
+`eddie.engineering` should appear as enabled. If it shows pending, give the
+records a few minutes to propagate — usually quick on an existing Cloudflare
+zone, but it is still the one thing here you wait on.
 
-> **You do not need a mailbox at `connect@simply.build`.** Sending and
+> **You do not need a mailbox at `connect@eddie.engineering`.** Sending and
 > receiving are separate. Replies will bounce unless you also set up Email
 > Routing for that address — worth doing, since the approval email invites
 > people to reply.
