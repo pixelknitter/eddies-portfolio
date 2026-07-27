@@ -147,3 +147,8 @@ blob-report/
 # Wrangler local secrets — never commit.
 .dev.vars
 .dev.vars.*
+
+# direnv — per-project Cloudflare credentials. Never commit these;
+# .envrc.example is the committed template.
+.envrc
+.direnv/

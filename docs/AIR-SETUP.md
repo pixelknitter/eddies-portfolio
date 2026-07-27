@@ -10,6 +10,55 @@ so the DNS records are added for you rather than needing a trip to a registrar.
 
 ---
 
+## 0. Point wrangler at the right account
+
+You have more than one Cloudflare account, and `eddie.engineering` lives in
+`Eddie@ninjasudo.com's Account` — not the `yourcurlfriend.com` one. Getting
+this wrong produces errors that blame the wrong thing: wrangler reports
+*"Could not find a zone for eddie.engineering"* when the real problem is that
+it is looking in a different account.
+
+`wrangler login` is the wrong tool for this, because it stores **one**
+credential — logging in here logs you out of whatever your other projects use,
+and wrangler keeps resolving the previous account id for a while afterwards.
+
+Use a scoped API token per project instead. `CLOUDFLARE_API_TOKEN` takes
+precedence over the stored login, so nothing gets clobbered:
+
+```bash
+# once, per machine
+brew install direnv          # then add `eval "$(direnv hook zsh)"` to ~/.zshrc
+
+mkdir -p ~/.config/cloudflare
+pbpaste > ~/.config/cloudflare/eddies-portfolio.token   # paste the token first
+chmod 600 ~/.config/cloudflare/eddies-portfolio.token
+
+# in the repo
+cp .envrc.example .envrc
+direnv allow
+```
+
+Create the token at **My Profile → API Tokens → Create Custom Token** with:
+
+| Scope | Why |
+|---|---|
+| Account → Workers Scripts: **Edit** | Deploys |
+| Account → Workers KV Storage: **Edit** | The adapter's session KV |
+| Account → Email Sending: **Edit** | Approval emails |
+| Zone → DNS: **Edit** (`eddie.engineering`) | SPF/DKIM records for sending |
+| Zone → Zone: **Read** (`eddie.engineering`) | Zone lookup |
+| Account → Account Settings: **Read** | Account resolution |
+
+That is considerably narrower than an OAuth login, which carries write access
+to roughly twenty product areas including `cloudchamber` and
+`connectivity:admin`.
+
+> **`wrangler whoami` lies here.** It reports the stored OAuth login even when
+> a token in the environment is what is actually being used. The honest check
+> is `env | grep CLOUDFLARE`.
+
+---
+
 ## 1. Email sending for `eddie.engineering`
 
 Approval emails are sent from `connect@eddie.engineering`, so that domain has to be
