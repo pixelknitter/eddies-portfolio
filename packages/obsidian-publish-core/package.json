@@ -11,6 +11,8 @@
     "./convert": "./src/convert.mjs",
     "./frontmatter": "./src/frontmatter.mjs"
   },
-  "files": ["src"],
+  "files": [
+    "src"
+  ],
   "sideEffects": false
 }

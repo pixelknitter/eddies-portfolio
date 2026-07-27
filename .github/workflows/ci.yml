@@ -54,6 +54,12 @@ jobs:
       - name: Build
         run: yarn nx build web-astro
 
+      # Astro inlines the build machine's process.env into the server bundle,
+      # so a secret present during the build ships inside the Worker. Found by
+      # grepping a local build; this is what keeps it from recurring.
+      - name: Scan build output for secrets
+        run: node scripts/check-bundle-secrets.mjs
+
       # The Discord webhooks are repo-level secrets, so this needs no
       # `environment:` and can live in the same job.
       - name: Notify alerts channel (failure)
