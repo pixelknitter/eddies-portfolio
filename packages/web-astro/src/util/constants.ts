@@ -2,7 +2,6 @@
 export const isProd = import.meta.env.PROD;
 export const isDev = import.meta.env.DEV;
 export const baseURL = import.meta.env.BASE_URL;
-export const openaiToken = import.meta.env.OPEN_AI_TOKEN;
 export const showBlog = import.meta.env.SHOW_BLOG as boolean;
 export const showProjects = import.meta.env.SHOW_PROJECTS as boolean;
 export const showAIR = import.meta.env.SHOW_AIR as boolean;

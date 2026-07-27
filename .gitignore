@@ -143,3 +143,7 @@ test-results/
 playwright-report/
 blob-report/
 .playwright/
+
+# Wrangler local secrets — never commit.
+.dev.vars
+.dev.vars.*

@@ -50,7 +50,10 @@ const gatedRoutes = [
   { path: '/blog/', contains: 'Blog' },
   { path: '/works/', contains: 'Projects' },
   { path: '/projects/project-1/' },
-  { path: '/air/' },
+  // A.I.R. is live in production, gated by an access code rather than by the
+  // flag — so unlike the others its route must answer in strict mode. The API
+  // behind it is what enforces access; the page itself is public.
+  { path: '/air/', liveInProduction: true },
 ];
 
 /** Routes asserted on every deploy. `contains` is checked case-sensitively. */
@@ -58,8 +61,10 @@ const checks = [
   { path: '/', status: 200, contains: 'Engineering by Eddie' },
   // Unknown routes must 404 rather than render a page or error.
   { path: '/this-route-should-not-exist', status: 404 },
-  ...gatedRoutes.map(({ path, contains }) =>
-    strictFlags ? { path, status: 404 } : { path, status: 200, contains }
+  ...gatedRoutes.map(({ path, contains, liveInProduction }) =>
+    strictFlags && !liveInProduction
+      ? { path, status: 404 }
+      : { path, status: 200, contains }
   ),
 ];
 
@@ -68,7 +73,6 @@ const checks = [
  * strict mode, so review tiers — which deliberately enable them — still pass.
  */
 const flaggedSections = [
-  { name: 'A.I.R.', href: '/air/' },
   { name: 'blog', href: '/blog/' },
   { name: 'works', href: '/works/' },
 ];

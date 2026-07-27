@@ -81,6 +81,65 @@ all non-5xx; `smoke-test.mjs` retries 5xx (4xx stays definitive so an expected
 
 ---
 
+### A secret ended up in the built Worker
+
+**Cause.** Astro serialises the build machine's entire `process.env` into the
+server bundle so `import.meta.env` works at runtime. Anything exported while
+`astro build` runs becomes a string literal in `dist/server/` — and ships
+inside the deployed Worker. This was found by grepping a local build and
+finding a live `ANTHROPIC_API_KEY` in it.
+
+It is **not** fixable by neutralising `process.env.X` references in Vite's
+`define`: the inlining is a wholesale object assignment, not a replaceable
+reference.
+
+**Fix.** Keep the build environment clean. Runtime secrets belong in Cloudflare
+(`wrangler secret put NAME`) or, locally, in `packages/web-astro/.dev.vars`
+(gitignored) — never in a workflow's build-step `env:` block.
+
+**Detection.** `scripts/check-bundle-secrets.mjs` runs after every build in CI
+and before every deploy. Run it by hand with:
+
+```bash
+node scripts/check-bundle-secrets.mjs
+```
+
+**If a key did ship:** rotate it first, then fix the build environment. The
+bundle is public — assume anything in it is compromised.
+
+---
+
+### A.I.R. returns 401 for everyone
+
+**Cause.** `AIR_ACCESS_CODE` is not set on the Worker. The gate fails closed on
+purpose: an unset code denies everything rather than allowing everything, so a
+missing secret locks the door instead of removing it.
+
+**Fix.**
+
+```bash
+cd packages/web-astro
+npx wrangler secret put AIR_ACCESS_CODE
+npx wrangler secret put ANTHROPIC_API_KEY
+```
+
+Secrets are per-Worker — set them on `eddies-portfolio` (production) and on
+`eddies-portfolio-staging` separately.
+
+---
+
+### A.I.R. answers "not configured right now" (503)
+
+**Cause.** The access code was accepted and retrieval found context, but
+`ANTHROPIC_API_KEY` is unset on the Worker. Note the ordering: a 503 means the
+gate and retrieval both passed, so the code is right and the corpus covers the
+question.
+
+**Fix.** `npx wrangler secret put ANTHROPIC_API_KEY`, then redeploy is *not*
+needed — secrets take effect without one.
+
+---
+
 ### Smoke test fails on flags the code clearly gates
 
 Symptom: the production smoke test reports sections that "should be hidden"
