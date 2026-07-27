@@ -5,6 +5,7 @@ import { createRateLimiter } from '@util/air/access.mjs';
 import { readSecret } from '@util/air/runtime.mjs';
 import { mintApprovalToken, validateRequest } from '@util/air/requests.mjs';
 import { accessRequestNotification } from '@util/air/email.mjs';
+import { tierFromRequest } from '@util/air/tier.mjs';
 
 /**
  * Access-request endpoint.
@@ -75,6 +76,9 @@ export async function POST(context: APIContext): Promise<Response> {
     email: validated.email,
     reason: validated.reason,
     approveUrl,
+    // From the Host header the request actually carried, so the approval link
+    // and the environment it announces can never disagree.
+    tier: tierFromRequest(context.request, context.url),
   });
 
   const discordResponse = await fetch(webhookUrl, {
