@@ -133,12 +133,31 @@ export function extractInlineTags(body) {
   const lines = body.split(/\r?\n/);
   let inFence = false;
 
+  /**
+   * A line that is nothing but tags is metadata the author put at the bottom
+   * of a note, not prose. Stripping only the `#` from it leaves a stray line
+   * like `astro cloudflare testing deployment` at the end of the published
+   * post — which is exactly what shipped in the first real conversion.
+   *
+   * Mid-sentence tags still keep their word: `I love #astro` should read as
+   * `I love astro`, not lose the noun.
+   */
+  const isTagOnlyLine = (line) =>
+    /^\s*(#[A-Za-z][A-Za-z0-9_/-]*\s*)+$/.test(line);
+
   const cleaned = lines.map((line) => {
     if (/^\s*(```|~~~)/.test(line)) {
       inFence = !inFence;
       return line;
     }
     if (inFence || /^\s*#{1,6}\s/.test(line)) return line;
+
+    if (isTagOnlyLine(line)) {
+      for (const [, tag] of line.matchAll(/#([A-Za-z][A-Za-z0-9_/-]*)/g)) {
+        tags.add(String(tag).toLowerCase());
+      }
+      return null;
+    }
 
     return line.replace(/(^|\s)#([A-Za-z][A-Za-z0-9_/-]*)/g, (match, lead, tag) => {
       // A hex colour is hex-shaped *and* contains a digit — that keeps
@@ -152,7 +171,15 @@ export function extractInlineTags(body) {
     });
   });
 
-  return { body: cleaned.join('\n'), tags: [...tags] };
+  // Drop removed lines, then collapse the blank run they leave behind so a
+  // trailing tag block does not become trailing whitespace.
+  const cleanedBody = cleaned
+    .filter((line) => line !== null)
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\s+$/, '\n');
+
+  return { body: cleanedBody, tags: [...tags] };
 }
 
 /**
