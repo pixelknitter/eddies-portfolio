@@ -96,5 +96,3 @@ If there's something to take from all this, it's the small habit underneath: aft
 The chart is useful. The water is the truth.
 
 Until next time — go check what you're actually serving, and keep building forward.
-
-astro cloudflare testing deployment
