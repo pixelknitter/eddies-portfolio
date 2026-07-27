@@ -114,7 +114,9 @@ export function toEntry(converted, options = {}) {
 }
 
 /**
- * Serialise frontmatter to YAML.
+ * Serialise frontmatter to a complete YAML block, `---` delimiters included
+ * and a trailing newline after the closing fence — concatenate it straight
+ * onto a body, do not add fences of your own.
  *
  * Handles only the shapes this mapper produces — strings, booleans, arrays of
  * strings, and one level of nesting — rather than pulling in a YAML library
