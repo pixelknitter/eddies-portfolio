@@ -83,117 +83,37 @@ all non-5xx; `smoke-test.mjs` retries 5xx (4xx stays definitive so an expected
 
 ### A secret ended up in the built Worker
 
-**Cause.** Astro serialises the build machine's entire `process.env` into the
-server bundle so `import.meta.env` works at runtime. Anything exported while
-`astro build` runs becomes a string literal in `dist/server/` — and ships
-inside the deployed Worker. This was found by grepping a local build and
-finding a live `ANTHROPIC_API_KEY` in it.
-
-It is **not** fixable by neutralising `process.env.X` references in Vite's
-`define`: the inlining is a wholesale object assignment, not a replaceable
-reference.
+**Cause.** Astro serialises the build machine's whole `process.env` into the
+server bundle, so anything exported during `astro build` ships inside the
+Worker. Not fixable via Vite `define` — the inlining is a wholesale object
+assignment, not a replaceable reference.
 
 **Fix.** Keep the build environment clean. Runtime secrets belong in Cloudflare
-(`wrangler secret put NAME`) or, locally, in `packages/web-astro/.dev.vars`
-(gitignored) — never in a workflow's build-step `env:` block.
-
-**Detection.** `scripts/check-bundle-secrets.mjs` runs after every build in CI
-and before every deploy. Run it by hand with:
-
-```bash
-node scripts/check-bundle-secrets.mjs
-```
-
-**If a key did ship:** rotate it first, then fix the build environment. The
-bundle is public — assume anything in it is compromised.
+(`wrangler secret put`) or `.dev.vars` locally — never a workflow's build-step
+`env:`. `scripts/check-bundle-secrets.mjs` runs after every build and before
+every deploy. If a key did ship, **rotate it first** — the bundle is public.
 
 ---
 
-### Setting up A.I.R. access requests
+### A.I.R. returns an error
 
-One-time setup, in order:
+The endpoint checks cheap things first, so the status says where it stopped.
 
-```bash
-cd packages/web-astro
+| Status | Cause | Fix |
+|---|---|---|
+| `401` | `AIR_ACCESS_CODE` wrong or unset — the gate fails closed | `wrangler secret put AIR_ACCESS_CODE` |
+| `429` | Rate limited (8/min ask, 3/10min request) | Wait |
+| `503` on ask | `ANTHROPIC_API_KEY` unset. Gate and retrieval passed | `wrangler secret put ANTHROPIC_API_KEY` |
+| `503` on request | `AIR_SIGNING_SECRET` or `DISCORD_ACCESS_WEBHOOK_URL` unset | Set both |
+| `200` + `grounded: false` | Working. The corpus doesn't cover the question | Add a STAR story |
 
-# 1. Onboard the sending domain. Approval emails come from
-#    connect@eddie.engineering, so that domain must be enabled for sending.
-npx wrangler email sending enable eddie.engineering
-npx wrangler email sending list          # confirm it is listed
+Secrets are per Worker; set them on `eddies-portfolio` and
+`eddies-portfolio-staging` separately. They apply without a redeploy.
 
-# 2. Secrets, per Worker (production and staging are separate Workers).
-npx wrangler secret put ANTHROPIC_API_KEY
-npx wrangler secret put AIR_ACCESS_CODE            # the code on the card
-npx wrangler secret put AIR_SIGNING_SECRET         # any long random string
-npx wrangler secret put DISCORD_ACCESS_WEBHOOK_URL # its own channel
-```
+**Approval page says the email didn't send.** Email Sending needs Workers Paid;
+on Free there is no binding. The page shows the code inline — pass it on. See
+`AIR-SETUP.md` §3.
 
-`AIR_SIGNING_SECRET` signs both approval links and issued access codes.
-**Rotating it invalidates every code already emailed** — which is also how you
-revoke access in bulk.
-
-**The flow.** Visitor submits an address and a note → Discord post with an
-approval link → clicking it emails them a personal code from
-`connect@eddie.engineering` → they paste it into the access field.
-
-The approval link is **idempotent rather than single-use**: the token carries
-the requester's address inside the signature, so clicking twice re-sends the
-same code to the same person and nothing else. That is deliberate — strict
-single-use would need a datastore, and would turn the commonest failure (the
-email never arrived) into a whole new request instead of a second click.
-
----
-
-### A.I.R. requests return 503 "not open right now"
-
-**Cause.** `AIR_SIGNING_SECRET` or `DISCORD_ACCESS_WEBHOOK_URL` is unset.
-
-**Fix.** Set both (above). Until then the form fails closed rather than
-silently dropping requests.
-
----
-
-### Approval says "the email did not send"
-
-**Cause.** The `EMAIL` binding is missing, or the sending domain is not
-onboarded. Check `npx wrangler email sending list`.
-
-**Fix.** `npx wrangler email sending enable eddie.engineering`. The approval page
-shows the code inline in this case, so you can send it by hand — a person
-waiting in front of you should not be blocked on a binding.
-
----
-
-### A.I.R. returns 401 for everyone
-
-**Cause.** `AIR_ACCESS_CODE` is not set on the Worker. The gate fails closed on
-purpose: an unset code denies everything rather than allowing everything, so a
-missing secret locks the door instead of removing it.
-
-**Fix.**
-
-```bash
-cd packages/web-astro
-npx wrangler secret put AIR_ACCESS_CODE
-npx wrangler secret put ANTHROPIC_API_KEY
-```
-
-Secrets are per-Worker — set them on `eddies-portfolio` (production) and on
-`eddies-portfolio-staging` separately.
-
----
-
-### A.I.R. answers "not configured right now" (503)
-
-**Cause.** The access code was accepted and retrieval found context, but
-`ANTHROPIC_API_KEY` is unset on the Worker. Note the ordering: a 503 means the
-gate and retrieval both passed, so the code is right and the corpus covers the
-question.
-
-**Fix.** `npx wrangler secret put ANTHROPIC_API_KEY`, then redeploy is *not*
-needed — secrets take effect without one.
-
----
 
 ### Smoke test fails on flags the code clearly gates
 
