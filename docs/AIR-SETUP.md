@@ -64,12 +64,23 @@ to roughly twenty product areas including `cloudchamber` and
 Approval emails are sent from `connect@eddie.engineering`, so that domain has to be
 onboarded to Cloudflare Email Sending before anything will send.
 
-**First, turn Email Sending on for the account.** It is an open beta, and
-until the account is entitled every CLI call returns `Unauthorized [code:
-2036]` — even with a token carrying `email_sending:write`. Cloudflare
-dashboard → the `Eddie@ninjasudo.com` account → **Email → Email Sending** →
-enable. If it is not offered there, the beta is not open to the account yet;
-see the fallback at the end of this section.
+> ## This step is optional, and costs $5/month
+>
+> **Cloudflare Email Sending requires the Workers Paid plan.** On Free the API
+> returns `Unauthorized [code: 2036]` no matter how the token is scoped — it is
+> a plan gate, not a permissions problem, and no amount of token fiddling gets
+> past it.
+>
+> **A.I.R. works fully without it.** Approving shows the code on the page and
+> you pass it on yourself. For a conference that is arguably the better flow:
+> handing someone a code while they are standing in front of you beats asking
+> them to check their inbox. Email matters for people who request access from
+> the site *after* the event.
+>
+> If you do want email, upgrade at **Workers & Pages → Plans → Paid**, then
+> continue below. Note that switching to a third-party sender instead (Resend,
+> Postmark) is *more* work, not less — it needs the same DNS verification plus
+> a code change, where the Cloudflare binding is already wired.
 
 Then, from a shell logged into the right account:
 

@@ -76,15 +76,17 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const email = (await readBinding('EMAIL')) as EmailBinding | undefined;
   if (!email) {
-    console.error('[air] EMAIL binding is missing — is send_email configured in wrangler.jsonc?');
-    // Still show the code so a missing binding does not block a person who is
-    // standing in front of you at a conference.
+    // Not an error. Cloudflare Email Sending requires the Workers Paid plan,
+    // so on Free there is no binding to have — approving by hand is the
+    // supported path, not a degraded one. A 500 here would page someone about
+    // a working system.
     return page(
-      'Approved, but the email did not send',
-      `<p style="line-height:1.6;">The email binding is not configured, so send this code to
-       <strong>${escapeHtml(verified.email)}</strong> by hand:</p>
-       <p style="padding:16px;background:#3b3458;border-radius:8px;font-family:ui-monospace,monospace;word-break:break-all;">${escapeHtml(code)}</p>`,
-      500
+      'Approved — send them this code',
+      `<p style="line-height:1.6;">Email sending is not enabled on this account, so pass this to
+       <strong>${escapeHtml(verified.email)}</strong> yourself:</p>
+       <p style="padding:16px;background:#3b3458;border-radius:8px;font-family:ui-monospace,monospace;word-break:break-all;font-size:15px;">${escapeHtml(code)}</p>
+       <p style="line-height:1.6;color:#b9b4d4;font-size:14px;">They asked: &ldquo;${escapeHtml(verified.reason)}&rdquo;</p>
+       <p style="line-height:1.6;color:#b9b4d4;font-size:14px;">The code is tied to that address and does not expire. Reloading this page shows the same one.</p>`
     );
   }
 
