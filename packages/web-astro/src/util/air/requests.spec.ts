@@ -8,6 +8,7 @@ import {
   APPROVAL_TTL_MS,
 } from './requests.mjs';
 import { accessGrantedEmail, accessRequestNotification, escapeHtml } from './email.mjs';
+import { tierFromHostname, tierFromRequest, TIER_STYLE } from './tier.mjs';
 
 const SECRET = 'test-signing-secret';
 
@@ -150,5 +151,87 @@ describe('email templates', () => {
       approveUrl: 'https://x.test/',
     });
     expect(notification.embeds[0].fields[1].value.length).toBeLessThanOrEqual(901);
+  });
+});
+
+
+describe('tier detection', () => {
+  it('maps each known hostname to its tier', () => {
+    expect(tierFromHostname('eddie.engineering')).toBe('production');
+    expect(tierFromHostname('www.eddie.engineering')).toBe('production');
+    expect(tierFromHostname('staging.eddie.engineering')).toBe('staging');
+    expect(tierFromHostname('feat-air-dev.eddie.engineering')).toBe('dev');
+    expect(tierFromHostname('localhost')).toBe('local');
+    expect(tierFromHostname('127.0.0.1')).toBe('local');
+  });
+
+  it('is case-insensitive', () => {
+    expect(tierFromHostname('Eddie.Engineering')).toBe('production');
+  });
+
+  // Under-claiming is the safe direction: an unrecognised host prompts a
+  // second look rather than granting production access on a guess.
+  it('treats anything unrecognised as dev, never production', () => {
+    expect(tierFromHostname('eddies-portfolio.workers.dev')).toBe('dev');
+    expect(tierFromHostname('eddie.engineering.evil.com')).toBe('dev');
+    expect(tierFromHostname(undefined)).toBe('dev');
+    expect(tierFromHostname('')).toBe('dev');
+  });
+
+  it('does not confuse a staging-looking subdomain with production', () => {
+    expect(tierFromHostname('staging.eddie.engineering')).not.toBe('production');
+  });
+});
+
+describe('tier from a request', () => {
+  const requestWith = (host?: string) =>
+    ({ headers: { get: (name: string) => (name === 'host' ? (host ?? null) : null) } }) as Request;
+
+  // The regression this guards: under wrangler dev, context.url reflects the
+  // custom domain in wrangler.jsonc, so a localhost request announced itself
+  // as Production. The Host header is what the client actually asked for.
+  it('prefers the Host header over a reconstructed URL', () => {
+    expect(
+      tierFromRequest(requestWith('127.0.0.1:4411'), new URL('https://eddie.engineering/x'))
+    ).toBe('local');
+  });
+
+  it('strips the port before matching', () => {
+    expect(tierFromRequest(requestWith('staging.eddie.engineering:443'))).toBe('staging');
+  });
+
+  it('falls back to the URL when there is no Host header', () => {
+    expect(tierFromRequest(requestWith(undefined), new URL('https://eddie.engineering/x'))).toBe(
+      'production'
+    );
+  });
+});
+
+describe('notification carries the environment', () => {
+  it('names the tier in the title, a field, and the colour', () => {
+    const notification = accessRequestNotification({
+      email: 'a@b.co',
+      reason: 'Hiring.',
+      approveUrl: 'https://staging.eddie.engineering/api/air/approve?token=t',
+      tier: 'staging',
+    });
+
+    expect(notification.embeds[0].title).toContain('Staging');
+    expect(notification.embeds[0].color).toBe(TIER_STYLE.staging.colour);
+    expect(notification.embeds[0].fields.some((f) => f.value === 'Staging')).toBe(true);
+  });
+
+  it('gives production its own colour so the two are not confusable', () => {
+    expect(TIER_STYLE.production.colour).not.toBe(TIER_STYLE.staging.colour);
+    expect(TIER_STYLE.production.colour).not.toBe(TIER_STYLE.dev.colour);
+  });
+
+  it('falls back to dev when no tier is supplied', () => {
+    const notification = accessRequestNotification({
+      email: 'a@b.co',
+      reason: 'Hiring.',
+      approveUrl: 'https://x.test/',
+    });
+    expect(notification.embeds[0].title).toContain('Dev preview');
   });
 });

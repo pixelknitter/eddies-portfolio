@@ -1,3 +1,5 @@
+import { TIER_STYLE } from './tier.mjs';
+
 /**
  * The one transactional email A.I.R. sends.
  *
@@ -100,14 +102,21 @@ export function accessGrantedEmail({ code, airUrl }) {
 /**
  * The Discord notification Eddie approves from.
  *
- * @param {{email: string, reason: string, approveUrl: string}} input
+ * The tier is in the title and the colour because every tier signs with its
+ * own secret — a code approved from staging will not open production. Which
+ * environment you are granting has to be obvious before the click, not
+ * discovered afterwards when someone says the code does not work.
+ *
+ * @param {{email: string, reason: string, approveUrl: string, tier?: string}} input
  */
-export function accessRequestNotification({ email, reason, approveUrl }) {
+export function accessRequestNotification({ email, reason, approveUrl, tier = 'dev' }) {
+  const style = TIER_STYLE[tier] ?? TIER_STYLE.dev;
+
   return {
     embeds: [
       {
-        title: '🔑 A.I.R. access requested',
-        color: 0x5dd39e,
+        title: `🔑 A.I.R. access requested — ${style.label}`,
+        color: style.colour,
         fields: [
           { name: 'From', value: email },
           // Discord truncates long field values, so trim before it does and
@@ -116,6 +125,7 @@ export function accessRequestNotification({ email, reason, approveUrl }) {
             name: 'Why',
             value: reason.length > 900 ? `${reason.slice(0, 900)}…` : reason,
           },
+          { name: 'Environment', value: style.label, inline: true },
         ],
         description: `[Approve and send them a code](${approveUrl})\n\nThe link stays valid for seven days. Clicking it again just re-sends the same code to the same address.`,
       },

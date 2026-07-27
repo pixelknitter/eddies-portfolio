@@ -4,6 +4,7 @@ import { showAIR } from '@util/visibility.mjs';
 import { readBinding, readSecret } from '@util/air/runtime.mjs';
 import { mintAccessCode, verifyApprovalToken } from '@util/air/requests.mjs';
 import { accessGrantedEmail, escapeHtml } from '@util/air/email.mjs';
+import { tierFromRequest, TIER_STYLE } from '@util/air/tier.mjs';
 
 /**
  * Approval endpoint — the target of the link in the Discord notification.
@@ -70,6 +71,7 @@ export async function GET(context: APIContext): Promise<Response> {
     );
   }
 
+  const tier = TIER_STYLE[tierFromRequest(context.request, context.url)].label;
   const code = await mintAccessCode(signingSecret, verified.email);
   const airUrl = new URL('/air/', context.url).toString();
   const message = accessGrantedEmail({ code, airUrl });
@@ -86,6 +88,7 @@ export async function GET(context: APIContext): Promise<Response> {
        <strong>${escapeHtml(verified.email)}</strong> yourself:</p>
        <p style="padding:16px;background:#3b3458;border-radius:8px;font-family:ui-monospace,monospace;word-break:break-all;font-size:15px;">${escapeHtml(code)}</p>
        <p style="line-height:1.6;color:#b9b4d4;font-size:14px;">They asked: &ldquo;${escapeHtml(verified.reason)}&rdquo;</p>
+       <p style="line-height:1.6;color:#b9b4d4;font-size:14px;">Environment: <strong>${escapeHtml(tier)}</strong>. This code only opens that one.</p>
        <p style="line-height:1.6;color:#b9b4d4;font-size:14px;">The code is tied to that address and does not expire. Reloading this page shows the same one.</p>`
     );
   }
@@ -114,6 +117,7 @@ export async function GET(context: APIContext): Promise<Response> {
     'Approved',
     `<p style="line-height:1.6;">A code is on its way to <strong>${escapeHtml(verified.email)}</strong> from ${FROM_ADDRESS}.</p>
      <p style="line-height:1.6;color:#b9b4d4;font-size:14px;">They asked: &ldquo;${escapeHtml(verified.reason)}&rdquo;</p>
+     <p style="line-height:1.6;color:#b9b4d4;font-size:14px;">Environment: <strong>${escapeHtml(tier)}</strong>. This code only opens that one.</p>
      <p style="line-height:1.6;color:#b9b4d4;font-size:14px;">Clicking this link again just re-sends the same code to the same address.</p>`
   );
 }
