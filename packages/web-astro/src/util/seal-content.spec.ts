@@ -132,6 +132,35 @@ describe('seal-content', () => {
     expect(() => run(['unseal', sealed], { CONTENT_SEAL_KEY: KEY })).toThrow();
   });
 
+  // The bug this guards: the managed-block regex was built from marker text
+  // containing `(`, `)` and `.` without escaping, so it never matched itself
+  // and appended a fresh block on every seal. Nine reached a commit.
+  it('keeps exactly one managed .gitignore block however often you seal', () => {
+    const gitignore = join(REPO_ROOT, '.gitignore');
+    const before = readFileSync(gitignore, 'utf8');
+
+    const inContent = join(REPO_ROOT, 'packages/web-astro/src/content/star/vitest-tmp.md');
+    try {
+      for (let i = 0; i < 3; i++) {
+        writeFileSync(inContent, `body ${i}\n`);
+        run(['seal', inContent], { CONTENT_SEAL_KEY: KEY });
+        run(['unseal', `${inContent}.sealed`], { CONTENT_SEAL_KEY: KEY });
+      }
+
+      const after = readFileSync(gitignore, 'utf8');
+      const blocks = after.match(/# BEGIN sealed-content/g) ?? [];
+      expect(blocks).toHaveLength(1);
+
+      // And the file is listed once, not three times.
+      const entries = after.match(/vitest-tmp\.md/g) ?? [];
+      expect(entries).toHaveLength(1);
+    } finally {
+      rmSync(inContent, { force: true });
+      rmSync(`${inContent}.sealed`, { force: true });
+      writeFileSync(gitignore, before);
+    }
+  });
+
   it('rejects an empty passphrase', () => {
     const source = join(dir, 'post.md');
     writeFileSync(source, 'content\n');

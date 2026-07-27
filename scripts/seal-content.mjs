@@ -168,7 +168,18 @@ const plaintextOf = (sealed) => sealed.slice(0, -SEALED_SUFFIX.length);
  * filenames are written into a managed block. Explicit and greppable beats a
  * pattern nobody can verify — and a missed entry here means committing the
  * plaintext of something you deliberately sealed.
+ *
+ * The block is matched globally and collapsed to one. The first version built
+ * its regex from the marker text unescaped — and that text contains `(`, `)`
+ * and `.`, so it never matched itself and appended a fresh block on every
+ * seal. Twelve of them reached a commit before anyone looked at the diff.
  */
+
+/** @param {string} value */
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function syncGitignore() {
   const entries = sealedFiles().map(plaintextOf).sort();
   const block = [
@@ -180,11 +191,22 @@ function syncGitignore() {
 
   const path = '.gitignore';
   const current = readFileSync(path, 'utf8');
-  const pattern = new RegExp(`${GITIGNORE_START}[\\s\\S]*?${GITIGNORE_END}`, 'm');
+  const pattern = new RegExp(
+    `${escapeRegExp(GITIGNORE_START)}[\\s\\S]*?${escapeRegExp(GITIGNORE_END)}\\n?`,
+    'g'
+  );
 
+  // Strip every existing block — including duplicates a previous buggy run
+  // left behind — then append exactly one.
+  const withoutBlocks = current.replace(pattern, '').replace(/\n{3,}/g, '\n\n');
+
+  // Nothing sealed means no block. Leaving an empty one behind is noise in
+  // every future diff, and it made the test suite dirty the real .gitignore.
   writeFileSync(
     path,
-    pattern.test(current) ? current.replace(pattern, block) : `${current.trimEnd()}\n\n${block}\n`
+    entries.length === 0
+      ? `${withoutBlocks.trimEnd()}\n`
+      : `${withoutBlocks.trimEnd()}\n\n${block}\n`
   );
 }
 
