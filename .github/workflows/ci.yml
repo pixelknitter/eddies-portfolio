@@ -6,10 +6,17 @@ on:
   pull_request:
   workflow_dispatch:
 
-# Cancel in-progress runs for the same ref to save CI minutes.
+# Cancel superseded pull-request runs to save CI minutes, but never cancel a
+# run on master.
+#
+# A cancelled run leaves its required checks in a non-passing state on that
+# commit. On a PR that is harmless — a newer push replaces it. On master it is
+# not: "Require branches to be up to date" compares against master's head, so a
+# commit whose checks were cancelled can block the next PR from merging with no
+# obvious cause.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   # The Nx daemon adds no value for single-run ephemeral CI and can be flaky.
