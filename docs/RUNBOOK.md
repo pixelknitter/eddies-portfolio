@@ -212,65 +212,38 @@ ruby -ryaml -e 'Dir.glob(".github/workflows/*.yml").each { |f| YAML.load_file(f)
 
 ---
 
-### Sealing content that should not be public in the repo
+### Working on sealed content
 
-The `publishDate` gate stops a scheduled post being *served* early. It does
-nothing about the repo, which is public — a scheduled post sits readable on
-GitHub from the moment it is committed. Sealing closes that.
-
-One key covers **every collection**, not just the blog. The two cases worth
-knowing:
-
-- **Scheduled posts** — the obvious one. Written now, readable by nobody until
-  their date.
-- **STAR stories** — the quieter one. A career story can carry a client name,
-  a revenue figure, or a detail under NDA that belongs in A.I.R.'s answers but
-  not in a public repository. A sealed story is unsealed at build time and
-  feeds A.I.R. exactly as an unsealed one does.
-
-Install the pre-commit guard once per clone — CI's `check` runs *after* a
-commit exists, and history cannot be un-published:
+The markdown is the source you edit; the blob is what gets committed. `seal`
+keeps your file — it used to delete it, which made the blob the only copy and
+turned your own draft into something you had to decrypt to read.
 
 ```bash
-yarn hooks:install
+# write it, seal it, keep editing
+node scripts/seal-content.mjs seal packages/web-astro/src/content/blog/my-post.md
+
+# what is sealed, and has anything drifted?
+node scripts/seal-content.mjs status
+
+# after editing — the pre-commit hook also does this automatically
+node scripts/seal-content.mjs reseal-if-changed
 ```
 
-```bash
-# once: pick a passphrase and store it as the CONTENT_SEAL_KEY Actions secret.
-# `keygen` only suggests one — any long, unguessable phrase works, because it
-# is stretched with scrypt rather than used as key material. Prefer something
-# you can retrieve in a year over something you must never lose.
-node scripts/seal-content.mjs keygen
+`status` reports three states per file:
 
-# per post
-CONTENT_SEAL_KEY=... node scripts/seal-content.mjs seal \
-  packages/web-astro/src/content/blog/my-post.md
-```
+| State | Meaning |
+|---|---|
+| `sealed only` | No local copy. `unseal <path>` to get one. |
+| `local copy matches` | Blob is current. |
+| `LOCAL COPY MODIFIED` | The blob is stale — a deploy would publish the **old** text. Reseal. |
 
-That writes an opaque blob into `packages/web-astro/content-vault/` and deletes
-the plaintext. **The blob name is an HMAC of the path**, so it reveals neither
-the topic nor which collection the file came from — a blob called
-`android-launch-ticketfly.md.sealed` would give away most of what sealing was
-meant to hide. `seal-content.mjs status` lists what is sealed (names only with
-the key).
+The plaintext is never committed, but that is enforced rather than achieved by
+deleting it: the pre-commit hook refuses it, and `audit` fails CI if it slips
+through. It is deliberately not gitignored — an ignore list would have to name
+the files, which leaks exactly what the opaque blob names hide.
 
-To edit one: `unseal-all`, change it, `seal` it again. The blob name is
-deterministic, so re-sealing updates the same file rather than churning the
-vault.
-
-CI decrypts during the build. Pull requests from forks cannot read the secret,
-so there it warns and builds without the sealed posts; deploys pass
-`--require-key` and fail rather than shipping a site with a due post missing.
-
-`node scripts/seal-content.mjs check` runs in CI and fails if a sealed file's
-plaintext is also committed. The pre-commit hook (`yarn hooks:install`) is the
-guard that matters though — CI runs *after* the commit exists, and history
-cannot be un-published. It costs one scrypt derivation (~85ms) per commit.
-
-**Losing `CONTENT_SEAL_KEY` means losing every sealed post.** Store it
-somewhere you will still have in a year, not only in GitHub. And note that
-rotating it does not un-publish anything: the old blobs remain in git history,
-so treat a leaked key as "everything ever sealed with it is public".
+**A fresh clone has blobs and no markdown.** Run `unseal-all` to get working
+copies. CI does this at build time.
 
 ---
 

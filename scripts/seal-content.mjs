@@ -188,11 +188,24 @@ try {
       break;
 
     case 'seal': {
-      if (!target) throw new Error('usage: seal <path>');
+      if (!target) throw new Error('usage: seal <path> [--remove]');
       sealFile(target);
-      unlinkSync(target);
+
+      // The plaintext stays. Deleting it made the blob the *only* copy, which
+      // meant editing a post required unsealing it first and the local working
+      // copy of your own draft was an opaque blob. The blob is the committed
+      // artifact; the markdown is the source you edit.
+      //
+      // It is not committed because the pre-commit hook refuses it and `audit`
+      // fails CI if it slips through — enforcement rather than deletion.
+      if (args.includes('--remove')) unlinkSync(target);
+
       console.log(`✓ Sealed ${relative('.', target)} → ${VAULT}/${blobName(target)}`);
-      console.log('  The plaintext is removed. The blob name reveals nothing about it.');
+      console.log(
+        args.includes('--remove')
+          ? '  Plaintext removed as requested.'
+          : '  Plaintext kept for editing — the hook stops it being committed.'
+      );
       break;
     }
 
@@ -335,10 +348,34 @@ try {
     case 'status': {
       const files = blobs();
       console.log(`${files.length} sealed file(s) in ${VAULT}`);
-      if (hasKey() && files.length > 0) {
-        for (const file of files) console.log(`  ${openBlob(file).path}`);
-      } else if (files.length > 0) {
+
+      if (files.length === 0) break;
+      if (!hasKey()) {
         console.log('  (set CONTENT_SEAL_KEY to list what they are)');
+        break;
+      }
+
+      // Three states worth telling apart. "modified" is the one that matters:
+      // the blob no longer reflects the file, so a deploy would publish the
+      // old text. `reseal-if-changed` fixes it; the pre-commit hook runs that
+      // automatically.
+      let modified = 0;
+      for (const file of files) {
+        const { path, content } = openBlob(file);
+        const local = existsSync(path);
+        const state = !local
+          ? 'sealed only'
+          : readFileSync(path, 'utf8') === content
+            ? 'local copy matches'
+            : 'LOCAL COPY MODIFIED — reseal needed';
+        if (state.startsWith('LOCAL')) modified += 1;
+        console.log(`  ${path}\n      ${state}`);
+      }
+
+      if (modified > 0) {
+        console.log('');
+        console.log(`⚠ ${modified} file(s) differ from their blob. Run:`);
+        console.log('    node scripts/seal-content.mjs reseal-if-changed');
       }
       break;
     }
