@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import { writeFileSync, readFileSync, existsSync, rmSync, readdirSync, mkdirSync, mkdtempSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, dirname, basename } from 'node:path';
 import { tmpdir } from 'node:os';
 
 /**
@@ -82,7 +82,13 @@ describe('seal-content', () => {
     const path = fixture('round-trip.md', original);
     run(['seal', `${CONTENT_REL}/round-trip.md`], { CONTENT_SEAL_KEY: KEY });
 
-    expect(existsSync(path)).toBe(false); // sealing removes the plaintext
+    // Sealing clears the collection path — that is build output, and leaving
+    // it there is what `audit` flags as committed plaintext — while leaving an
+    // editable working copy in the gitignored .local- directory.
+    expect(existsSync(path)).toBe(false);
+    const working = join(dirname(path), `.local-${basename(dirname(path))}`, 'round-trip.md');
+    expect(readFileSync(working, 'utf8')).toBe(original);
+
     run(['unseal-all'], { CONTENT_SEAL_KEY: KEY });
     expect(readFileSync(path, 'utf8')).toBe(original);
   });

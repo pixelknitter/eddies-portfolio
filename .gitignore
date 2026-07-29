@@ -155,3 +155,7 @@ blob-report/
 # ...but the template must be committed. An earlier `.env*` rule catches it,
 # so this negation has to come after both.
 !.envrc.example
+
+# Unsealed working copies of sealed content. The pattern names no files, so
+# unlike an explicit ignore list it leaks nothing about what is sealed.
+.local-*/

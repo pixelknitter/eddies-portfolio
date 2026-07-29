@@ -46,7 +46,7 @@
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, scryptSync } from 'node:crypto';
 import { parseFrontmatter } from '../packages/obsidian-publish-core/src/index.mjs';
 import { readFileSync, writeFileSync, unlinkSync, existsSync, readdirSync, mkdirSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, dirname, basename } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 const CONTENT_ROOT = 'packages/web-astro/src/content';
@@ -131,6 +131,32 @@ function key(create = false) {
   return cachedKey;
 }
 
+/**
+ * Where the editable copy of a sealed file lives.
+ *
+ * `src/content/blog/post.md` → `src/content/blog/.local-blog/post.md`
+ *
+ * A dot-directory, because that makes it invisible to both things that would
+ * otherwise cause trouble: Astro's content glob does not match dotfiles, so
+ * these never load as real entries (verified), and one `.local-*​/` gitignore
+ * rule covers them without naming a single file — which an explicit ignore
+ * list would have to do, leaking exactly what opaque blob names hide.
+ *
+ * The blob always stores the real collection path, so a build-time unseal
+ * writes where Astro expects and nothing downstream knows this layout exists.
+ */
+export function localPathFor(realPath) {
+  const dir = dirname(realPath);
+  return join(dir, `.local-${basename(dir)}`, basename(realPath));
+}
+
+/** Accept either form; the blob is always keyed on the real path. */
+function realPathFor(path) {
+  const dir = dirname(path);
+  if (!basename(dir).startsWith('.local-')) return path;
+  return join(dirname(dir), basename(path));
+}
+
 /** Deterministic, unguessable blob name for a content path. */
 const blobName = (path) => `${createHmac('sha256', key()).update(path).digest('hex').slice(0, 32)}.sealed`;
 const blobPath = (path) => join(VAULT, blobName(path));
@@ -189,7 +215,22 @@ try {
 
     case 'seal': {
       if (!target) throw new Error('usage: seal <path> [--remove]');
-      sealFile(target);
+
+      const real = realPathFor(target);
+      const local = localPathFor(real);
+
+      // Whichever form was given, make sure both exist briefly: the real path
+      // for sealing (the blob records it), the .local- copy to keep editing.
+      mkdirSync(dirname(local), { recursive: true });
+      const source = existsSync(target) ? target : existsSync(real) ? real : local;
+      const body = readFileSync(source, 'utf8');
+      writeFileSync(real, body);
+      if (source !== local) writeFileSync(local, body);
+
+      sealFile(real);
+      // The collection path is build output, never a source — leaving it there
+      // is what `audit` flags as committed plaintext.
+      unlinkSync(real);
 
       // The plaintext stays. Deleting it made the blob the *only* copy, which
       // meant editing a post required unsealing it first and the local working
@@ -198,13 +239,13 @@ try {
       //
       // It is not committed because the pre-commit hook refuses it and `audit`
       // fails CI if it slips through — enforcement rather than deletion.
-      if (args.includes('--remove')) unlinkSync(target);
+      if (args.includes('--remove') && existsSync(local)) unlinkSync(local);
 
       console.log(`✓ Sealed ${relative('.', target)} → ${VAULT}/${blobName(target)}`);
       console.log(
         args.includes('--remove')
-          ? '  Plaintext removed as requested.'
-          : '  Plaintext kept for editing — the hook stops it being committed.'
+          ? '  Working copy removed as requested.'
+          : `  Edit it at ${relative('.', local)} — gitignored, invisible to Astro.`
       );
       break;
     }
@@ -239,10 +280,13 @@ try {
         console.warn(`⚠ ${message}; building without them.`);
         break;
       }
+      const toLocal = args.includes('--local');
       for (const file of files) {
         const { path, content } = openBlob(file);
-        writeFileSync(path, content);
-        console.log(`✓ ${path}`);
+        const out = toLocal ? localPathFor(path) : path;
+        mkdirSync(dirname(out), { recursive: true });
+        writeFileSync(out, content);
+        console.log(`✓ ${out}`);
       }
       console.log(`Unsealed ${files.length} file(s).`);
       break;
@@ -269,10 +313,13 @@ try {
       let resealed = 0;
       for (const file of files) {
         const { path, content } = openBlob(file);
-        if (!existsSync(path)) continue;          // not unsealed locally — nothing to compare
-        if (readFileSync(path, 'utf8') === content) continue;
+        const workingCopy = localPathFor(path);
+        if (!existsSync(workingCopy)) continue;   // no working copy to compare
+        if (readFileSync(workingCopy, 'utf8') === content) continue;
 
+        writeFileSync(path, readFileSync(workingCopy, 'utf8'));
         sealFile(path);
+        unlinkSync(path);
         console.log(`✓ resealed ${path}`);
         resealed += 1;
       }
@@ -362,12 +409,12 @@ try {
       let modified = 0;
       for (const file of files) {
         const { path, content } = openBlob(file);
-        const local = existsSync(path);
-        const state = !local
-          ? 'sealed only'
-          : readFileSync(path, 'utf8') === content
-            ? 'local copy matches'
-            : 'LOCAL COPY MODIFIED — reseal needed';
+        const workingCopy = localPathFor(path);
+        const state = !existsSync(workingCopy)
+          ? 'no working copy — run `unseal-all --local`'
+          : readFileSync(workingCopy, 'utf8') === content
+            ? 'working copy matches'
+            : 'WORKING COPY MODIFIED — reseal needed';
         if (state.startsWith('LOCAL')) modified += 1;
         console.log(`  ${path}\n      ${state}`);
       }
