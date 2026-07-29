@@ -44,6 +44,7 @@
  */
 
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, scryptSync } from 'node:crypto';
+import { parseFrontmatter } from '../packages/obsidian-publish-core/src/index.mjs';
 import { readFileSync, writeFileSync, unlinkSync, existsSync, readdirSync, mkdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -221,6 +222,71 @@ try {
       break;
     }
 
+    /**
+     * The rule that makes sealing a guarantee rather than a habit.
+     *
+     * `check` asks whether a sealed file's plaintext is also committed. That is
+     * the wrong question on its own — it catches a mistake in sealing, not a
+     * failure to seal at all. This asks the inverse: is any unpublished content
+     * sitting in the repo as plaintext?
+     *
+     * Unpublished means `draft: true` or a `publishDate` in the future. Both
+     * leak equally: the repo is public, so a scheduled post committed today is
+     * readable today no matter what the site serves. Review tiers still show
+     * this content — they unseal at build time — while production keeps it
+     * hidden behind the publish gate.
+     *
+     * Needs no key: it reads frontmatter of files that are already public, so
+     * it enforces on fork pull requests too, where `check` can only report.
+     */
+    case 'audit': {
+      const now = new Date();
+
+      /**
+       * Deliberately exempt. This fixture's whole purpose is carrying a future
+       * publishDate so the scheduling gate has something to gate; it holds
+       * placeholder text and nothing private. Sealing it would leave forks with
+       * an empty blog and demonstrate nothing.
+       *
+       * Keep this list at one entry. A second exemption is a sign the rule is
+       * being worked around rather than followed.
+       */
+      const EXEMPT = new Set(['packages/web-astro/src/content/blog/sample-scheduled-post.md']);
+      const tracked = execFileSync('git', ['ls-files', CONTENT_ROOT], { encoding: 'utf8' })
+        .split('\n')
+        .filter((path) => path.endsWith('.md') && !path.split('/').pop().startsWith('_'));
+
+      const exposed = [];
+      for (const path of tracked) {
+        if (!existsSync(path)) continue;
+        const { frontmatter } = parseFrontmatter(readFileSync(path, 'utf8'));
+
+        const isDraft = frontmatter.draft === true || frontmatter.draft === 'true';
+        const publishDate = frontmatter.publishDate ? new Date(frontmatter.publishDate) : undefined;
+        const scheduled = publishDate instanceof Date && !isNaN(publishDate) && publishDate > now;
+
+        if ((isDraft || scheduled) && !EXEMPT.has(path)) {
+          exposed.push({ path, why: isDraft ? 'draft: true' : `publishDate ${frontmatter.publishDate}` });
+        }
+      }
+
+      if (exposed.length > 0) {
+        console.error('✖ Unpublished content is committed as plaintext:');
+        for (const { path, why } of exposed) console.error(`  ${path}  (${why})`);
+        console.error('');
+        console.error('  This repository is public, so these are readable now regardless of');
+        console.error('  what the site serves. Seal them:');
+        console.error('');
+        for (const { path } of exposed) console.error(`    node scripts/seal-content.mjs seal ${path}`);
+        console.error('');
+        console.error('  Review tiers still show sealed content — they unseal at build time.');
+        process.exit(1);
+      }
+
+      console.log(`✓ ${tracked.length} tracked content file(s); none unpublished in plaintext.`);
+      break;
+    }
+
     case 'status': {
       const files = blobs();
       console.log(`${files.length} sealed file(s) in ${VAULT}`);
@@ -304,7 +370,7 @@ try {
     }
 
     default:
-      console.error('Usage: seal-content.mjs <keygen|seal|unseal-all|status|check|is-sealed|migrate-v1> [path]');
+      console.error('Usage: seal-content.mjs <keygen|seal|unseal-all|status|check|audit|is-sealed|migrate-v1> [path]');
       process.exit(1);
   }
 } catch (error) {

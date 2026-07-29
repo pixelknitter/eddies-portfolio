@@ -1,6 +1,0 @@
-{
-  "v": 2,
-  "kdf": "scrypt",
-  "algo": "aes-256-gcm",
-  "salt": "893f19979f7da22e27a3ee036e114464"
-}
