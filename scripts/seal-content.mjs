@@ -36,6 +36,7 @@
  *
  * Usage:
  *   node scripts/seal-content.mjs keygen
+ *   CONTENT_SEAL_KEY=… node scripts/seal-content.mjs seal          # everything pending
  *   CONTENT_SEAL_KEY=… node scripts/seal-content.mjs seal <path>
  *   CONTENT_SEAL_KEY=… node scripts/seal-content.mjs unseal-all [--require-key]
  *   CONTENT_SEAL_KEY=… node scripts/seal-content.mjs status
@@ -45,12 +46,20 @@
 
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, scryptSync } from 'node:crypto';
 import { parseFrontmatter } from '../packages/obsidian-publish-core/src/index.mjs';
-import { readFileSync, writeFileSync, unlinkSync, existsSync, readdirSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, unlinkSync, existsSync, readdirSync, mkdirSync, statSync } from 'node:fs';
 import { join, relative, dirname, basename } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 const CONTENT_ROOT = 'packages/web-astro/src/content';
-const VAULT = 'packages/web-astro/content-vault';
+/**
+ * Overridable so tests never touch the real vault.
+ *
+ * They did. `seal-content.spec.ts` ran `rmSync` on this path in `beforeEach`,
+ * so every `nx test` deleted the production vault — which is what kept
+ * destroying sealed content, far more reliably than any manual mistake.
+ * A hardcoded path a test can delete is a hazard, not a constant.
+ */
+const VAULT = process.env.CONTENT_VAULT_DIR ?? 'packages/web-astro/content-vault';
 const MANIFEST = join(VAULT, 'manifest.json');
 const FORMAT_VERSION = 2;
 const SCRYPT = { N: 32768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
@@ -195,6 +204,16 @@ function openBlob(file) {
 const blobs = () =>
   existsSync(VAULT) ? readdirSync(VAULT).filter((file) => file.endsWith('.sealed')) : [];
 
+/** Recursive file walk. Shared, so `seal` and `migrate-v1` agree on what exists. */
+function* walk(dir) {
+  if (!existsSync(dir)) return;
+  for (const entry of readdirSync(dir)) {
+    const path = join(dir, entry);
+    if (statSync(path).isDirectory()) yield* walk(path);
+    else yield path;
+  }
+}
+
 function isTracked(path) {
   try {
     execFileSync('git', ['ls-files', '--error-unmatch', path], { stdio: 'ignore' });
@@ -213,8 +232,48 @@ try {
       console.log('Losing it means losing every sealed file.');
       break;
 
+    /**
+     * With no path, seal everything that needs it.
+     *
+     * The working copies in `.local-*​/` are the source of truth, so "what needs
+     * sealing" is answerable without being told: a file there with no blob is
+     * new, one whose content differs from its blob has drifted.
+     *
+     * Before this, a brand-new draft was invisible. `reseal-if-changed` only
+     * looks at files that already have a blob, so writing a new post and
+     * committing left it unsealed with nothing to say so — the one failure mode
+     * the whole system exists to prevent.
+     */
     case 'seal': {
-      if (!target) throw new Error('usage: seal <path> [--remove]');
+      if (!target) {
+        const pending = [];
+        for (const file of walk(CONTENT_ROOT)) {
+          if (!file.endsWith('.md')) continue;
+          if (!basename(dirname(file)).startsWith('.local-')) continue;
+
+          const realPath = realPathFor(file);
+          const body = readFileSync(file, 'utf8');
+          const sealed = existsSync(blobPath(realPath));
+
+          if (!sealed) pending.push({ realPath, body, why: 'sealed' });
+          else if (openBlob(blobName(realPath)).content !== body)
+            pending.push({ realPath, body, why: 'resealed' });
+        }
+
+        if (pending.length === 0) {
+          console.log('✓ Every working copy is sealed and current.');
+          break;
+        }
+
+        for (const { realPath, body, why } of pending) {
+          writeFileSync(realPath, body);
+          sealFile(realPath);
+          unlinkSync(realPath);
+          console.log(`✓ ${why} ${realPath}`);
+        }
+        console.log(`\n${pending.length} file(s) sealed. Commit the vault.`);
+        break;
+      }
 
       const real = realPathFor(target);
       const local = localPathFor(real);

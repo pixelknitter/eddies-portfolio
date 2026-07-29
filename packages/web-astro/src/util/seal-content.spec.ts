@@ -15,7 +15,10 @@ import { tmpdir } from 'node:os';
 
 const REPO_ROOT = join(process.cwd(), '..', '..');
 const SCRIPT = join(REPO_ROOT, 'scripts/seal-content.mjs');
-const VAULT = join(REPO_ROOT, 'packages/web-astro/content-vault');
+// A temp vault, never the real one. This previously pointed at
+// packages/web-astro/content-vault and was rmSync'd in beforeEach, so running
+// the tests deleted every sealed file in the repository.
+const VAULT = mkdtempSync(join(tmpdir(), 'seal-vault-'));
 // Fixtures live outside the content root. `seal` takes an explicit path and
 // does not care where the file is, so there is no reason to put test files
 // where Astro's recursive glob will treat them as real content — and where the
@@ -27,10 +30,24 @@ const KEY = 'a memorable passphrase for tests';
 
 function run(args: string[], env: Record<string, string> = {}) {
   return execFileSync('node', [SCRIPT, ...args], {
-    env: { ...process.env, ...env },
+    // Point the script at the temp vault for every invocation.
+    env: { ...process.env, CONTENT_VAULT_DIR: VAULT, ...env },
     encoding: 'utf8',
     cwd: REPO_ROOT,
   });
+}
+
+/**
+ * A key-less environment that still points at the temp vault. Dropping
+ * CONTENT_SEAL_KEY by filtering process.env used to drop the vault override
+ * too, so the script fell back to the real vault and reported its contents.
+ */
+function keylessEnv(): NodeJS.ProcessEnv {
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([k]) => k !== 'CONTENT_SEAL_KEY')
+  ) as NodeJS.ProcessEnv;
+  env.CONTENT_VAULT_DIR = VAULT;
+  return env;
 }
 
 const tmpFiles: string[] = [];
@@ -162,9 +179,7 @@ describe('seal-content', () => {
   // whether a sealed file's plaintext leaked; `audit` asks the inverse — is
   // anything unpublished sitting in the repo unsealed at all.
   describe('audit', () => {
-    const bare = Object.fromEntries(
-      Object.entries(process.env).filter(([k]) => k !== 'CONTENT_SEAL_KEY')
-    ) as NodeJS.ProcessEnv;
+    const bare = keylessEnv();
 
     // Runs with no key at all — that is what lets it enforce on fork pull
     // requests, where `check` can only report.
@@ -195,7 +210,7 @@ describe('seal-content', () => {
     const output = execFileSync('node', [SCRIPT, 'status'], {
       encoding: 'utf8',
       cwd: REPO_ROOT,
-      env: Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'CONTENT_SEAL_KEY')) as NodeJS.ProcessEnv,
+      env: { ...keylessEnv() } as NodeJS.ProcessEnv,
     });
     expect(output).toContain('1 sealed file(s)');
     expect(output).not.toContain('secret-topic');
@@ -205,9 +220,7 @@ describe('seal-content', () => {
     fixture('fork.md', 'a\n');
     run(['seal', `${CONTENT_REL}/fork.md`], { CONTENT_SEAL_KEY: KEY });
 
-    const bare = Object.fromEntries(
-      Object.entries(process.env).filter(([k]) => k !== 'CONTENT_SEAL_KEY')
-    ) as NodeJS.ProcessEnv;
+    const bare = keylessEnv();
 
     // The contract is the exit code — a fork build must survive. The warning
     // goes to stderr, which execFileSync does not return.
