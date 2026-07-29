@@ -44,6 +44,7 @@
  */
 
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, scryptSync } from 'node:crypto';
+import { parseFrontmatter } from '../packages/obsidian-publish-core/src/index.mjs';
 import { readFileSync, writeFileSync, unlinkSync, existsSync, readdirSync, mkdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -82,6 +83,36 @@ function manifest({ create = false } = {}) {
     return parsed;
   }
   if (!create) return undefined;
+
+  /**
+   * Refuse to mint a fresh salt while sealed blobs already exist.
+   *
+   * A shared salt is what makes one scrypt derivation cover the whole vault,
+   * but it means the manifest is load-bearing: regenerate it and every
+   * existing blob is orphaned, because their key can no longer be derived.
+   * That is exactly what happened once — the manifest went missing during a
+   * branch rollback, the next `seal` silently created a new salt, and ten
+   * sealed stories became undecryptable until the old salt was recovered from
+   * git history.
+   *
+   * Silence was the bug. A missing manifest beside existing blobs is a
+   * recoverable accident if you stop, and a data-loss event if you carry on.
+   */
+  const orphans = existsSync(VAULT)
+    ? readdirSync(VAULT).filter((file) => file.endsWith('.sealed'))
+    : [];
+
+  if (orphans.length > 0) {
+    throw new Error(
+      `${orphans.length} sealed blob(s) exist but ${MANIFEST} is missing.\n` +
+        '  Creating a new salt now would orphan every one of them — their key is\n' +
+        '  derived from the salt in that file.\n\n' +
+        '  Recover the manifest first:\n' +
+        `    git checkout HEAD -- ${MANIFEST}\n` +
+        `    git log --all --oneline -- ${MANIFEST}   # if HEAD does not have it\n\n` +
+        '  Only if the blobs are genuinely disposable, delete them and seal again.'
+    );
+  }
 
   mkdirSync(VAULT, { recursive: true });
   const fresh = { v: FORMAT_VERSION, kdf: 'scrypt', algo: 'aes-256-gcm', salt: randomBytes(16).toString('hex') };
@@ -165,6 +196,21 @@ try {
       break;
     }
 
+    // Single-file unseal, for editing one thing without restoring the whole
+    // vault. Its absence cost real time during a recovery: the docs referenced
+    // it, the CLI did not have it, and the failure was a usage line rather
+    // than an error — so a scripted recovery step silently did nothing.
+    case 'unseal': {
+      if (!target) throw new Error('usage: unseal <content-path>');
+      const blob = blobPath(target);
+      if (!existsSync(blob)) throw new Error(`no sealed blob for ${target}`);
+
+      const { path, content } = openBlob(blobName(target));
+      writeFileSync(path, content);
+      console.log(`✓ Unsealed ${path}`);
+      break;
+    }
+
     case 'unseal-all': {
       const files = blobs();
       if (files.length === 0) {
@@ -218,6 +264,71 @@ try {
         resealed += 1;
       }
       console.log(resealed === 0 ? 'Vault already matches the working copy.' : `Resealed ${resealed} file(s).`);
+      break;
+    }
+
+    /**
+     * The rule that makes sealing a guarantee rather than a habit.
+     *
+     * `check` asks whether a sealed file's plaintext is also committed. That is
+     * the wrong question on its own — it catches a mistake in sealing, not a
+     * failure to seal at all. This asks the inverse: is any unpublished content
+     * sitting in the repo as plaintext?
+     *
+     * Unpublished means `draft: true` or a `publishDate` in the future. Both
+     * leak equally: the repo is public, so a scheduled post committed today is
+     * readable today no matter what the site serves. Review tiers still show
+     * this content — they unseal at build time — while production keeps it
+     * hidden behind the publish gate.
+     *
+     * Needs no key: it reads frontmatter of files that are already public, so
+     * it enforces on fork pull requests too, where `check` can only report.
+     */
+    case 'audit': {
+      const now = new Date();
+
+      /**
+       * Deliberately exempt. This fixture's whole purpose is carrying a future
+       * publishDate so the scheduling gate has something to gate; it holds
+       * placeholder text and nothing private. Sealing it would leave forks with
+       * an empty blog and demonstrate nothing.
+       *
+       * Keep this list at one entry. A second exemption is a sign the rule is
+       * being worked around rather than followed.
+       */
+      const EXEMPT = new Set(['packages/web-astro/src/content/blog/sample-scheduled-post.md']);
+      const tracked = execFileSync('git', ['ls-files', CONTENT_ROOT], { encoding: 'utf8' })
+        .split('\n')
+        .filter((path) => path.endsWith('.md') && !path.split('/').pop().startsWith('_'));
+
+      const exposed = [];
+      for (const path of tracked) {
+        if (!existsSync(path)) continue;
+        const { frontmatter } = parseFrontmatter(readFileSync(path, 'utf8'));
+
+        const isDraft = frontmatter.draft === true || frontmatter.draft === 'true';
+        const publishDate = frontmatter.publishDate ? new Date(frontmatter.publishDate) : undefined;
+        const scheduled = publishDate instanceof Date && !isNaN(publishDate) && publishDate > now;
+
+        if ((isDraft || scheduled) && !EXEMPT.has(path)) {
+          exposed.push({ path, why: isDraft ? 'draft: true' : `publishDate ${frontmatter.publishDate}` });
+        }
+      }
+
+      if (exposed.length > 0) {
+        console.error('✖ Unpublished content is committed as plaintext:');
+        for (const { path, why } of exposed) console.error(`  ${path}  (${why})`);
+        console.error('');
+        console.error('  This repository is public, so these are readable now regardless of');
+        console.error('  what the site serves. Seal them:');
+        console.error('');
+        for (const { path } of exposed) console.error(`    node scripts/seal-content.mjs seal ${path}`);
+        console.error('');
+        console.error('  Review tiers still show sealed content — they unseal at build time.');
+        process.exit(1);
+      }
+
+      console.log(`✓ ${tracked.length} tracked content file(s); none unpublished in plaintext.`);
       break;
     }
 
@@ -304,7 +415,7 @@ try {
     }
 
     default:
-      console.error('Usage: seal-content.mjs <keygen|seal|unseal-all|status|check|is-sealed|migrate-v1> [path]');
+      console.error('Usage: seal-content.mjs <keygen|seal|unseal-all|status|check|audit|is-sealed|migrate-v1> [path]');
       process.exit(1);
   }
 } catch (error) {

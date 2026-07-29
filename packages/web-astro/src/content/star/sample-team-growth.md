@@ -12,7 +12,7 @@ action: >-
 result: >-
   Sample fixture — replace with a real outcome and a number.
 tags: ['sample', 'leadership']
-draft: true
+draft: false
 ---
 
 Fixture content for dev and preview environments.

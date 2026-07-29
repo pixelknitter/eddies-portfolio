@@ -12,8 +12,8 @@ action: >-
 result: >-
   Sample fixture — replace with a real outcome and a number.
 tags: ['sample', 'platform']
-draft: true
+draft: false
 ---
 
-Fixture content for dev and preview environments. It is `draft: true`, so it
+Fixture content for dev and preview environments. It is `draft: false`, so it
 never appears in production. Copy `_template.md` to write a real highlight.

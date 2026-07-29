@@ -55,7 +55,14 @@ jobs:
           CONTENT_SEAL_KEY: ${{ secrets.CONTENT_SEAL_KEY }}
         run: node scripts/seal-content.mjs unseal-all
 
-      - name: Check no sealed post's plaintext is committed
+      # Needs no key: reads frontmatter of already-public files, so it enforces
+      # on fork pull requests where `check` can only report.
+      - name: Audit that no unpublished content is committed in plaintext
+        run: node scripts/seal-content.mjs audit
+
+      - name: Check no sealed file's plaintext is committed
+        env:
+          CONTENT_SEAL_KEY: ${{ secrets.CONTENT_SEAL_KEY }}
         run: node scripts/seal-content.mjs check
 
       - name: Build

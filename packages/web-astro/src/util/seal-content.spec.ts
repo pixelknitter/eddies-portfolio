@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { writeFileSync, readFileSync, existsSync, rmSync, readdirSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { writeFileSync, readFileSync, existsSync, rmSync, readdirSync, mkdirSync, mkdtempSync } from 'node:fs';
+import { join, relative } from 'node:path';
+import { tmpdir } from 'node:os';
 
 /**
  * Driven through the CLI rather than by importing functions, because the CLI
@@ -15,7 +16,13 @@ import { join } from 'node:path';
 const REPO_ROOT = join(process.cwd(), '..', '..');
 const SCRIPT = join(REPO_ROOT, 'scripts/seal-content.mjs');
 const VAULT = join(REPO_ROOT, 'packages/web-astro/content-vault');
-const CONTENT = join(REPO_ROOT, 'packages/web-astro/src/content/star');
+// Fixtures live outside the content root. `seal` takes an explicit path and
+// does not care where the file is, so there is no reason to put test files
+// where Astro's recursive glob will treat them as real content — and where the
+// A.I.R. eval spec, which reads the same directory, raced against them.
+const FIXTURE_DIR = mkdtempSync(join(tmpdir(), 'seal-spec-'));
+const CONTENT = FIXTURE_DIR;
+const CONTENT_REL = relative(REPO_ROOT, FIXTURE_DIR);
 const KEY = 'a memorable passphrase for tests';
 
 function run(args: string[], env: Record<string, string> = {}) {
@@ -52,7 +59,7 @@ describe('seal-content', () => {
   // theme even though the body is encrypted.
   it('gives blobs opaque names that reveal nothing about the file', () => {
     fixture('ticketfly-android-launch.md', 'body\n');
-    run(['seal', 'packages/web-astro/src/content/star/ticketfly-android-launch.md'], {
+    run(['seal', `${CONTENT_REL}/ticketfly-android-launch.md`], {
       CONTENT_SEAL_KEY: KEY,
     });
 
@@ -65,7 +72,7 @@ describe('seal-content', () => {
 
   it('hides which collection a file came from', () => {
     fixture('a.md', 'body\n');
-    run(['seal', 'packages/web-astro/src/content/star/a.md'], { CONTENT_SEAL_KEY: KEY });
+    run(['seal', `${CONTENT_REL}/a.md`], { CONTENT_SEAL_KEY: KEY });
     // Blobs sit in one flat vault, not under star/ or blog/.
     expect(existsSync(join(VAULT, readdirSync(VAULT).find((f) => f.endsWith('.sealed'))!))).toBe(true);
   });
@@ -73,7 +80,7 @@ describe('seal-content', () => {
   it('round-trips content and its path', () => {
     const original = '---\ntitle: Round trip\n---\n\nBody with émoji 🎉 and\ttabs.\n';
     const path = fixture('round-trip.md', original);
-    run(['seal', 'packages/web-astro/src/content/star/round-trip.md'], { CONTENT_SEAL_KEY: KEY });
+    run(['seal', `${CONTENT_REL}/round-trip.md`], { CONTENT_SEAL_KEY: KEY });
 
     expect(existsSync(path)).toBe(false); // sealing removes the plaintext
     run(['unseal-all'], { CONTENT_SEAL_KEY: KEY });
@@ -84,11 +91,11 @@ describe('seal-content', () => {
   // vault with a new blob every time.
   it('names a given path the same way every time', () => {
     fixture('stable.md', 'one\n');
-    run(['seal', 'packages/web-astro/src/content/star/stable.md'], { CONTENT_SEAL_KEY: KEY });
+    run(['seal', `${CONTENT_REL}/stable.md`], { CONTENT_SEAL_KEY: KEY });
     const first = readdirSync(VAULT).filter((f) => f.endsWith('.sealed'))[0];
 
     run(['unseal-all'], { CONTENT_SEAL_KEY: KEY });
-    run(['seal', 'packages/web-astro/src/content/star/stable.md'], { CONTENT_SEAL_KEY: KEY });
+    run(['seal', `${CONTENT_REL}/stable.md`], { CONTENT_SEAL_KEY: KEY });
     const after = readdirSync(VAULT).filter((f) => f.endsWith('.sealed'));
 
     expect(after).toHaveLength(1);
@@ -97,7 +104,7 @@ describe('seal-content', () => {
 
   it('accepts an ordinary passphrase, not just base64 key material', () => {
     const path = fixture('phrase.md', 'content\n');
-    run(['seal', 'packages/web-astro/src/content/star/phrase.md'], {
+    run(['seal', `${CONTENT_REL}/phrase.md`], {
       CONTENT_SEAL_KEY: 'correct horse battery staple',
     });
     run(['unseal-all'], { CONTENT_SEAL_KEY: 'correct horse battery staple' });
@@ -106,13 +113,13 @@ describe('seal-content', () => {
 
   it('refuses a wrong key rather than emitting garbage', () => {
     fixture('wrong-key.md', 'content\n');
-    run(['seal', 'packages/web-astro/src/content/star/wrong-key.md'], { CONTENT_SEAL_KEY: KEY });
+    run(['seal', `${CONTENT_REL}/wrong-key.md`], { CONTENT_SEAL_KEY: KEY });
     expect(() => run(['unseal-all'], { CONTENT_SEAL_KEY: 'a different passphrase' })).toThrow();
   });
 
   it('rejects a tampered blob', () => {
     fixture('tamper.md', 'content\n');
-    run(['seal', 'packages/web-astro/src/content/star/tamper.md'], { CONTENT_SEAL_KEY: KEY });
+    run(['seal', `${CONTENT_REL}/tamper.md`], { CONTENT_SEAL_KEY: KEY });
 
     const blob = join(VAULT, readdirSync(VAULT).find((f) => f.endsWith('.sealed'))!);
     const envelope = JSON.parse(readFileSync(blob, 'utf8'));
@@ -125,7 +132,7 @@ describe('seal-content', () => {
   it('rejects an empty passphrase', () => {
     fixture('empty-key.md', 'content\n');
     expect(() =>
-      run(['seal', 'packages/web-astro/src/content/star/empty-key.md'], { CONTENT_SEAL_KEY: '   ' })
+      run(['seal', `${CONTENT_REL}/empty-key.md`], { CONTENT_SEAL_KEY: '   ' })
     ).toThrow();
   });
 
@@ -134,20 +141,50 @@ describe('seal-content', () => {
   it('answers is-sealed by exit code', () => {
     fixture('sealed-one.md', 'a\n');
     const other = fixture('not-sealed.md', 'b\n');
-    run(['seal', 'packages/web-astro/src/content/star/sealed-one.md'], { CONTENT_SEAL_KEY: KEY });
+    run(['seal', `${CONTENT_REL}/sealed-one.md`], { CONTENT_SEAL_KEY: KEY });
 
     expect(() =>
-      run(['is-sealed', 'packages/web-astro/src/content/star/sealed-one.md'], { CONTENT_SEAL_KEY: KEY })
+      run(['is-sealed', `${CONTENT_REL}/sealed-one.md`], { CONTENT_SEAL_KEY: KEY })
     ).not.toThrow();
     expect(() =>
-      run(['is-sealed', 'packages/web-astro/src/content/star/not-sealed.md'], { CONTENT_SEAL_KEY: KEY })
+      run(['is-sealed', `${CONTENT_REL}/not-sealed.md`], { CONTENT_SEAL_KEY: KEY })
     ).toThrow();
     expect(existsSync(other)).toBe(true);
   });
 
+  // The rule that turns sealing from a habit into a guarantee. `check` asks
+  // whether a sealed file's plaintext leaked; `audit` asks the inverse — is
+  // anything unpublished sitting in the repo unsealed at all.
+  describe('audit', () => {
+    const bare = Object.fromEntries(
+      Object.entries(process.env).filter(([k]) => k !== 'CONTENT_SEAL_KEY')
+    ) as NodeJS.ProcessEnv;
+
+    // Runs with no key at all — that is what lets it enforce on fork pull
+    // requests, where `check` can only report.
+    it('reports actionably, with or without anything to report', () => {
+      let output: string;
+      let failed = false;
+      try {
+        output = execFileSync('node', [SCRIPT, 'audit'], { cwd: REPO_ROOT, env: bare, encoding: 'utf8' });
+      } catch (error) {
+        failed = true;
+        output = String((error as { stderr?: Buffer }).stderr ?? '');
+      }
+
+      if (failed) {
+        // Naming the file is not enough — it has to say why and what to run.
+        expect(output).toMatch(/draft: true|publishDate/);
+        expect(output).toContain('node scripts/seal-content.mjs seal');
+      } else {
+        expect(output).toContain('none unpublished in plaintext');
+      }
+    });
+  });
+
   it('status without a key reports the count but not the names', () => {
     fixture('secret-topic.md', 'a\n');
-    run(['seal', 'packages/web-astro/src/content/star/secret-topic.md'], { CONTENT_SEAL_KEY: KEY });
+    run(['seal', `${CONTENT_REL}/secret-topic.md`], { CONTENT_SEAL_KEY: KEY });
 
     const output = execFileSync('node', [SCRIPT, 'status'], {
       encoding: 'utf8',
@@ -160,7 +197,7 @@ describe('seal-content', () => {
 
   it('unseal-all is fatal with --require-key but only warns without it', () => {
     fixture('fork.md', 'a\n');
-    run(['seal', 'packages/web-astro/src/content/star/fork.md'], { CONTENT_SEAL_KEY: KEY });
+    run(['seal', `${CONTENT_REL}/fork.md`], { CONTENT_SEAL_KEY: KEY });
 
     const bare = Object.fromEntries(
       Object.entries(process.env).filter(([k]) => k !== 'CONTENT_SEAL_KEY')
