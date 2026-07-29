@@ -213,17 +213,25 @@ CONTENT_SEAL_KEY=... node scripts/seal-content.mjs seal \
   packages/web-astro/src/content/blog/my-post.md
 ```
 
-That writes `my-post.md.sealed`, deletes the plaintext, and adds it to a
-managed block in `.gitignore`. **Commit the `.sealed` file and the `.gitignore`
-change together.** To work on it again, `unseal` it, edit, and `seal` it back.
+That writes an opaque blob into `packages/web-astro/content-vault/` and deletes
+the plaintext. **The blob name is an HMAC of the path**, so it reveals neither
+the topic nor which collection the file came from — a blob called
+`android-launch-ticketfly.md.sealed` would give away most of what sealing was
+meant to hide. `seal-content.mjs status` lists what is sealed (names only with
+the key).
+
+To edit one: `unseal-all`, change it, `seal` it again. The blob name is
+deterministic, so re-sealing updates the same file rather than churning the
+vault.
 
 CI decrypts during the build. Pull requests from forks cannot read the secret,
 so there it warns and builds without the sealed posts; deploys pass
 `--require-key` and fail rather than shipping a site with a due post missing.
 
-`node scripts/seal-content.mjs check` runs in CI and fails if a sealed post's
-plaintext is also committed — sealing is pointless while the plaintext is
-sitting next to the blob.
+`node scripts/seal-content.mjs check` runs in CI and fails if a sealed file's
+plaintext is also committed. The pre-commit hook (`yarn hooks:install`) is the
+guard that matters though — CI runs *after* the commit exists, and history
+cannot be un-published. It costs one scrypt derivation (~85ms) per commit.
 
 **Losing `CONTENT_SEAL_KEY` means losing every sealed post.** Store it
 somewhere you will still have in a year, not only in GitHub. And note that

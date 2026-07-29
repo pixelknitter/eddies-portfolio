@@ -1,30 +1,47 @@
 #!/usr/bin/env bash
-# Refuse to commit the plaintext of a sealed file.
+# Refuse to commit the plaintext of sealed content.
 #
-# CI already runs `seal-content.mjs check`, but CI runs *after* the commit
-# exists. For this threat model that is too late — git history is append-only,
-# so a plaintext post that reaches a commit is public even if the next commit
-# removes it. This hook is the only guard that runs while the mistake is still
-# undoable.
+# CI runs `check` too, but CI runs *after* the commit exists and git history
+# is append-only — a plaintext post that reaches a commit is public even if the
+# next commit removes it. This hook runs while the mistake is still undoable,
+# which makes it the guard that actually matters.
 #
-# Install with: yarn hooks:install
+# Blob names are HMACs of the content path, so answering "is this sealed?"
+# needs the key. One scrypt derivation (~85ms) covers the whole commit.
+# Without the key we warn rather than block: a contributor who cannot decrypt
+# anything also cannot meaningfully be checked, and blocking them helps nobody.
+#
+# Installed via core.hooksPath by `yarn hooks:install` (and postinstall).
 set -euo pipefail
 
 CONTENT_ROOT="packages/web-astro/src/content"
-violations=""
 
-# Only files staged for this commit; unstaged working-copy plaintext is fine
-# and expected while editing.
+staged=$(git diff --cached --name-only --diff-filter=ACM -- "$CONTENT_ROOT" | grep '\.md$' || true)
+[ -n "$staged" ] || exit 0
+
+if [ -z "${CONTENT_SEAL_KEY:-}" ]; then
+  echo "⚠ CONTENT_SEAL_KEY not set — cannot check staged content against the vault." >&2
+  echo "  If you are committing a sealed story's plaintext, this will not catch it." >&2
+  exit 0
+fi
+
+violations=""
 while IFS= read -r path; do
   [ -n "$path" ] || continue
-  case "$path" in
-    "$CONTENT_ROOT"/*.md)
-      if [ -f "${path}.sealed" ]; then
-        violations="${violations}  ${path}"$'\n'
-      fi
-      ;;
-  esac
-done < <(git diff --cached --name-only --diff-filter=ACM)
+  if node scripts/seal-content.mjs is-sealed "$path" 2>/dev/null; then
+    violations="${violations}  ${path}"$'\n'
+  fi
+done <<< "$staged"
+
+# Keep the vault in step with edits made after an unseal. Only files whose
+# content actually differs are re-encrypted, and the refreshed blob joins this
+# commit so the vault can never drift behind the working copy.
+if [ -z "$violations" ] && [ -n "${CONTENT_SEAL_KEY:-}" ]; then
+  if node scripts/seal-content.mjs reseal-if-changed 2>/dev/null | grep -q resealed; then
+    git add packages/web-astro/content-vault
+    echo "→ vault resealed and added to this commit"
+  fi
+fi
 
 if [ -n "$violations" ]; then
   cat >&2 <<MSG
@@ -32,15 +49,14 @@ if [ -n "$violations" ]; then
 ✖ Refusing to commit the plaintext of sealed content:
 
 ${violations}
-  A .sealed file exists for each of these, so committing the plaintext would
-  put in history exactly what the sealing was meant to keep out — and history
-  cannot be un-published.
+  A sealed blob already exists for these, so committing the plaintext would put
+  in history exactly what sealing was meant to keep out — and history cannot be
+  un-published.
 
-  Unstage them:
     git restore --staged <path>
 
-  If a file should no longer be sealed, delete its .sealed twin deliberately
-  and re-run: node scripts/seal-content.mjs check
+  If something should no longer be sealed, remove its blob deliberately:
+    node scripts/seal-content.mjs status     # see what is sealed
 
 MSG
   exit 1
