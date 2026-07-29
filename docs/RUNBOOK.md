@@ -276,6 +276,50 @@ so treat a leaked key as "everything ever sealed with it is public".
 
 ---
 
+### A required status check never reports
+
+Symptom: a PR sits at *"Expected — Waiting for status to be reported"* forever,
+and merging is blocked with nothing failing.
+
+**Cause.** Required checks are matched by **check-run name**, which for Actions
+is the job's `name:`. Renaming a job silently unprotects the branch *and* leaves
+the old name required — so it waits for a check that no longer exists.
+
+**Fix.** Settings → Rules → the branch ruleset → remove the stale name, add the
+current one. The names CI reports today:
+
+| Check | Workflow | Required? |
+|---|---|---|
+| `tests` | `ci.yml` | yes |
+| `e2e` | `ci.yml` | yes |
+| `preview` | `preview.yml` | yes |
+| `Detect deployable changes` | `preview.yml` | yes — the only proof the workflow ran when `preview` is skipped on a docs-only PR |
+
+If you rename a job, update the ruleset in the same change.
+
+---
+
+### A stale Cloudflare Pages project keeps building
+
+Symptom: a red `Cloudflare Pages — Building` check on every PR, unrelated to
+anything in the diff.
+
+**Cause.** The `eddies-portfolio` Pages project still has Git integration
+pointing at this repo. The site moved to a Worker; Pages builds the tree, fails,
+and reports a check nobody asked for. It is also a domain hazard — a hostname
+belongs to one service, and a Pages project that claims `eddie.engineering`
+takes it from the Worker.
+
+**Fix.** Cloudflare dashboard → Workers & Pages → `eddies-portfolio` (Pages) →
+Settings → disconnect the Git integration, then delete the project. Confirm the
+Worker still owns the hostname afterwards:
+
+```bash
+curl -s https://eddie.engineering/ | grep build-sha
+```
+
+---
+
 ## Procedures
 
 ### Move a custom domain between services
