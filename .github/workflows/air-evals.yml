@@ -1,0 +1,64 @@
+name: A.I.R. evals
+
+# Live evals cost money and need a model key, so they do not run on every
+# push. The deterministic half of the suite runs in `tests` on every PR and
+# needs neither.
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: 'Comma-separated models to compare'
+        required: false
+        default: 'claude-opus-5,claude-sonnet-5,claude-haiku-4-5'
+      effort:
+        description: 'Reasoning effort for the run'
+        required: false
+        default: 'low'
+        type: choice
+        options: [low, medium, high]
+  schedule:
+    # Weekly, so model drift surfaces on its own rather than the next time
+    # someone happens to look.
+    - cron: '0 9 * * 1'
+
+env:
+  NX_DAEMON: 'false'
+
+jobs:
+  evals:
+    name: air-evals
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node & install
+        uses: ./.github/actions/setup
+
+      - name: Run the golden set
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          node scripts/air-eval.mjs \
+            --models "${{ inputs.models || 'claude-opus-5,claude-sonnet-5,claude-haiku-4-5' }}" \
+            --effort "${{ inputs.effort || 'low' }}" \
+            --report air-eval-report.md
+
+      # The report is also appended to the run summary by the script; this
+      # keeps a downloadable copy for comparing week to week.
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: air-eval-report
+          path: air-eval-report.md
+          retention-days: 90
+
+      - name: Notify alerts channel (failure)
+        if: failure()
+        uses: ./.github/actions/discord-notify
+        with:
+          webhook-url: ${{ secrets.DISCORD_ALERT_WEBHOOK_URL }}
+          status: failure
+          title: '❌ A.I.R. evals failed'
+          description: 'A guardrail case regressed. The report is on the run summary.'

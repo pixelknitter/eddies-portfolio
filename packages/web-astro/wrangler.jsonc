@@ -9,6 +9,10 @@
   // Required for *.workers.dev URLs and for per-version preview URLs.
   "workers_dev": true,
   "observability": { "enabled": true },
+  // Transactional email for A.I.R. access approvals. No API key — the binding
+  // authenticates as the Worker. The `from` domain must be onboarded first:
+  //   npx wrangler email sending enable eddie.engineering
+  "send_email": [{ "name": "EMAIL" }],
   // Production hostname. A hostname can only be bound to one service, so
   // `eddie.engineering` must be REMOVED from the Cloudflare Pages project
   // before the first `wrangler deploy` that carries this config — otherwise

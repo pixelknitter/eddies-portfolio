@@ -81,6 +81,40 @@ all non-5xx; `smoke-test.mjs` retries 5xx (4xx stays definitive so an expected
 
 ---
 
+### A secret ended up in the built Worker
+
+**Cause.** Astro serialises the build machine's whole `process.env` into the
+server bundle, so anything exported during `astro build` ships inside the
+Worker. Not fixable via Vite `define` — the inlining is a wholesale object
+assignment, not a replaceable reference.
+
+**Fix.** Keep the build environment clean. Runtime secrets belong in Cloudflare
+(`wrangler secret put`) or `.dev.vars` locally — never a workflow's build-step
+`env:`. `scripts/check-bundle-secrets.mjs` runs after every build and before
+every deploy. If a key did ship, **rotate it first** — the bundle is public.
+
+---
+
+### A.I.R. returns an error
+
+The endpoint checks cheap things first, so the status says where it stopped.
+
+| Status | Cause | Fix |
+|---|---|---|
+| `401` | `AIR_ACCESS_CODE` wrong or unset — the gate fails closed | `wrangler secret put AIR_ACCESS_CODE` |
+| `429` | Rate limited (8/min ask, 3/10min request) | Wait |
+| `503` on ask | `ANTHROPIC_API_KEY` unset. Gate and retrieval passed | `wrangler secret put ANTHROPIC_API_KEY` |
+| `503` on request | `AIR_SIGNING_SECRET` or `DISCORD_ACCESS_WEBHOOK_URL` unset | Set both |
+| `200` + `grounded: false` | Working. The corpus doesn't cover the question | Add a STAR story |
+
+Secrets are per Worker; set them on `eddies-portfolio` and
+`eddies-portfolio-staging` separately. They apply without a redeploy.
+
+**Approval page says the email didn't send.** Email Sending needs Workers Paid;
+on Free there is no binding. The page shows the code inline — pass it on. See
+`AIR-SETUP.md` §3.
+
+
 ### Smoke test fails on flags the code clearly gates
 
 Symptom: the production smoke test reports sections that "should be hidden"

@@ -143,3 +143,15 @@ test-results/
 playwright-report/
 blob-report/
 .playwright/
+
+# Wrangler local secrets — never commit.
+.dev.vars
+.dev.vars.*
+
+# direnv — per-project Cloudflare credentials. Never commit these;
+# .envrc.example is the committed template.
+.envrc
+.direnv/
+# ...but the template must be committed. An earlier `.env*` rule catches it,
+# so this negation has to come after both.
+!.envrc.example

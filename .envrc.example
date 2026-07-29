@@ -1,0 +1,25 @@
+# Copy to .envrc and adjust, then `direnv allow`. Requires direnv:
+#   brew install direnv   (and hook it into your shell — `direnv hook zsh`)
+#
+# Why this instead of `wrangler login`:
+#
+#   CLOUDFLARE_API_TOKEN takes precedence over the credential stored by
+#   `wrangler login`, so this points wrangler at the right account per
+#   directory without logging anything out. Switching logins instead means
+#   clobbering whatever account your other projects use — and wrangler then
+#   resolves a *stale* account id for a while, which surfaces as
+#   "Could not find a zone for eddie.engineering" while it looks in the
+#   wrong account. Pinning the id explicitly makes that impossible.
+#
+# Keep the token OUTSIDE the repo. An .envrc holding a literal token is one
+# `git add -A` away from being committed — .envrc is gitignored, but a copy
+# pasted somewhere else is not.
+
+# eddie.engineering / simply.build / wanderinghearth.studio live here.
+# Account ids are not secrets; they appear in dashboard URLs.
+export CLOUDFLARE_ACCOUNT_ID=631de303454b0687e7a2aeee17d3d65f
+
+# chmod 600 this file. Create the token at:
+#   Cloudflare dashboard → My Profile → API Tokens → Create Custom Token
+# Scopes are listed in docs/AIR-SETUP.md.
+export CLOUDFLARE_API_TOKEN="$(cat "$HOME/.config/cloudflare/eddies-portfolio.token")"
