@@ -451,6 +451,49 @@ try {
       break;
     }
 
+    /**
+     * Remove blobs that no longer belong to the vault.
+     *
+     * Rotating CONTENT_SEAL_KEY changes every blob *name*, because the name is
+     * HMAC(key, path). The old blobs do not disappear — they sit there
+     * undecryptable while the re-sealed ones appear alongside, so a rotation
+     * silently doubles the vault and nothing says so. Found exactly that way:
+     * a rotation took it from 12 blobs to 25.
+     *
+     * A blob is orphaned if it cannot be decrypted with the current key, or if
+     * its name does not match the HMAC of the path inside it.
+     */
+    case 'prune': {
+      const orphans = [];
+      let current = 0;
+
+      for (const file of blobs()) {
+        try {
+          const { path } = openBlob(file);
+          if (blobName(path) === file) current += 1;
+          else orphans.push([file, 'name does not match the current key']);
+        } catch {
+          orphans.push([file, 'cannot decrypt — sealed under a previous key']);
+        }
+      }
+
+      console.log(`${current} current blob(s), ${orphans.length} orphaned.`);
+      if (orphans.length === 0) break;
+
+      for (const [file, why] of orphans) {
+        console.log(`  removing ${file.slice(0, 12)}… — ${why}`);
+        if (args.includes('--dry-run')) continue;
+        unlinkSync(join(VAULT, file));
+      }
+
+      console.log(
+        args.includes('--dry-run')
+          ? '\nDry run — nothing removed.'
+          : `\nRemoved ${orphans.length}. Commit the vault.`
+      );
+      break;
+    }
+
     case 'status': {
       const files = blobs();
       console.log(`${files.length} sealed file(s) in ${VAULT}`);
@@ -558,7 +601,7 @@ try {
     }
 
     default:
-      console.error('Usage: seal-content.mjs <keygen|seal|unseal-all|status|check|audit|is-sealed|migrate-v1> [path]');
+      console.error('Usage: seal-content.mjs <keygen|seal|unseal-all|status|check|audit|prune|is-sealed> [path]');
       process.exit(1);
   }
 } catch (error) {
