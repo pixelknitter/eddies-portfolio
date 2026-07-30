@@ -2,7 +2,7 @@ import type { APIContext } from 'astro';
 import { getCollection } from 'astro:content';
 import Anthropic from '@anthropic-ai/sdk';
 
-import { showAIR, showUnpublished } from '@util/visibility.mjs';
+import { resolveSections } from '@util/flags/sections.mjs';
 import { selectContext } from '@util/air/retrieval.mjs';
 import { suggestionSentence } from '@util/air/suggested.mjs';
 import {
@@ -47,7 +47,9 @@ function json(
 export async function POST(context: APIContext): Promise<Response> {
   // The section is gated, and so is its API. A flagged-off feature whose
   // endpoint still answers is not gated, it is merely unlinked.
-  if (!showAIR(import.meta.env)) {
+  // A runtime flag can only take this away, never grant it — see flags/sections.mjs.
+  const sections = await resolveSections(import.meta.env);
+  if (!sections.air) {
     return new Response(null, { status: 404, statusText: 'Not found' });
   }
 
@@ -97,7 +99,7 @@ export async function POST(context: APIContext): Promise<Response> {
 
   // The corpus is the STAR collection plus project write-ups, bundled at build
   // time. Drafts follow the same rule as everywhere else on the site.
-  const reveal = showUnpublished(import.meta.env);
+  const reveal = sections.unpublished;
   const stories = await getCollection(
     'star',
     ({ data }) => reveal || data.draft !== true,

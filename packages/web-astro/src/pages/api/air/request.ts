@@ -1,6 +1,6 @@
 import type { APIContext } from 'astro';
 
-import { showAIR } from '@util/visibility.mjs';
+import { resolveSections } from '@util/flags/sections.mjs';
 import { createRateLimiter } from '@util/air/access.mjs';
 import { readSecret } from '@util/air/runtime.mjs';
 import { mintApprovalToken, validateRequest } from '@util/air/requests.mjs';
@@ -31,7 +31,8 @@ function json(body: unknown, status = 200) {
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  if (!showAIR(import.meta.env)) {
+  const sections = await resolveSections(import.meta.env);
+  if (!sections.air) {
     return new Response(null, { status: 404, statusText: 'Not found' });
   }
 

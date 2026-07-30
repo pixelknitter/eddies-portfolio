@@ -1,11 +1,12 @@
 ---
 import ThemeIcon from './ThemeIcon.astro';
-import { showAIR, showBlog, showProjects } from '@util/visibility.mjs';
+import { resolveSections } from '@util/flags/sections.mjs';
 
 // Unfinished sections stay unlinked in production; review tiers turn them on.
-const airEnabled = showAIR(import.meta.env);
-const blogEnabled = showBlog(import.meta.env);
-const projectsEnabled = showProjects(import.meta.env);
+const sections = await resolveSections(import.meta.env);
+const airEnabled = sections.air;
+const blogEnabled = sections.blog;
+const projectsEnabled = sections.projects;
 ---
 <div class="grid grid-cols-1 md:grid-cols-2 gap-y-2 mt-4 mb-2">
     <div class="text-lg font-header text-center md:text-justify self-center">
