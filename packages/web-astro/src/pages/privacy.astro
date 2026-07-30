@@ -1,0 +1,43 @@
+---
+import Layout from '@layouts/Layout.astro';
+import Prose from '@components/Prose.astro';
+
+import {
+  Content as Privacy,
+  frontmatter as privacyMatter,
+} from '../static/privacy.md';
+
+/**
+ * The privacy policy.
+ *
+ * Deliberately ungated. Every other section of this site sits behind a
+ * `PUBLIC_SHOW_*` flag, but a policy that 404s while the thing it describes is
+ * live is worse than no policy — so this route carries no flag and is reachable
+ * on every tier.
+ *
+ * It is written to describe the site with telemetry enabled, and the features it
+ * covers are gated, so it says "by invitation" rather than asserting A.I.R. is
+ * available. That way the page stays true whichever flags are set.
+ *
+ * This page and `docs/observability/03-design.md` describe the same thing from
+ * two directions. If the event taxonomy, the retention window, or the list of
+ * third-party services changes there, it changes here too — a policy that has
+ * drifted from the code is a false statement, not stale documentation.
+ */
+const { title: pageTitle, subject, updated } = privacyMatter;
+
+const updatedLabel = new Date(`${updated}T00:00:00Z`).toLocaleDateString(
+  'en-US',
+  { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' },
+);
+---
+
+<Layout pageTitle={pageTitle}>
+  <h1>{subject}</h1>
+  <p class="font-body text-disabled mb-6">
+    Last updated <time datetime={updated}>{updatedLabel}</time>
+  </p>
+  <Prose>
+    <Privacy />
+  </Prose>
+</Layout>
