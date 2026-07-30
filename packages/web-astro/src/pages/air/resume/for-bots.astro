@@ -1,0 +1,66 @@
+---
+import Layout from '@layouts/Layout.astro';
+import ResumeFull from '@components/resume/ResumeFull.astro';
+import { RESUME } from '@util/resume/resume.data';
+import { buildResumeJsonLd } from '@util/resume/jsonld';
+import { plainText } from '@util/resume/markup';
+import { showAIR } from '@util/visibility.mjs';
+
+/**
+ * The complete resume, plus the JSON-LD graph.
+ *
+ * ## Why the graph lives here rather than on the visible page
+ *
+ * The visible resume is curated: it shows a featured subset of bullets. Attaching
+ * structured data there would assert facts a reader cannot see on the page, which
+ * is the thing structured-data guidelines actually prohibit. This page renders
+ * every claim the graph makes, so the two agree — and the visible page points
+ * here with `<link rel="alternate">`.
+ *
+ * ## Indexable on purpose
+ *
+ * No `noindex`. This is the page meant to be read by crawlers and generative
+ * engines; that is the whole feature. Non-production tiers are kept out of the
+ * index by `robots.txt`, which is derived per tier from the request host rather
+ * than from a build flag — see `src/pages/robots.txt.ts`.
+ */
+if (!showAIR(import.meta.env)) {
+  return new Response(null, { status: 404, statusText: 'Not found' });
+}
+
+const pagePath = '/air/resume/for-bots';
+
+/**
+ * Always the production origin, never `Astro.url.origin`. A staging build that
+ * emitted staging URLs would publish a second, competing profile for the same
+ * person. `site` is set in astro.config.mjs for exactly this.
+ */
+const siteUrl = (Astro.site ?? new URL('https://eddie.engineering')).origin;
+
+const jsonLd = buildResumeJsonLd({ siteUrl, pagePath });
+
+const pageTitle = `${RESUME.name} — complete resume`;
+const description = plainText(RESUME.longSummary).slice(0, 300);
+---
+
+<Layout pageTitle={pageTitle} {description}>
+  <Fragment slot="head">
+    <link rel="canonical" href={`${siteUrl}${pagePath}`} />
+    {
+      /* The human-facing counterpart, so a consumer landing here can find it. */
+    }
+    <link
+      rel="alternate"
+      type="text/html"
+      href="/air/resume/"
+      title="Visual resume"
+    />
+    <script
+      type="application/ld+json"
+      set:html={JSON.stringify(jsonLd)}
+      is:inline
+    />
+  </Fragment>
+
+  <ResumeFull />
+</Layout>

@@ -1,0 +1,171 @@
+---
+/**
+ * The complete resume, in the site's own styling.
+ *
+ * This is the machine-oriented surface. Where the visual page is curated and
+ * collapsed, this renders **every** bullet for **every** role, expanded, in one
+ * document ordering — which is what a crawler, a generative engine or someone
+ * using a screen reader's heading list actually wants.
+ *
+ * ## Why site styling rather than the organic system
+ *
+ * Two reasons. It is a plain document, so the display face and card grid buy
+ * nothing here; and loading a second design system on a page whose whole job is
+ * to be parsed is weight with no reader. So this uses the site's existing
+ * utilities and component classes, and inherits the theme toggle for free.
+ *
+ * ## Structure is the feature
+ *
+ * Real `<h2>`/`<h3>`, real `<ul>`, `<time datetime>` on every span, and one
+ * `<article>`. Nothing is a positioned `<div>` pretending to be a list. That is
+ * what makes the DOM and the extracted text agree — the same reason the PDF is
+ * generated `tagged`.
+ *
+ * No contact details, exactly as on the visual page.
+ */
+import { RESUME, REQUEST_PATH, rolesByRecency } from '@util/resume/resume.data';
+import { emphasize } from '@util/resume/markup';
+
+interface Props {
+  /**
+   * Render for the PDF generator. Drops the request CTA — a button telling the
+   * reader to request the document they are already holding — and makes room for
+   * the contact block via the `contact` slot.
+   */
+  print?: boolean;
+}
+
+const { print = false } = Astro.props;
+
+// Chronological, not the tier grouping the visual page uses — see
+// rolesByRecency() for why the two orderings differ.
+const allRoles = rolesByRecency();
+---
+
+<article class="resume-full">
+  <header>
+    <h1>{RESUME.name}</h1>
+    <p class="text-lg font-semibold text-emphasis dark:text-link">
+      {RESUME.headline}
+    </p>
+    <p class="mt-2">{RESUME.location}</p>
+    <slot name="contact" />
+    <p class="mt-4" set:html={emphasize(RESUME.longSummary)} />
+    {
+      !print && (
+        <p class="mt-4">
+          <a class="btn" href={REQUEST_PATH}>
+            Request a PDF copy
+          </a>
+        </p>
+      )
+    }
+  </header>
+
+  {
+    /*
+    Core strengths. Absent from an earlier version of this page while the visual
+    page and both PDFs rendered it — caught by diffing the rendered text against
+    the design source rather than by reading the code, which is the only way a
+    missing *section* shows up.
+  */
+  }
+  <h2 class="mt-10">Core strengths</h2>
+  <dl class="meta-list">
+    {
+      RESUME.strengths.map((strength) => (
+        <>
+          <dt>{strength.title}</dt>
+          <dd>{strength.detail}</dd>
+        </>
+      ))
+    }
+  </dl>
+
+  <h2 class="mt-10">Experience</h2>
+  {
+    allRoles.map((role) => (
+      <section class="mb-8">
+        <h3 class="no-underline decoration-0">
+          {role.org} &mdash; {role.role}
+        </h3>
+        <p class="text-sm">
+          {role.location} &middot;{' '}
+          <time datetime={role.start}>{role.dates.split('–')[0].trim()}</time>
+          {' – '}
+          {role.end ? (
+            <time datetime={role.end}>{role.dates.split('–')[1]?.trim()}</time>
+          ) : (
+            <span>Present</span>
+          )}
+        </p>
+
+        {role.lede && <p class="mt-2 italic">{role.lede}</p>}
+
+        <ul class="mt-3 list-disc pl-6">
+          {role.bullets.map((bullet) => (
+            <li class="mb-2" set:html={emphasize(bullet.text)} />
+          ))}
+        </ul>
+      </section>
+    ))
+  }
+  <p set:html={emphasize(RESUME.earliest)} />
+
+  <h2 class="mt-10">Skills</h2>
+  <dl class="meta-list">
+    {
+      RESUME.skills.map((group) => (
+        <>
+          <dt>{group.group}</dt>
+          <dd>{group.items.join(', ')}</dd>
+        </>
+      ))
+    }
+  </dl>
+
+  <h2 class="mt-10">Speaking &amp; community</h2>
+  <p set:html={emphasize(RESUME.speaking.evaluation)} />
+  <ul class="list-disc pl-6">
+    {
+      RESUME.speaking.talks.map((talk) => (
+        <li class="mb-2">
+          <strong>{talk.org}</strong> &mdash;{' '}
+          <a href={talk.url}>{talk.title}</a> &mdash; {talk.detail}
+        </li>
+      ))
+    }
+  </ul>
+  <p>
+    {RESUME.speaking.footer} Writing at{' '}
+    <a href={RESUME.speaking.writing.url}>{RESUME.speaking.writing.label}</a>, {
+      RESUME.speaking.writing.detail
+    }.
+  </p>
+
+  <h2 class="mt-10">Education</h2>
+  <dl class="meta-list">
+    {
+      RESUME.education.map((entry) => (
+        <>
+          <dt>{entry.period}</dt>
+          <dd>
+            <strong>{entry.institution}</strong> &mdash; {entry.detail}
+          </dd>
+        </>
+      ))
+    }
+  </dl>
+</article>
+
+<style>
+  /*
+   * `text-align: left` for the same reason the organic sheet resets it: the site
+   * justifies body text, and justified prose in a long single column opens
+   * rivers that hurt readability — and this page is read by people using
+   * assistive tech as well as by parsers.
+   */
+  .resume-full {
+    text-align: left;
+  }
+</style>
