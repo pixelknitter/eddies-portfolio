@@ -17,6 +17,8 @@
     "hooks:install": "node scripts/setup-git-hooks.mjs",
     "prepare": "node scripts/setup-git-hooks.mjs",
     "content:seal": "node scripts/content-seal.mjs",
+    "content:prune": "node scripts/seal-content.mjs prune",
+    "content:status": "node scripts/seal-content.mjs status",
     "resume:pdf": "node scripts/resume-pdf.mjs"
   },
   "private": true,
