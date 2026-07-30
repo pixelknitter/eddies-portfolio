@@ -4,13 +4,27 @@ import { fade } from 'astro:transitions';
 import Header from '@components/Header.astro';
 import Footer from '@components/Footer.astro';
 import '../styles/global.css';
-import '../styles/motion.css'
+import '../styles/motion.css';
 
 interface Props {
   pageTitle: string;
+  /**
+   * Page-specific meta description. Defaults to the site-wide blurb, which is
+   * what every page used before the resume needed its own — a resume page
+   * described as "a portfolio ... ranging from mobile" is a wasted snippet in
+   * both search results and generative-engine summaries.
+   */
+  description?: string;
 }
 
-const { pageTitle } = Astro.props;
+/**
+ * The site-wide fallback. Kept verbatim so pages that pass no description
+ * render exactly what they rendered before this prop existed.
+ */
+const SITE_DESCRIPTION =
+  'A portfolio of Eddie Freeman containing projects ranging from mobile (react native), nextjs, astro, and LLMs';
+
+const { pageTitle, description = SITE_DESCRIPTION } = Astro.props;
 
 // Identifies which build is live. The deploy pipeline polls this to confirm
 // the new Worker version is actually serving before it smoke-tests, and it
@@ -18,11 +32,11 @@ const { pageTitle } = Astro.props;
 const buildSha = import.meta.env.PUBLIC_BUILD_SHA ?? 'dev';
 ---
 
-<!DOCTYPE html>
+<!doctype html>
 <html transition:animate="none" lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="description" content="A portfolio of Eddie Freeman containing projects ranging from mobile (react native), nextjs, astro, and LLMs" />
+    <meta name="description" content={description} />
     <meta name="viewport" content="width=device-width" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -39,6 +53,15 @@ const buildSha = import.meta.env.PUBLIC_BUILD_SHA ?? 'dev';
     <meta name="generator" content={Astro.generator} />
     <meta name="build-sha" content={buildSha} />
     <title>{pageTitle}</title>
+    {
+      /*
+      Page-specific head content: extra font families, JSON-LD, rel=alternate.
+      A slot rather than a growing list of props — the resume needs a structured
+      -data block and two more font families, and neither belongs on every route.
+      Content placed here is inert for pages that pass nothing.
+    */
+    }
+    <slot name="head" />
     <ClientRouter />
   </head>
   <body>
@@ -50,7 +73,9 @@ const buildSha = import.meta.env.PUBLIC_BUILD_SHA ?? 'dev';
     <script>
       function applyTheme() {
         const theme = localStorage.getItem('theme');
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const prefersDark = window.matchMedia(
+          '(prefers-color-scheme: dark)',
+        ).matches;
         if (theme === 'dark' || (!theme && prefersDark)) {
           document.documentElement.classList.add('dark');
         } else {
@@ -62,8 +87,8 @@ const buildSha = import.meta.env.PUBLIC_BUILD_SHA ?? 'dev';
       applyTheme();
 
       // Apply theme after view transitions
-      document.addEventListener('astro:after-swap', ()=> {
-        applyTheme()
+      document.addEventListener('astro:after-swap', () => {
+        applyTheme();
       });
 
       // Listen for storage events to sync theme across tabs

@@ -1,0 +1,492 @@
+/*
+ * The "Organic" design system, from the Claude Design project
+ * "Website resume designs" (ds/organic.v2.css), plus a dark-mode remap onto this
+ * site's palette.
+ *
+ * ## Why this is copied rather than translated into Tailwind
+ *
+ * Every selector is namespaced under `.organic`, so none of it can collide with
+ * the site's utilities or base layer. Translating the tokens into an `@theme`
+ * block would have meant re-expressing forty custom properties and every
+ * component rule in another dialect, then keeping that translation in step with
+ * a design source that lives outside this repo. Copying the file costs one
+ * import and drifts only when someone edits it here on purpose.
+ *
+ * The token blocks and the rules the resume uses are copied unchanged. Four
+ * component groups the resume has no use for — `.radio`, `.seg`, `.nav` and
+ * `.dialog` — are omitted rather than shipped as dead CSS; pull them from the
+ * design source if a later surface needs them.
+ *
+ * ## Why this file is not inside `@layer`
+ *
+ * Tailwind puts the site's element defaults in `@layer base`. An *unlayered*
+ * rule outranks a layered one regardless of specificity, so leaving this file
+ * unlayered means the resume wins every property it declares without a single
+ * `!important` or specificity fight. The corollary — and the reason the RESETS
+ * block below exists — is that properties this system never mentions still fall
+ * through to the site's base styles.
+ *
+ * ## Dark mode
+ *
+ * The organic palette is a light, warm one; the site's dark theme is cool and
+ * purple. Rather than ship the cream document into a dark page, DARK MODE below
+ * re-points the same custom properties at the site's own tokens. Because every
+ * rule in this system reads through `var(--color-…)`, that remap re-skins the
+ * whole resume with no structural change. Ramp steps the site has no equivalent
+ * for are filled from the companion "Nocturne" system.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Caprasimo:wght@400&family=Figtree:wght@400;600;700&display=swap');
+
+.organic {
+  --color-bg: #f5ead8;
+  --color-surface: #ebddc5;
+  --color-text: #201e1d;
+  --color-accent: #c67139;
+  --color-accent-2: #7a8a5e;
+  --color-divider: color-mix(in srgb, #201e1d 16%, transparent);
+
+  --color-neutral-100: #f9f4ed;
+  --color-neutral-200: #eee7db;
+  --color-neutral-300: #dcd3c4;
+  --color-neutral-400: #c0b6a5;
+  --color-neutral-500: #a19786;
+  --color-neutral-600: #82796a;
+  --color-neutral-700: #645c50;
+  --color-neutral-800: #474238;
+  --color-neutral-900: #2e2b25;
+
+  --color-accent-100: #fff2eb;
+  --color-accent-200: #ffe1d0;
+  --color-accent-300: #ffc6a5;
+  --color-accent-400: #f6a06b;
+  --color-accent-500: #d67f48;
+  --color-accent-600: #b2622d;
+  --color-accent-700: #8c491a;
+  --color-accent-800: #643312;
+  --color-accent-900: #402310;
+
+  --color-accent-2-100: #f0fae1;
+  --color-accent-2-200: #e1eecc;
+  --color-accent-2-300: #ccdbb2;
+  --color-accent-2-400: #aebf92;
+  --color-accent-2-500: #8fa073;
+  --color-accent-2-600: #728157;
+  --color-accent-2-700: #56633f;
+  --color-accent-2-800: #3d472b;
+  --color-accent-2-900: #272e1b;
+
+  --font-heading: 'Caprasimo', system-ui, sans-serif;
+  --font-heading-weight: 400;
+  --font-body: 'Figtree', system-ui, sans-serif;
+
+  --space-1: 4.4px;
+  --space-2: 8.8px;
+  --space-3: 13.2px;
+  --space-4: 17.6px;
+  --space-6: 26.4px;
+  --space-8: 35.2px;
+
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 28px;
+
+  --shadow-sm: 0 1px 2px color-mix(in srgb, #2e2b25 14%, transparent);
+  --shadow-md: 0 3px 10px color-mix(in srgb, #2e2b25 16%, transparent);
+  --shadow-lg: 0 12px 32px color-mix(in srgb, #2e2b25 22%, transparent);
+}
+
+/* ─── DARK MODE ──────────────────────────────────────────────────────────────
+ *
+ * The site toggles `.dark` on <html> (see the inline script in Layout.astro), so
+ * this is a class-based override, not a prefers-color-scheme query — matching
+ * `@custom-variant dark` in global.css.
+ *
+ * Sources: --color-dark, --color-light, --color-button, --color-underline,
+ * --color-surface-dark and --color-hairline-dark are this site's own `@theme`
+ * tokens. The 100–900 ramps have no site equivalent, so accent steps are derived
+ * from #5dd39e (mint) and #348aa7 (teal), and the neutral ramp is the light one
+ * inverted — 100 becomes the darkest so that "neutral-900 = strongest text"
+ * still holds and every rule in this file keeps its intended contrast direction.
+ */
+.dark .organic {
+  --color-bg: #1e1e2e;
+  --color-surface: #3b3458;
+  --color-text: #fdebf3;
+  --color-accent: #5dd39e;
+  --color-accent-2: #348aa7;
+  --color-divider: #574f85;
+
+  /* Inverted: 100 darkest → 900 lightest, so "900" stays the emphatic end. */
+  --color-neutral-100: #1a1a28;
+  --color-neutral-200: #262436;
+  --color-neutral-300: #332f49;
+  --color-neutral-400: #453f63;
+  --color-neutral-500: #6b6490;
+  --color-neutral-600: #9d96bd;
+  --color-neutral-700: #c3bcdb;
+  --color-neutral-800: #e2dcef;
+  --color-neutral-900: #fdebf3;
+
+  /* Mint, the site's accent. Dark end low so tag fills sit under light text. */
+  --color-accent-100: #0d2b1f;
+  --color-accent-200: #12402d;
+  --color-accent-300: #1c5c42;
+  --color-accent-400: #2a7d5b;
+  --color-accent-500: #3ea076;
+  --color-accent-600: #5dd39e;
+  --color-accent-700: #7fdfb3;
+  --color-accent-800: #a6ebc9;
+  --color-accent-900: #cdf5e0;
+
+  /* Teal, the site's underline colour, as the secondary accent. */
+  --color-accent-2-100: #0a2530;
+  --color-accent-2-200: #0e3543;
+  --color-accent-2-300: #144a5e;
+  --color-accent-2-400: #1c657f;
+  --color-accent-2-500: #2a7f9c;
+  --color-accent-2-600: #348aa7;
+  --color-accent-2-700: #5aa9c2;
+  --color-accent-2-800: #8ac7d9;
+  --color-accent-2-900: #b9e0eb;
+
+  /* Flat shadows read as grime on a dark surface; a hairline reads as an edge. */
+  --shadow-sm: 0 0 0 1px #574f85;
+  --shadow-md: 0 0 0 1px #6b6490, 0 6px 18px rgb(0 0 0 / 0.45);
+  --shadow-lg: 0 0 0 1px #8079a8, 0 16px 40px rgb(0 0 0 / 0.55);
+}
+
+/* ─── RESETS ─────────────────────────────────────────────────────────────────
+ *
+ * Properties the organic system never declares, which therefore fall through to
+ * this site's `@layer base`. Each of these is a real defect, not a preference.
+ */
+.organic,
+.organic p,
+.organic li,
+.organic dd {
+  /*
+   * global.css sets `text-align: justify` on <body>. Justified text in narrow
+   * measures opens rivers of white space between words, which is a documented
+   * cognitive-accessibility problem — and this resume argues for accessible
+   * practice, so shipping it justified would undercut its own claim.
+   */
+  text-align: left;
+}
+
+.organic h1,
+.organic h2,
+.organic h3,
+.organic h4,
+.organic h5,
+.organic h6 {
+  /*
+   * global.css gives h2 and h3 a thick decorative underline. The organic system
+   * sets the font family for headings but never `text-decoration`, so the
+   * underline survives and lands under section titles that already carry a
+   * bullet marker.
+   */
+  text-decoration: none;
+  /* Base sets `margin-bottom` on headings; organic controls spacing per block. */
+  margin-bottom: 0;
+}
+
+/*
+ * The source design fixed the article at 816px because that is 8.5in × 96dpi —
+ * it was authored at US-Letter width for print. On the web that would be wider
+ * than the site's own `max-w-screen-md` body, so the document is fluid here and
+ * only the print routes pin themselves to Letter (see print.css).
+ */
+.organic {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* ─── DESIGN SYSTEM ──────────────────────────────────────────────────────── */
+
+.organic {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+}
+.organic h1,
+.organic h2,
+.organic h3,
+.organic h4 {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+}
+.organic .washed {
+  filter: saturate(0.6) contrast(0.85) brightness(1.1) opacity(0.94);
+}
+.organic *,
+.organic *::before,
+.organic *::after {
+  box-sizing: border-box;
+}
+.organic {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+  font-weight: 400;
+}
+.organic h1,
+.organic h2,
+.organic h3,
+.organic h4,
+.organic h5,
+.organic h6 {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+}
+.organic h1 {
+  font-size: 42px;
+}
+.organic h2 {
+  font-size: 32px;
+}
+.organic h3 {
+  font-size: 25px;
+}
+.organic h4 {
+  font-size: 20px;
+}
+.organic h5 {
+  font-size: 16px;
+}
+.organic h6 {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.organic p {
+  margin: 0 0 var(--space-3);
+}
+.organic a {
+  color: var(--color-accent);
+  text-underline-offset: 3px;
+}
+.organic img {
+  display: block;
+  max-width: 100%;
+}
+.organic figure {
+  margin: 0;
+}
+.organic figcaption {
+  font-size: 11px;
+  margin-top: var(--space-1);
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+.organic .text-muted {
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+.organic :focus {
+  outline: none;
+}
+.organic :focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+.organic ::selection {
+  background: color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+.organic .hr {
+  height: 1px;
+  border: 0;
+  margin: var(--space-4) 0;
+  background: var(--color-divider);
+}
+.organic .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 14px;
+  line-height: 1.2;
+  color: var(--color-text);
+  background: transparent;
+  border: 1px solid transparent;
+  padding: var(--space-2) calc(var(--space-3) * 1.2);
+  border-radius: var(--radius-md);
+}
+.organic .btn svg {
+  display: block;
+}
+.organic .btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.organic .btn-primary {
+  background: var(--color-accent);
+  color: var(--color-bg);
+}
+.organic .btn-primary:hover {
+  background: var(--color-accent-600);
+}
+.organic .btn-primary:active {
+  background: var(--color-accent-700);
+}
+.organic .btn-secondary {
+  border-color: var(--color-divider);
+}
+.organic .btn-secondary:hover {
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+}
+.organic .btn-secondary:active {
+  background: color-mix(in srgb, var(--color-text) 14%, transparent);
+}
+.organic .btn-ghost {
+  color: var(--color-accent);
+  padding-inline: var(--space-1);
+}
+.organic .btn-ghost:hover {
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+.organic .btn-ghost:active {
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+.organic .btn-icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+}
+.organic .btn-block {
+  width: 100%;
+  margin-top: var(--space-2);
+}
+.organic .field > label {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 5px;
+  color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
+.organic .input {
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--color-text);
+  caret-color: var(--color-accent);
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+}
+.organic .input:hover {
+  border-color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+.organic .input:focus-visible {
+  border-color: var(--color-accent);
+  outline-offset: 0;
+}
+.organic textarea.input {
+  min-height: 90px;
+  resize: vertical;
+}
+.organic .card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.organic .card-kicker {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+.organic .card-title {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 17px;
+  line-height: 1.2;
+}
+.organic .card-body {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.8;
+  flex: 1;
+}
+.organic .card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-text) 50%, transparent);
+}
+.organic .elev-sm {
+  box-shadow: var(--shadow-sm);
+}
+.organic .elev-md {
+  box-shadow: var(--shadow-md);
+}
+.organic .elev-lg {
+  box-shadow: var(--shadow-lg);
+}
+.organic .tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  padding: 3px 10px;
+  border-radius: calc(var(--radius-md) * 0.75);
+}
+.organic .tag-accent {
+  background: var(--color-accent-100);
+  color: var(--color-accent-800);
+}
+.organic .tag-accent-2 {
+  background: var(--color-accent-2-100);
+  color: var(--color-accent-2-800);
+}
+.organic .tag-neutral {
+  background: var(--color-neutral-100);
+  color: var(--color-neutral-800);
+}
+.organic .tag-outline {
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
+}
+.organic .table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.organic .table th {
+  text-align: left;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-divider);
+}
+.organic .table td {
+  padding: var(--space-2);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+.organic .table tbody tr:hover {
+  background: color-mix(in srgb, var(--color-text) 4%, transparent);
+}
+
+/* The system's own late overrides: pill geometry wins over the base radii. */
+.organic .card {
+  border-radius: calc(var(--radius-lg) * 1.15);
+}
+.organic .btn,
+.organic .tag,
+.organic .input {
+  border-radius: 999px;
+}
+.organic .input {
+  padding-inline: 14px;
+}
