@@ -191,6 +191,13 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           WORKER: ${{ steps.meta.outputs.worker }}
           DISCORD_ACCESS_WEBHOOK_URL: ${{ secrets.DISCORD_ACCESS_WEBHOOK_URL }}
+          # Fallback: the access webhook was only ever set as a Worker secret on
+          # production and staging, never as a repository secret, so previews had
+          # nothing to send to. The deploy webhook is already a repository secret
+          # and reaches the same person — wrong channel beats a dead flow on a
+          # throwaway environment. Set DISCORD_ACCESS_WEBHOOK_URL as a repo secret
+          # to route preview requests to the right channel instead.
+          DISCORD_DEPLOY_WEBHOOK_URL: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           set -euo pipefail
@@ -212,10 +219,14 @@ jobs:
           # Real credentials, so forwarded only if the repository has them — a
           # preview without them degrades to a working UI that reports the gap,
           # rather than failing the deploy.
-          if [ -n "${DISCORD_ACCESS_WEBHOOK_URL:-}" ]; then
-            put DISCORD_ACCESS_WEBHOOK_URL "$DISCORD_ACCESS_WEBHOOK_URL"
+          webhook="${DISCORD_ACCESS_WEBHOOK_URL:-${DISCORD_DEPLOY_WEBHOOK_URL:-}}"
+          if [ -n "$webhook" ]; then
+            put DISCORD_ACCESS_WEBHOOK_URL "$webhook"
+            if [ -z "${DISCORD_ACCESS_WEBHOOK_URL:-}" ]; then
+              echo "  … using the deploy webhook; requests land in the deploys channel"
+            fi
           else
-            echo "  ! DISCORD_ACCESS_WEBHOOK_URL unset — access requests will 503"
+            echo "  ! no Discord webhook available — access requests will 503"
           fi
 
           if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
