@@ -60,7 +60,10 @@ export default defineConfig({
           // Sections are enabled so the suite can reach them, but
           // PUBLIC_SHOW_UNPUBLISHED stays off deliberately: the suite asserts
           // production publication rules, and drafts must not be reachable.
+          // PUBLIC_SHOW_FIXTURES is required, not incidental: this build has no seal
+          // key, so sample-*.md is the only content that exists to assert on.
           'PUBLIC_SHOW_BLOG=true PUBLIC_SHOW_PROJECTS=true PUBLIC_SHOW_AIR=true ' +
+          'PUBLIC_SHOW_FIXTURES=true ' +
           'yarn astro build && ' +
           'npx wrangler dev -c dist/server/wrangler.json --port 4321 --local',
         url: baseURL,

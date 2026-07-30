@@ -85,6 +85,19 @@ jobs:
       - name: Setup Node & install
         uses: ./.github/actions/setup
 
+      # Without this the preview builds from only the sample fixtures, because
+      # real posts exist in the repo *only* as encrypted blobs — their plaintext
+      # lives in gitignored .local-* directories that never reach CI. The
+      # PUBLIC_SHOW_* flags below were doing their job; there was nothing behind
+      # them to reveal.
+      #
+      # --require-key because a preview whose whole purpose is reviewing
+      # unpublished work must fail loudly rather than quietly show placeholders.
+      - name: Unseal scheduled content
+        env:
+          CONTENT_SEAL_KEY: ${{ secrets.CONTENT_SEAL_KEY }}
+        run: node scripts/seal-content.mjs unseal-all --require-key
+
       # Never ship a preview that would not have passed CI.
       - name: Type-check
         run: yarn nx check web-astro
@@ -95,11 +108,22 @@ jobs:
       - name: Unit tests
         run: yarn nx test web-astro
 
+
       # Dev previews exist to review work in progress, so they reveal drafts
       # and scheduled posts. Production never sets this.
       - name: Build
         env:
           PUBLIC_SHOW_UNPUBLISHED: 'true'
+          # Add the `show-fixtures` label to a PR to include sample-*.md in its
+          # preview — useful when a branch's real content is too thin to judge a
+          # section's layout. A label is the toggle here because it is already a
+          # switch in the PR sidebar and re-running the workflow picks it up,
+          # with no committed change that could follow the branch to production.
+          #
+          # `contains` yields the strings 'true'/'false', which is exactly what
+          # the flag helper compares against.
+          PUBLIC_SHOW_FIXTURES:
+            ${{ contains(github.event.pull_request.labels.*.name, 'show-fixtures') }}
           PUBLIC_SHOW_AIR: 'true'
           PUBLIC_SHOW_BLOG: 'true'
           PUBLIC_SHOW_PROJECTS: 'true'

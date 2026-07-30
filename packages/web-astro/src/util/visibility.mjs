@@ -68,6 +68,32 @@ export function showProjects(env = {}) {
 }
 
 /**
+ * Whether sample/fixture content (`sample-*.md`) is loaded into the content
+ * collections.
+ *
+ * Fixtures are committed in plaintext because real posts exist in the repo only
+ * as encrypted blobs: a build with no seal key — a fork pull request, or the
+ * e2e suite asserting publication rules — would otherwise render nothing to
+ * assert on. That makes them the one kind of content that must never appear
+ * beside real work, so they load only where explicitly asked for.
+ *
+ * Note the absent DEV check, for the opposite reason to showHighlights: locally
+ * you have the key and the real content, so fixtures would be pure clutter.
+ * Useful in a preview when a branch's real content is thin and you want to see
+ * a section's layout with something in it — hence the opt-in label rather than
+ * a permanent setting.
+ *
+ * `DEV` is declared but unused so this accepts `import.meta.env` directly —
+ * TypeScript rejects a call whose argument type shares no property with the
+ * parameter type, and every other caller of these helpers passes that object.
+ *
+ * @param {{DEV?: boolean, PUBLIC_SHOW_FIXTURES?: string | boolean}} env
+ */
+export function showFixtures(env = {}) {
+  return flagEnabled(env.PUBLIC_SHOW_FIXTURES);
+}
+
+/**
  * Flags are opt-in and must be the exact string "true".
  *
  * Env vars arrive as strings, so a loose truthy check would treat "false"
