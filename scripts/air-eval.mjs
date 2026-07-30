@@ -78,14 +78,26 @@ const PRICING = {
 
 const CONTENT = join(process.cwd(), 'packages/web-astro/src/content');
 
-function loadCollection(name) {
+/**
+ * @param {string} name Collection directory under src/content.
+ * @param {'constraints' | 'content'} bodyAs How this collection's body should be
+ *   labelled for the prompt — see the note in ask.ts. Mirroring that mapping
+ *   matters: this harness previously dropped the body, so it graded a prompt the
+ *   site does not build, and a change to how bodies are used would have shown up
+ *   here as "no difference".
+ */
+function loadCollection(name, bodyAs) {
   const dir = join(CONTENT, name);
   const entries = readdirSync(dir)
     .filter((file) => file.endsWith('.md') && !file.startsWith('_'))
-    .map((file) => ({
-      id: file.replace(/\.md$/, ''),
-      data: parseFrontmatter(readFileSync(join(dir, file), 'utf8')).frontmatter,
-    }));
+    .map((file) => {
+      const parsed = parseFrontmatter(readFileSync(join(dir, file), 'utf8'));
+      return {
+        id: file.replace(/\.md$/, ''),
+        data: parsed.frontmatter,
+        [bodyAs]: parsed.body?.trim() || undefined,
+      };
+    });
 
   // Same rule as the site and the offline suite: fixtures are not served, so
   // spending model budget grading against them measures the wrong corpus.
@@ -93,7 +105,7 @@ function loadCollection(name) {
   return real.length > 0 ? real : entries;
 }
 
-const corpus = [...loadCollection('star'), ...loadCollection('projects')];
+const corpus = [...loadCollection('star', 'constraints'), ...loadCollection('projects', 'content')];
 
 const apiKey = process.env.ANTHROPIC_API_KEY;
 if (!apiKey) {
