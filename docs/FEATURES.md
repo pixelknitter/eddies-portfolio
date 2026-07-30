@@ -163,7 +163,7 @@ link is not enough: an unlisted page is still a public page if it responds,
 and `/works/` was serving the placeholder Project 1–4 fixtures to anyone with
 the URL.
 
-**Solution.** Four opt-in build-time flags, each requiring the exact string
+**Solution.** Opt-in build-time flags, each requiring the exact string
 `"true"` (env vars arrive as strings, so a loose check would treat `"false"`
 as enabled):
 
@@ -172,8 +172,16 @@ as enabled):
 | `PUBLIC_SHOW_BLOG` | `/blog/` and every post route |
 | `PUBLIC_SHOW_PROJECTS` | `/works/` and the prerendered `/projects/*` pages |
 | `PUBLIC_SHOW_AIR` | `/air/` |
+| `PUBLIC_SHOW_RESUME` | `/air/resume/`, `/air/resume/for-bots` and the download endpoints |
+| `PUBLIC_RESUME_PRINT` | the print-only render routes the PDF generator prints |
 | `PUBLIC_SHOW_HIGHLIGHTS` | the STAR spotlight on the home page |
 | `PUBLIC_SHOW_UNPUBLISHED` | drafts and not-yet-due posts within an enabled section |
+
+The resume is gated separately from A.I.R. on purpose: A.I.R. is held back in
+production because it is not ready to be found, while the resume exists to be
+found and carries a JSON-LD graph and a per-tier `robots.txt` to make sure it is.
+Sharing a flag would mean one could never ship without the other. See
+`docs/RESUME.md` for the download gate, the watermark and how to regenerate the PDFs.
 
 Each flag gates the **route**, not just the link. `/projects/*` is
 prerendered and so cannot 404 at request time — its gate emits no paths at

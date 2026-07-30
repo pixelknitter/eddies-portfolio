@@ -72,6 +72,11 @@ jobs:
       - name: Scan build output for secrets
         run: node scripts/check-bundle-secrets.mjs
 
+      # Cloudflare serves dist/client before the Worker, so a PDF in there would be
+      # fetchable without a token and the download gate would be decoration.
+      - name: Check no gated files are publicly servable
+        run: node scripts/check-gated-assets.mjs
+
       - name: Generate staging Wrangler config
         env:
           SESSION_KV_ID: ${{ vars.CF_SESSION_KV_ID }}
@@ -167,6 +172,11 @@ jobs:
 
       - name: Scan build output for secrets
         run: node scripts/check-bundle-secrets.mjs
+
+      # Cloudflare serves dist/client before the Worker, so a PDF in there would be
+      # fetchable without a token and the download gate would be decoration.
+      - name: Check no gated files are publicly servable
+        run: node scripts/check-gated-assets.mjs
 
       # Uses the committed wrangler.jsonc as-is, which declares the production
       # custom domain — no variant generation here.
