@@ -12,7 +12,7 @@
         "{projectRoot}/dist"
       ],
       "options": {
-        "command": "astro build",
+        "command": "env -u ANTHROPIC_API_KEY -u AIR_SIGNING_SECRET -u AIR_ACCESS_CODE -u CONTENT_SEAL_KEY -u DISCORD_WEBHOOK_URL astro build",
         "cwd": "packages/web-astro"
       },
       "inputs": [
@@ -35,6 +35,12 @@
         },
         {
           "env": "PUBLIC_SHOW_HIGHLIGHTS"
+        },
+        {
+          "env": "PUBLIC_SHOW_FIXTURES"
+        },
+        {
+          "env": "PUBLIC_RESUME_PRINT"
         }
       ]
     },
