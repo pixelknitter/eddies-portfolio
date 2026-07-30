@@ -121,12 +121,32 @@ jobs:
       - name: Run E2E suite
         run: yarn nx e2e web-astro-e2e
 
+      # wrangler writes its own log and prints the path on the way down. When it
+      # exits mid-run the console line is an empty `✘ [ERROR]` and this file
+      # holds the actual error — but it lives on the runner and dies with it.
+      # Collected into the report so it is uploaded with everything else.
+      - name: Collect wrangler logs
+        if: failure()
+        run: |
+          mkdir -p dist/playwright-report/wrangler-logs
+          cp -R ~/.config/.wrangler/logs/. dist/playwright-report/wrangler-logs/ \
+            || echo 'no wrangler logs to collect'
+
       - name: Upload report on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: packages/web-astro-e2e/playwright-report/
+          # Where the suite actually writes: playwright.config.ts sets
+          # outputFolder to ../../dist/playwright-report, which resolves from
+          # packages/web-astro-e2e to the repo root. This said
+          # packages/web-astro-e2e/playwright-report/ — a directory nothing
+          # creates — so every trace the suite ever captured was discarded.
+          path: dist/playwright-report/
+          # An upload matching nothing is exactly how that went unnoticed, and
+          # `trace: on-first-retry` means real traces are being captured. Fail
+          # loudly rather than pass having uploaded an empty artifact.
+          if-no-files-found: error
           retention-days: 7
 
       - name: Notify alerts channel (failure)
