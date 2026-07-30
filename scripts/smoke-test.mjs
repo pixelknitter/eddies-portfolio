@@ -53,10 +53,10 @@ const gatedRoutes = [
   // are now `sample-*`, which loads only behind PUBLIC_SHOW_FIXTURES. A fixed
   // URL here asserted a route the site had deliberately stopped serving. The
   // detail page is reached by following the index instead, below.
-  // A.I.R. is live in production, gated by an access code rather than by the
-  // flag — so unlike the others its route must answer in strict mode. The API
-  // behind it is what enforces access; the page itself is public.
-  { path: '/air/', liveInProduction: true },
+  // A.I.R. is flag-gated like the rest. It was exempt while production built
+  // with PUBLIC_SHOW_AIR=true and leaned on the access code alone — but the
+  // page and its nav link were still reachable by anyone.
+  { path: '/air/' },
 ];
 
 /** Routes asserted on every deploy. `contains` is checked case-sensitively. */
@@ -64,10 +64,8 @@ const checks = [
   { path: '/', status: 200, contains: 'Engineering by Eddie' },
   // Unknown routes must 404 rather than render a page or error.
   { path: '/this-route-should-not-exist', status: 404 },
-  ...gatedRoutes.map(({ path, contains, liveInProduction }) =>
-    strictFlags && !liveInProduction
-      ? { path, status: 404 }
-      : { path, status: 200, contains }
+  ...gatedRoutes.map(({ path, contains }) =>
+    strictFlags ? { path, status: 404 } : { path, status: 200, contains }
   ),
 ];
 
@@ -78,6 +76,9 @@ const checks = [
 const flaggedSections = [
   { name: 'blog', href: '/blog/' },
   { name: 'works', href: '/works/' },
+  // The nav link, not just the route: a 404 at /air/ with a link still pointing
+  // at it is how an unfinished section gets found.
+  { name: 'air', href: '/air/' },
 ];
 
 function headers() {
