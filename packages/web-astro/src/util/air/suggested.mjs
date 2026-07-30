@@ -39,26 +39,25 @@ export const SUGGESTED = [
 ];
 
 /**
- * The suggestions as a sentence, for a decline message.
+ * The suggestions quoted, joined for a decline message.
  *
- * Built from the same array the buttons use so the two can never disagree
- * again — the loop above existed only because this text was hand-written.
+ * Built from the same array the buttons use so the two can never disagree again
+ * — the loop above existed only because this text was hand-written.
+ *
+ * Questions are quoted verbatim rather than folded into the sentence. Lowercasing
+ * the lead-in produced "Try asking about how does Eddie approach a system nobody
+ * wants to own", because a question keeps its inverted word order and will not sit
+ * inside a prepositional phrase. Quoting it sidesteps the grammar entirely and
+ * has the side benefit that the visitor sees the exact wording that works.
  *
  * @param {number} [limit] How many to name.
  * @returns {string}
  */
 export function suggestionSentence(limit = 2) {
-  const questions = SUGGESTED.slice(0, limit).map((item) =>
-    // Lowercase the lead-in and drop the question mark so each reads as a
-    // clause inside the surrounding sentence rather than a quoted question.
-    item.question
-      .replace(/\?$/, '')
-      .replace(/^How /, 'how ')
-      .replace(/^What /, 'what '),
-  );
+  const questions = SUGGESTED.slice(0, limit).map((item) => `“${item.question}”`);
 
   if (questions.length === 0) return '';
   if (questions.length === 1) return questions[0];
 
-  return `${questions.slice(0, -1).join(', ')}, or ${questions[questions.length - 1]}`;
+  return `${questions.slice(0, -1).join(', ')} or ${questions[questions.length - 1]}`;
 }

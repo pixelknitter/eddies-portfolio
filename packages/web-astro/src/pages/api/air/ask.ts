@@ -121,7 +121,9 @@ export async function POST(context: APIContext): Promise<Response> {
       // corpus could not answer either — a decline that suggested itself.
       answer:
         "That isn't something Eddie's written work covers, so there's nothing here I'd stand behind" +
-        ` as an answer. Try asking about ${suggestionSentence()}.`,
+        // No closing full stop: the sentence ends on a quoted question, and
+        // "…MVP?”." puts two terminators side by side.
+        ` as an answer. You could try ${suggestionSentence()}`,
       citations: [],
     });
   }

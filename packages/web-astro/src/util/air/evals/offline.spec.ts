@@ -252,13 +252,12 @@ describe('suggested questions', () => {
 
   it('the decline message only names questions that work', () => {
     // The sentence is built from SUGGESTED, so this holds by construction — the
-    // test guards the construction, not the copy.
+    // test guards the construction, not the copy. Quoted verbatim, because
+    // lowercasing a question to fit "try asking about …" produced "how does
+    // Eddie approach…", which keeps the inverted word order of a question.
     const sentence = suggestionSentence();
     for (const item of SUGGESTED.slice(0, 2)) {
-      const clause = item.question
-        .replace(/\?$/, '')
-        .replace(/^(How|What) /, (m) => m.toLowerCase());
-      expect(sentence).toContain(clause);
+      expect(sentence).toContain(item.question);
     }
   });
 });
