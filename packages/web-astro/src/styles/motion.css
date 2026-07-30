@@ -13,3 +13,20 @@
     --animate-transform: none;
   }
 }
+
+/*
+ * Dialog entrance. Named so `animate-[fade-in_150ms_ease-out]` resolves — an
+ * undefined keyframe fails silently, which reads as "the animation is subtle"
+ * rather than "the animation does not exist".
+ *
+ * Applied through Tailwind's `motion-safe:` variant, so reduced-motion users
+ * get the dialog with no movement at all.
+ */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

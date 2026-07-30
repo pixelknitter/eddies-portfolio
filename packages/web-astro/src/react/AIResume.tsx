@@ -1,5 +1,7 @@
 import React from 'react';
 
+import Modal from './Modal';
+
 /**
  * A.I.R. — the interactive resume.
  *
@@ -51,6 +53,13 @@ export function AIResume() {
   React.useEffect(() => {
     if (requesting) requestEmailRef.current?.focus();
   }, [requesting]);
+
+  // Dismissing clears the outcome as well as closing: reopening the dialog with
+  // last attempt's error still under the button reads as a fresh failure.
+  const closeRequest = React.useCallback(() => {
+    setRequesting(false);
+    setRequestState({ status: 'idle' });
+  }, []);
 
   async function submitRequest(event: React.FormEvent) {
     event.preventDefault();
@@ -174,13 +183,8 @@ export function AIResume() {
         </div>
       </div>
 
-      {requesting && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="air-request-title"
-          className="surface p-4 sm:p-6 mt-6"
-        >
+      <Modal open={requesting} onClose={closeRequest} titleId="air-request-title">
+        <div>
           <h2 id="air-request-title" className="font-body text-xl mb-2 no-underline decoration-0">
             Ask for access
           </h2>
@@ -221,13 +225,13 @@ export function AIResume() {
               <button
                 type="submit"
                 disabled={requestState.status === 'sending'}
-                className="btn px-4 py-2 rounded-lg border border-hairline dark:border-hairline-dark hover:border-underline dark:hover:border-link transition-colors disabled:opacity-50"
+                className="btn px-4 py-2 rounded-lg border border-hairline dark:border-hairline-dark hover:border-underline dark:hover:border-link transition-colors disabled:opacity-50 min-w-36 text-center"
               >
                 {requestState.status === 'sending' ? 'Sending…' : 'Send request'}
               </button>
               <button
                 type="button"
-                onClick={() => setRequesting(false)}
+                onClick={closeRequest}
                 className="font-body text-sm underline decoration-underline dark:decoration-link underline-offset-4"
               >
                 Cancel
@@ -235,16 +239,20 @@ export function AIResume() {
             </div>
           </form>
 
-          <div aria-live="polite">
-            {requestState.status === 'sent' && (
-              <p className="font-body mt-4">{requestState.message}</p>
-            )}
-            {requestState.status === 'failed' && (
-              <p className="font-body mt-4">{requestState.message}</p>
+          {/* Height reserved, so a message arriving does not shove the buttons
+              up. The 503 from an unconfigured environment returns in well under
+              a second, and the shift as "Sending…" swapped back while this
+              paragraph mounted was the flicker. */}
+          <div aria-live="polite" className="min-h-6 mt-4">
+            {/* Tested positively rather than by excluding the other two states:
+                the idle member's `status` is itself a union, which TypeScript
+                will not narrow away through a pair of !== checks. */}
+            {(requestState.status === 'sent' || requestState.status === 'failed') && (
+              <p className="font-body">{requestState.message}</p>
             )}
           </div>
         </div>
-      )}
+      </Modal>
 
       {/* aria-live so an arriving answer is announced, not just painted. */}
       <div aria-live="polite" aria-busy={pending}>

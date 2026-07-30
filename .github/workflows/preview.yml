@@ -175,6 +175,57 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy -c packages/web-astro/dist/server/wrangler.dev.json
 
+      # A preview Worker starts with no secrets. `wrangler secret put` is
+      # per-Worker and every PR creates a new one, so A.I.R. answered "available
+      # by invitation" and access requests returned 503 on every preview ever
+      # deployed. Nothing was misconfigured — there was nothing configured.
+      #
+      # The code and signing secret are generated per deploy rather than read
+      # from repository secrets: a throwaway environment should never hold the
+      # credential that opens production. The code is surfaced on the PR so it
+      # can actually be used.
+      - name: Seed preview secrets
+        id: secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WORKER: ${{ steps.meta.outputs.worker }}
+          DISCORD_ACCESS_WEBHOOK_URL: ${{ secrets.DISCORD_ACCESS_WEBHOOK_URL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          # Typable rather than hex: this gets read off a PR comment and entered
+          # by hand, sometimes on a phone.
+          code="preview-$(openssl rand -hex 4)"
+          signing="$(openssl rand -hex 32)"
+          echo "::add-mask::$signing"
+
+          put() {
+            printf '%s' "$2" | npx wrangler secret put "$1" --name "$WORKER" >/dev/null
+            echo "  set $1"
+          }
+
+          put AIR_ACCESS_CODE "$code"
+          put AIR_SIGNING_SECRET "$signing"
+
+          # Real credentials, so forwarded only if the repository has them — a
+          # preview without them degrades to a working UI that reports the gap,
+          # rather than failing the deploy.
+          if [ -n "${DISCORD_ACCESS_WEBHOOK_URL:-}" ]; then
+            put DISCORD_ACCESS_WEBHOOK_URL "$DISCORD_ACCESS_WEBHOOK_URL"
+          else
+            echo "  ! DISCORD_ACCESS_WEBHOOK_URL unset — access requests will 503"
+          fi
+
+          if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+            put ANTHROPIC_API_KEY "$ANTHROPIC_API_KEY"
+          else
+            echo "  ! ANTHROPIC_API_KEY unset — asking will fail"
+          fi
+
+          echo "code=${code}" >> "$GITHUB_OUTPUT"
+
       - name: Resolve preview URL
         id: preview
         env:
@@ -190,9 +241,12 @@ jobs:
         run: ./scripts/wait-for-http.sh "$PREVIEW_URL"
 
       # Validate the deployment actually serves before calling it a success.
-      # Previews are gated by Cloudflare Access: without a service token the
-      # script reports that and skips rather than silently passing against the
-      # Access login page.
+      #
+      # The service token is here for when an Access policy covers the preview
+      # hostname; the script reports and skips rather than silently passing
+      # against an Access login page. As of 2026-07-29 no policy covers
+      # *-dev.eddie.engineering — a credential-less request returns 200 — so
+      # previews are public. See docs/DEPLOYMENT.md.
       - name: Smoke test the deployment
         env:
           PREVIEW_URL: ${{ steps.preview.outputs.url }}
@@ -209,14 +263,23 @@ jobs:
         uses: actions/github-script@v7
         env:
           PREVIEW_URL: ${{ steps.preview.outputs.url }}
+          AIR_CODE: ${{ steps.secrets.outputs.code }}
         with:
           script: |
             const url = process.env.PREVIEW_URL;
+            const airCode = process.env.AIR_CODE;
             const marker = '<!-- preview-deploy -->';
+            // The code is regenerated on every deploy, so the comment is the
+            // only place it exists — state that, or the next push looks broken.
+            const air = airCode
+              ? `**A.I.R. code:** \`${airCode}\` — regenerated on each deploy, `
+                + `valid only for this preview.\n\n`
+              : '';
             const body = `${marker}\n### 🔎 Preview deployment\n\n`
               + `**URL:** ${url}\n\n`
+              + air
               + `Smoke tests passed against this deployment. `
-              + `_Private — access is gated by Cloudflare Access. `
+              + `_This hostname is publicly reachable — treat anything here as public. `
               + `Commit \`${context.sha.substring(0,7)}\`._`;
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
