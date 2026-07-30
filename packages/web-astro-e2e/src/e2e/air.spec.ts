@@ -91,7 +91,12 @@ test.describe('A.I.R. access request', () => {
     await page.goto(AIR);
     await page.getByRole('button', { name: /ask eddie for access/i }).click();
 
-    await page.getByRole('button', { name: 'Close' }).click({ force: true });
+    // Click near the corner, not the centre. The backdrop spans the viewport but
+    // the panel sits on top of its midpoint, so a plain click — even a forced
+    // one — dispatches into the panel and closes nothing. The corner is backdrop
+    // in both layouts (centred on desktop, bottom-anchored on mobile), so this
+    // exercises real hit-testing rather than bypassing it.
+    await page.getByRole('button', { name: 'Close' }).click({ position: { x: 4, y: 4 } });
     await expect(page.locator(dialog)).toHaveCount(0);
   });
 
