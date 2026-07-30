@@ -37,7 +37,10 @@ done <<< "$staged"
 # content actually differs are re-encrypted, and the refreshed blob joins this
 # commit so the vault can never drift behind the working copy.
 if [ -z "$violations" ] && [ -n "${CONTENT_SEAL_KEY:-}" ]; then
-  if node scripts/seal-content.mjs reseal-if-changed 2>/dev/null | grep -q resealed; then
+  # `seal` with no path covers both cases: a new working copy with no blob,
+  # and one that has drifted from its blob. `reseal-if-changed` only saw the
+  # second, so a brand-new draft committed silently unsealed.
+  if node scripts/seal-content.mjs seal 2>/dev/null | grep -qE 'sealed|resealed'; then
     git add packages/web-astro/content-vault
     echo "→ vault resealed and added to this commit"
   fi

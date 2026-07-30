@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { showUnpublished, showAIR, showHighlights } from './visibility.mjs';
+import { showUnpublished, showAIR, showHighlights, showFixtures } from './visibility.mjs';
 
 describe('showUnpublished', () => {
   it('is true in local dev', () => {
@@ -49,5 +49,22 @@ describe('showHighlights', () => {
   // because the stories are not written yet, which is true everywhere.
   it('is not implied by dev mode', () => {
     expect(showHighlights({ DEV: true })).toBe(false);
+  });
+});
+
+describe('showFixtures', () => {
+  it('is off unless explicitly enabled', () => {
+    expect(showFixtures({})).toBe(false);
+    expect(showFixtures({ PUBLIC_SHOW_FIXTURES: 'false' })).toBe(false);
+  });
+
+  it('is on for the exact string "true"', () => {
+    expect(showFixtures({ PUBLIC_SHOW_FIXTURES: 'true' })).toBe(true);
+  });
+
+  // Unlike showUnpublished, dev does not imply on: locally the seal key is
+  // present, so real content is available and fixtures would only be clutter.
+  it('is not implied by local dev', () => {
+    expect(showFixtures({ DEV: true })).toBe(false);
   });
 });

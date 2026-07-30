@@ -15,7 +15,8 @@
     "posts:queue": "node scripts/posts-queue.mjs",
     "posts:next": "node scripts/posts-queue.mjs --next",
     "hooks:install": "node scripts/setup-git-hooks.mjs",
-    "prepare": "node scripts/setup-git-hooks.mjs"
+    "prepare": "node scripts/setup-git-hooks.mjs",
+    "content:seal": "node scripts/content-seal.mjs"
   },
   "private": true,
   "devDependencies": {

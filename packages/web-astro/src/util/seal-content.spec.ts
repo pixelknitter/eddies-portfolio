@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import { writeFileSync, readFileSync, existsSync, rmSync, readdirSync, mkdirSync, mkdtempSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, dirname, basename } from 'node:path';
 import { tmpdir } from 'node:os';
 
 /**
@@ -15,7 +15,10 @@ import { tmpdir } from 'node:os';
 
 const REPO_ROOT = join(process.cwd(), '..', '..');
 const SCRIPT = join(REPO_ROOT, 'scripts/seal-content.mjs');
-const VAULT = join(REPO_ROOT, 'packages/web-astro/content-vault');
+// A temp vault, never the real one. This previously pointed at
+// packages/web-astro/content-vault and was rmSync'd in beforeEach, so running
+// the tests deleted every sealed file in the repository.
+const VAULT = mkdtempSync(join(tmpdir(), 'seal-vault-'));
 // Fixtures live outside the content root. `seal` takes an explicit path and
 // does not care where the file is, so there is no reason to put test files
 // where Astro's recursive glob will treat them as real content — and where the
@@ -27,10 +30,24 @@ const KEY = 'a memorable passphrase for tests';
 
 function run(args: string[], env: Record<string, string> = {}) {
   return execFileSync('node', [SCRIPT, ...args], {
-    env: { ...process.env, ...env },
+    // Point the script at the temp vault for every invocation.
+    env: { ...process.env, CONTENT_VAULT_DIR: VAULT, ...env },
     encoding: 'utf8',
     cwd: REPO_ROOT,
   });
+}
+
+/**
+ * A key-less environment that still points at the temp vault. Dropping
+ * CONTENT_SEAL_KEY by filtering process.env used to drop the vault override
+ * too, so the script fell back to the real vault and reported its contents.
+ */
+function keylessEnv(): NodeJS.ProcessEnv {
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([k]) => k !== 'CONTENT_SEAL_KEY')
+  ) as NodeJS.ProcessEnv;
+  env.CONTENT_VAULT_DIR = VAULT;
+  return env;
 }
 
 const tmpFiles: string[] = [];
@@ -82,7 +99,13 @@ describe('seal-content', () => {
     const path = fixture('round-trip.md', original);
     run(['seal', `${CONTENT_REL}/round-trip.md`], { CONTENT_SEAL_KEY: KEY });
 
-    expect(existsSync(path)).toBe(false); // sealing removes the plaintext
+    // Sealing clears the collection path — that is build output, and leaving
+    // it there is what `audit` flags as committed plaintext — while leaving an
+    // editable working copy in the gitignored .local- directory.
+    expect(existsSync(path)).toBe(false);
+    const working = join(dirname(path), `.local-${basename(dirname(path))}`, 'round-trip.md');
+    expect(readFileSync(working, 'utf8')).toBe(original);
+
     run(['unseal-all'], { CONTENT_SEAL_KEY: KEY });
     expect(readFileSync(path, 'utf8')).toBe(original);
   });
@@ -156,9 +179,7 @@ describe('seal-content', () => {
   // whether a sealed file's plaintext leaked; `audit` asks the inverse — is
   // anything unpublished sitting in the repo unsealed at all.
   describe('audit', () => {
-    const bare = Object.fromEntries(
-      Object.entries(process.env).filter(([k]) => k !== 'CONTENT_SEAL_KEY')
-    ) as NodeJS.ProcessEnv;
+    const bare = keylessEnv();
 
     // Runs with no key at all — that is what lets it enforce on fork pull
     // requests, where `check` can only report.
@@ -182,6 +203,66 @@ describe('seal-content', () => {
     });
   });
 
+  /**
+   * Rotating the passphrase changes every blob *name*, because the name is
+   * HMAC(key, path). The old blobs stay behind undecryptable while the
+   * re-sealed ones appear alongside — a rotation silently doubles the vault.
+   * This is the real scenario: it took the repo vault from 12 blobs to 25.
+   */
+  describe('prune', () => {
+    const ROTATED = 'the passphrase after rotating';
+
+    function sealThenRotate() {
+      const path = fixture('rotated.md', 'body\n');
+      run(['seal', `${CONTENT_REL}/rotated.md`], { CONTENT_SEAL_KEY: KEY });
+      const beforeRotation = readdirSync(VAULT).filter((f) => f.endsWith('.sealed'));
+
+      // Re-seal the same file under the new passphrase: same salt, different
+      // derived key, therefore a different blob name.
+      run(['seal', `${CONTENT_REL}/rotated.md`], { CONTENT_SEAL_KEY: ROTATED });
+      const afterRotation = readdirSync(VAULT).filter((f) => f.endsWith('.sealed'));
+
+      return { path, beforeRotation, afterRotation };
+    }
+
+    it('a rotation leaves the old blob behind — the problem prune exists for', () => {
+      const { beforeRotation, afterRotation } = sealThenRotate();
+      expect(beforeRotation).toHaveLength(1);
+      expect(afterRotation).toHaveLength(2);
+    });
+
+    it('removes only the blob orphaned by the rotation', () => {
+      sealThenRotate();
+
+      const output = run(['prune'], { CONTENT_SEAL_KEY: ROTATED });
+      expect(output).toContain('1 current blob(s), 1 orphaned');
+
+      const remaining = readdirSync(VAULT).filter((f) => f.endsWith('.sealed'));
+      expect(remaining).toHaveLength(1);
+
+      // The survivor must still open under the current key.
+      const status = run(['status'], { CONTENT_SEAL_KEY: ROTATED });
+      expect(status).toContain('rotated.md');
+    });
+
+    it('--dry-run reports without removing anything', () => {
+      sealThenRotate();
+
+      const output = run(['prune', '--dry-run'], { CONTENT_SEAL_KEY: ROTATED });
+      expect(output).toContain('Dry run — nothing removed');
+      expect(readdirSync(VAULT).filter((f) => f.endsWith('.sealed'))).toHaveLength(2);
+    });
+
+    it('leaves a healthy vault untouched', () => {
+      fixture('healthy.md', 'body\n');
+      run(['seal', `${CONTENT_REL}/healthy.md`], { CONTENT_SEAL_KEY: KEY });
+
+      const output = run(['prune'], { CONTENT_SEAL_KEY: KEY });
+      expect(output).toContain('1 current blob(s), 0 orphaned');
+      expect(readdirSync(VAULT).filter((f) => f.endsWith('.sealed'))).toHaveLength(1);
+    });
+  });
+
   it('status without a key reports the count but not the names', () => {
     fixture('secret-topic.md', 'a\n');
     run(['seal', `${CONTENT_REL}/secret-topic.md`], { CONTENT_SEAL_KEY: KEY });
@@ -189,7 +270,7 @@ describe('seal-content', () => {
     const output = execFileSync('node', [SCRIPT, 'status'], {
       encoding: 'utf8',
       cwd: REPO_ROOT,
-      env: Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'CONTENT_SEAL_KEY')) as NodeJS.ProcessEnv,
+      env: { ...keylessEnv() } as NodeJS.ProcessEnv,
     });
     expect(output).toContain('1 sealed file(s)');
     expect(output).not.toContain('secret-topic');
@@ -199,9 +280,7 @@ describe('seal-content', () => {
     fixture('fork.md', 'a\n');
     run(['seal', `${CONTENT_REL}/fork.md`], { CONTENT_SEAL_KEY: KEY });
 
-    const bare = Object.fromEntries(
-      Object.entries(process.env).filter(([k]) => k !== 'CONTENT_SEAL_KEY')
-    ) as NodeJS.ProcessEnv;
+    const bare = keylessEnv();
 
     // The contract is the exit code — a fork build must survive. The warning
     // goes to stderr, which execFileSync does not return.

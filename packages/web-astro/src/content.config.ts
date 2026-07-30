@@ -1,5 +1,24 @@
 import { z, defineCollection, reference } from 'astro:content';
 import { glob } from 'astro/loaders';
+import { showFixtures } from './util/visibility.mjs';
+
+/**
+ * Fixture content (`sample-*.md`) is opt-in — see showFixtures for why it
+ * exists at all and why it defaults off.
+ *
+ * Read through the same helper as every other flag so "true" is the only
+ * enabling value here too: a loose check would make PUBLIC_SHOW_FIXTURES=false
+ * load them.
+ */
+const SHOW_FIXTURES = showFixtures(import.meta.env);
+
+/**
+ * `[!_]` skips `_template.md` — Astro's glob loader does not treat a leading
+ * underscore as private, unlike the pages directory.
+ */
+const CONTENT_GLOB = SHOW_FIXTURES
+  ? '**/[!_]*.md'
+  : ['**/[!_]*.md', '!**/sample-*.md'];
 
 const ProjectSchema = z.object({
   title: z.string(),
@@ -23,7 +42,7 @@ const ProjectSchema = z.object({
 });
 
 const projects = defineCollection({
-  loader: glob({ pattern: '**/*.md', base: './src/content/projects' }),
+  loader: glob({ pattern: CONTENT_GLOB, base: './src/content/projects' }),
   schema: ProjectSchema,
 });
 
@@ -47,7 +66,7 @@ const BlogSchema = z.object({
 });
 
 const blog = defineCollection({
-  loader: glob({ pattern: '**/*.md', base: './src/content/blog' }),
+  loader: glob({ pattern: CONTENT_GLOB, base: './src/content/blog' }),
   schema: BlogSchema,
 });
 
@@ -67,7 +86,7 @@ const star = defineCollection({
   // `[!_]` keeps `_template.md` out of the collection. The glob loader does
   // not skip underscore-prefixed files, so without this the spotlight can
   // rotate onto the template and render its placeholder copy as a highlight.
-  loader: glob({ pattern: '**/[!_]*.md', base: './src/content/star' }),
+  loader: glob({ pattern: CONTENT_GLOB, base: './src/content/star' }),
   schema: z.object({
     title: z.string(),
     situation: z.string(),

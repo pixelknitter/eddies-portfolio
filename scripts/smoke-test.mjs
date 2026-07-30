@@ -49,7 +49,10 @@ const RETRIES = 3;
 const gatedRoutes = [
   { path: '/blog/', contains: 'Blog' },
   { path: '/works/', contains: 'Projects' },
-  { path: '/projects/project-1/' },
+  // No hardcoded project slug: the four `project-N` pages were placeholders and
+  // are now `sample-*`, which loads only behind PUBLIC_SHOW_FIXTURES. A fixed
+  // URL here asserted a route the site had deliberately stopped serving. The
+  // detail page is reached by following the index instead, below.
   // A.I.R. is live in production, gated by an access code rather than by the
   // flag — so unlike the others its route must answer in strict mode. The API
   // behind it is what enforces access; the page itself is public.
@@ -227,6 +230,32 @@ async function main() {
     } catch (error) {
       failures.push(`blog index — ${error.message}`);
       console.log(`✖ blog index — ${error.message}`);
+    }
+
+    // Same reasoning for projects, and the same tolerance for an empty index:
+    // every project is currently a fixture, so the collection is legitimately
+    // empty. Skipping is correct; a hard 200 was what broke this deploy.
+    try {
+      const index = await fetchWithRetry(`${baseUrl}/works/`);
+      const slug = /href="\/projects\/([^"/]+)\/?"/.exec(index.body)?.[1];
+
+      if (!slug) {
+        console.log('… no projects listed; skipping the project-page check.');
+      } else {
+        extra += 1;
+        const project = await fetchWithRetry(`${baseUrl}/projects/${slug}/`);
+        if (project.response.status === 200) {
+          console.log(`✓ /projects/${slug}/ — 200 (first listed project)`);
+        } else {
+          failures.push(`/projects/${slug}/ — expected HTTP 200, got ${project.response.status}`);
+          console.log(
+            `✖ /projects/${slug}/ — expected HTTP 200, got ${project.response.status}`
+          );
+        }
+      }
+    } catch (error) {
+      failures.push(`works index — ${error.message}`);
+      console.log(`✖ works index — ${error.message}`);
     }
   }
 

@@ -36,6 +36,7 @@
  *
  * Usage:
  *   node scripts/seal-content.mjs keygen
+ *   CONTENT_SEAL_KEY=… node scripts/seal-content.mjs seal          # everything pending
  *   CONTENT_SEAL_KEY=… node scripts/seal-content.mjs seal <path>
  *   CONTENT_SEAL_KEY=… node scripts/seal-content.mjs unseal-all [--require-key]
  *   CONTENT_SEAL_KEY=… node scripts/seal-content.mjs status
@@ -45,12 +46,20 @@
 
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, scryptSync } from 'node:crypto';
 import { parseFrontmatter } from '../packages/obsidian-publish-core/src/index.mjs';
-import { readFileSync, writeFileSync, unlinkSync, existsSync, readdirSync, mkdirSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { readFileSync, writeFileSync, unlinkSync, existsSync, readdirSync, mkdirSync, statSync } from 'node:fs';
+import { join, relative, dirname, basename } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 const CONTENT_ROOT = 'packages/web-astro/src/content';
-const VAULT = 'packages/web-astro/content-vault';
+/**
+ * Overridable so tests never touch the real vault.
+ *
+ * They did. `seal-content.spec.ts` ran `rmSync` on this path in `beforeEach`,
+ * so every `nx test` deleted the production vault — which is what kept
+ * destroying sealed content, far more reliably than any manual mistake.
+ * A hardcoded path a test can delete is a hazard, not a constant.
+ */
+const VAULT = process.env.CONTENT_VAULT_DIR ?? 'packages/web-astro/content-vault';
 const MANIFEST = join(VAULT, 'manifest.json');
 const FORMAT_VERSION = 2;
 const SCRYPT = { N: 32768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
@@ -131,6 +140,32 @@ function key(create = false) {
   return cachedKey;
 }
 
+/**
+ * Where the editable copy of a sealed file lives.
+ *
+ * `src/content/blog/post.md` → `src/content/blog/.local-blog/post.md`
+ *
+ * A dot-directory, because that makes it invisible to both things that would
+ * otherwise cause trouble: Astro's content glob does not match dotfiles, so
+ * these never load as real entries (verified), and one `.local-*​/` gitignore
+ * rule covers them without naming a single file — which an explicit ignore
+ * list would have to do, leaking exactly what opaque blob names hide.
+ *
+ * The blob always stores the real collection path, so a build-time unseal
+ * writes where Astro expects and nothing downstream knows this layout exists.
+ */
+export function localPathFor(realPath) {
+  const dir = dirname(realPath);
+  return join(dir, `.local-${basename(dir)}`, basename(realPath));
+}
+
+/** Accept either form; the blob is always keyed on the real path. */
+function realPathFor(path) {
+  const dir = dirname(path);
+  if (!basename(dir).startsWith('.local-')) return path;
+  return join(dirname(dir), basename(path));
+}
+
 /** Deterministic, unguessable blob name for a content path. */
 const blobName = (path) => `${createHmac('sha256', key()).update(path).digest('hex').slice(0, 32)}.sealed`;
 const blobPath = (path) => join(VAULT, blobName(path));
@@ -169,6 +204,16 @@ function openBlob(file) {
 const blobs = () =>
   existsSync(VAULT) ? readdirSync(VAULT).filter((file) => file.endsWith('.sealed')) : [];
 
+/** Recursive file walk, used by `seal` and `audit`. */
+function* walk(dir) {
+  if (!existsSync(dir)) return;
+  for (const entry of readdirSync(dir)) {
+    const path = join(dir, entry);
+    if (statSync(path).isDirectory()) yield* walk(path);
+    else yield path;
+  }
+}
+
 function isTracked(path) {
   try {
     execFileSync('git', ['ls-files', '--error-unmatch', path], { stdio: 'ignore' });
@@ -187,12 +232,80 @@ try {
       console.log('Losing it means losing every sealed file.');
       break;
 
+    /**
+     * With no path, seal everything that needs it.
+     *
+     * The working copies in `.local-*​/` are the source of truth, so "what needs
+     * sealing" is answerable without being told: a file there with no blob is
+     * new, one whose content differs from its blob has drifted.
+     *
+     * Before this, a brand-new draft was invisible. `reseal-if-changed` only
+     * looks at files that already have a blob, so writing a new post and
+     * committing left it unsealed with nothing to say so — the one failure mode
+     * the whole system exists to prevent.
+     */
     case 'seal': {
-      if (!target) throw new Error('usage: seal <path>');
-      sealFile(target);
-      unlinkSync(target);
+      if (!target) {
+        const pending = [];
+        for (const file of walk(CONTENT_ROOT)) {
+          if (!file.endsWith('.md')) continue;
+          if (!basename(dirname(file)).startsWith('.local-')) continue;
+
+          const realPath = realPathFor(file);
+          const body = readFileSync(file, 'utf8');
+          const sealed = existsSync(blobPath(realPath));
+
+          if (!sealed) pending.push({ realPath, body, why: 'sealed' });
+          else if (openBlob(blobName(realPath)).content !== body)
+            pending.push({ realPath, body, why: 'resealed' });
+        }
+
+        if (pending.length === 0) {
+          console.log('✓ Every working copy is sealed and current.');
+          break;
+        }
+
+        for (const { realPath, body, why } of pending) {
+          writeFileSync(realPath, body);
+          sealFile(realPath);
+          unlinkSync(realPath);
+          console.log(`✓ ${why} ${realPath}`);
+        }
+        console.log(`\n${pending.length} file(s) sealed. Commit the vault.`);
+        break;
+      }
+
+      const real = realPathFor(target);
+      const local = localPathFor(real);
+
+      // Whichever form was given, make sure both exist briefly: the real path
+      // for sealing (the blob records it), the .local- copy to keep editing.
+      mkdirSync(dirname(local), { recursive: true });
+      const source = existsSync(target) ? target : existsSync(real) ? real : local;
+      const body = readFileSync(source, 'utf8');
+      writeFileSync(real, body);
+      if (source !== local) writeFileSync(local, body);
+
+      sealFile(real);
+      // The collection path is build output, never a source — leaving it there
+      // is what `audit` flags as committed plaintext.
+      unlinkSync(real);
+
+      // The plaintext stays. Deleting it made the blob the *only* copy, which
+      // meant editing a post required unsealing it first and the local working
+      // copy of your own draft was an opaque blob. The blob is the committed
+      // artifact; the markdown is the source you edit.
+      //
+      // It is not committed because the pre-commit hook refuses it and `audit`
+      // fails CI if it slips through — enforcement rather than deletion.
+      if (args.includes('--remove') && existsSync(local)) unlinkSync(local);
+
       console.log(`✓ Sealed ${relative('.', target)} → ${VAULT}/${blobName(target)}`);
-      console.log('  The plaintext is removed. The blob name reveals nothing about it.');
+      console.log(
+        args.includes('--remove')
+          ? '  Working copy removed as requested.'
+          : `  Edit it at ${relative('.', local)} — gitignored, invisible to Astro.`
+      );
       break;
     }
 
@@ -226,10 +339,13 @@ try {
         console.warn(`⚠ ${message}; building without them.`);
         break;
       }
+      const toLocal = args.includes('--local');
       for (const file of files) {
         const { path, content } = openBlob(file);
-        writeFileSync(path, content);
-        console.log(`✓ ${path}`);
+        const out = toLocal ? localPathFor(path) : path;
+        mkdirSync(dirname(out), { recursive: true });
+        writeFileSync(out, content);
+        console.log(`✓ ${out}`);
       }
       console.log(`Unsealed ${files.length} file(s).`);
       break;
@@ -256,10 +372,13 @@ try {
       let resealed = 0;
       for (const file of files) {
         const { path, content } = openBlob(file);
-        if (!existsSync(path)) continue;          // not unsealed locally — nothing to compare
-        if (readFileSync(path, 'utf8') === content) continue;
+        const workingCopy = localPathFor(path);
+        if (!existsSync(workingCopy)) continue;   // no working copy to compare
+        if (readFileSync(workingCopy, 'utf8') === content) continue;
 
+        writeFileSync(path, readFileSync(workingCopy, 'utf8'));
         sealFile(path);
+        unlinkSync(path);
         console.log(`✓ resealed ${path}`);
         resealed += 1;
       }
@@ -332,13 +451,80 @@ try {
       break;
     }
 
+    /**
+     * Remove blobs that no longer belong to the vault.
+     *
+     * Rotating CONTENT_SEAL_KEY changes every blob *name*, because the name is
+     * HMAC(key, path). The old blobs do not disappear — they sit there
+     * undecryptable while the re-sealed ones appear alongside, so a rotation
+     * silently doubles the vault and nothing says so. Found exactly that way:
+     * a rotation took it from 12 blobs to 25.
+     *
+     * A blob is orphaned if it cannot be decrypted with the current key, or if
+     * its name does not match the HMAC of the path inside it.
+     */
+    case 'prune': {
+      const orphans = [];
+      let current = 0;
+
+      for (const file of blobs()) {
+        try {
+          const { path } = openBlob(file);
+          if (blobName(path) === file) current += 1;
+          else orphans.push([file, 'name does not match the current key']);
+        } catch {
+          orphans.push([file, 'cannot decrypt — sealed under a previous key']);
+        }
+      }
+
+      console.log(`${current} current blob(s), ${orphans.length} orphaned.`);
+      if (orphans.length === 0) break;
+
+      for (const [file, why] of orphans) {
+        console.log(`  removing ${file.slice(0, 12)}… — ${why}`);
+        if (args.includes('--dry-run')) continue;
+        unlinkSync(join(VAULT, file));
+      }
+
+      console.log(
+        args.includes('--dry-run')
+          ? '\nDry run — nothing removed.'
+          : `\nRemoved ${orphans.length}. Commit the vault.`
+      );
+      break;
+    }
+
     case 'status': {
       const files = blobs();
       console.log(`${files.length} sealed file(s) in ${VAULT}`);
-      if (hasKey() && files.length > 0) {
-        for (const file of files) console.log(`  ${openBlob(file).path}`);
-      } else if (files.length > 0) {
+
+      if (files.length === 0) break;
+      if (!hasKey()) {
         console.log('  (set CONTENT_SEAL_KEY to list what they are)');
+        break;
+      }
+
+      // Three states worth telling apart. "modified" is the one that matters:
+      // the blob no longer reflects the file, so a deploy would publish the
+      // old text. `reseal-if-changed` fixes it; the pre-commit hook runs that
+      // automatically.
+      let modified = 0;
+      for (const file of files) {
+        const { path, content } = openBlob(file);
+        const workingCopy = localPathFor(path);
+        const state = !existsSync(workingCopy)
+          ? 'no working copy — run `unseal-all --local`'
+          : readFileSync(workingCopy, 'utf8') === content
+            ? 'working copy matches'
+            : 'WORKING COPY MODIFIED — reseal needed';
+        if (state.startsWith('LOCAL')) modified += 1;
+        console.log(`  ${path}\n      ${state}`);
+      }
+
+      if (modified > 0) {
+        console.log('');
+        console.log(`⚠ ${modified} file(s) differ from their blob. Run:`);
+        console.log('    node scripts/seal-content.mjs reseal-if-changed');
       }
       break;
     }
@@ -364,58 +550,8 @@ try {
       break;
     }
 
-    // One-shot upgrade from the first per-file format, whose blobs sat beside
-    // the content as `<name>.md.sealed` with a per-file salt — both the naming
-    // that leaked topics and the derivation that scaled linearly.
-    case 'migrate-v1': {
-      const { createDecipheriv: decipherV1, scryptSync: scryptV1 } = await import('node:crypto');
-      const { readdirSync: read, statSync } = await import('node:fs');
-
-      const walk = function* (dir) {
-        for (const entry of read(dir)) {
-          const path = join(dir, entry);
-          if (statSync(path).isDirectory()) yield* walk(path);
-          else yield path;
-        }
-      };
-
-      const legacy = [...walk(CONTENT_ROOT)].filter((file) => file.endsWith('.md.sealed'));
-      if (legacy.length === 0) {
-        console.log('No v1 blobs found. Nothing to migrate.');
-        break;
-      }
-
-      console.log(`Migrating ${legacy.length} v1 blob(s) into the vault…`);
-      for (const file of legacy) {
-        const envelope = JSON.parse(readFileSync(file, 'utf8'));
-        // v1 derived a key per file from its own salt.
-        const legacyKey = scryptV1(passphrase(), Buffer.from(envelope.salt, 'hex'), 32, SCRYPT);
-        const decipher = decipherV1('aes-256-gcm', legacyKey, Buffer.from(envelope.iv, 'hex'));
-        decipher.setAuthTag(Buffer.from(envelope.tag, 'hex'));
-
-        let content;
-        try {
-          content = Buffer.concat([
-            decipher.update(Buffer.from(envelope.data, 'base64')),
-            decipher.final(),
-          ]).toString('utf8');
-        } catch {
-          throw new Error(`could not decrypt ${file} — is CONTENT_SEAL_KEY the one it was sealed with?`);
-        }
-
-        const path = file.slice(0, -'.sealed'.length);
-        writeFileSync(path, content);
-        sealFile(path);
-        unlinkSync(path);
-        unlinkSync(file);
-        console.log(`✓ ${path} → ${VAULT}/${blobName(path)}`);
-      }
-      console.log(`\nMigrated ${legacy.length} file(s). Commit the vault and the removed blobs.`);
-      break;
-    }
-
     default:
-      console.error('Usage: seal-content.mjs <keygen|seal|unseal-all|status|check|audit|is-sealed|migrate-v1> [path]');
+      console.error('Usage: seal-content.mjs <keygen|seal|unseal-all|status|check|audit|prune|is-sealed> [path]');
       process.exit(1);
   }
 } catch (error) {
