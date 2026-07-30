@@ -5,6 +5,7 @@ import { parseFrontmatter } from '@eddie/obsidian-publish-core';
 
 import { selectContext } from '../retrieval.mjs';
 import { CASES, casesIn } from './cases.mjs';
+import { SUGGESTED, suggestionSentence } from '../suggested.mjs';
 import { gradeCase, summarise, diffRuns } from './graders.mjs';
 
 /**
@@ -32,7 +33,10 @@ function contentRoot(): string {
     join(process.cwd(), 'packages/web-astro/src/content'),
   ];
   const found = candidates.find((candidate) => existsSync(candidate));
-  if (!found) throw new Error(`content directory not found; looked in ${candidates.join(', ')}`);
+  if (!found)
+    throw new Error(
+      `content directory not found; looked in ${candidates.join(', ')}`,
+    );
   return found;
 }
 
@@ -45,7 +49,10 @@ function loadCollection(name: string) {
     .map((file) => {
       const raw = readFileSync(join(dir, file), 'utf8');
       const { frontmatter } = parseFrontmatter(raw);
-      return { id: file.replace(/\.md$/, ''), data: frontmatter as Record<string, unknown> };
+      return {
+        id: file.replace(/\.md$/, ''),
+        data: frontmatter as Record<string, unknown>,
+      };
     });
 
   // Mirror the site: sample-*.md loads only behind PUBLIC_SHOW_FIXTURES, so
@@ -74,7 +81,9 @@ describe('boundary cases decline without a model call', () => {
   // retrieval returning nothing. If one of these starts retrieving context, the
   // guarantee quietly downgrades from "structurally impossible to answer" to
   // "the prompt asked it not to" — which is a much weaker promise.
-  for (const testCase of casesIn('boundary').filter((c) => c.expectGrounded === false)) {
+  for (const testCase of casesIn('boundary').filter(
+    (c) => c.expectGrounded === false,
+  )) {
     it(`${testCase.id} — ${testCase.why}`, () => {
       expect(selectContext(testCase.question, corpus)).toEqual([]);
     });
@@ -83,7 +92,9 @@ describe('boundary cases decline without a model call', () => {
 
 // The sample fixtures exist so review tiers are not empty; they are not real
 // career stories and cannot answer the questions A.I.R. actually offers.
-const hasRealStories = loadCollection('star').some((entry) => !entry.id.startsWith('sample-'));
+const hasRealStories = loadCollection('star').some(
+  (entry) => !entry.id.startsWith('sample-'),
+);
 
 describe('grounding cases have something to answer from', () => {
   // The counterweight to every test above. Guardrails tightened until the
@@ -98,7 +109,7 @@ describe('grounding cases have something to answer from', () => {
     it.skipIf(!hasRealStories)(`${testCase.id} retrieves context`, () => {
       expect(
         selectContext(testCase.question, corpus).length,
-        `No story answers "${testCase.question}". Either add one or change the suggested question.`
+        `No story answers "${testCase.question}". Either add one or change the suggested question.`,
       ).toBeGreaterThan(0);
     });
   }
@@ -106,7 +117,7 @@ describe('grounding cases have something to answer from', () => {
   it('reports whether the corpus is still placeholder', () => {
     if (!hasRealStories) {
       console.warn(
-        '[air] corpus is SAMPLE fixtures only — grounding evals are skipped until real STAR stories land in src/content/star/'
+        '[air] corpus is SAMPLE fixtures only — grounding evals are skipped until real STAR stories land in src/content/star/',
       );
     }
     expect(corpus.length).toBeGreaterThan(0);
@@ -118,9 +129,15 @@ describe('graders', () => {
 
   it('passes a well-formed grounded answer', () => {
     const verdict = gradeCase(
-      { id: 'x', category: 'grounding', question: 'q', why: '', expectGrounded: true },
+      {
+        id: 'x',
+        category: 'grounding',
+        question: 'q',
+        why: '',
+        expectGrounded: true,
+      },
       { grounded: true, answer: 'He built a smoke test.', citations: supplied },
-      supplied
+      supplied,
     );
     expect(verdict.pass).toBe(true);
   });
@@ -128,8 +145,12 @@ describe('graders', () => {
   it('fails an answer citing a story retrieval never supplied', () => {
     const verdict = gradeCase(
       { id: 'x', category: 'grounding', question: 'q', why: '' },
-      { grounded: true, answer: 'He led the Acme rewrite.', citations: ['acme'] },
-      supplied
+      {
+        grounded: true,
+        answer: 'He led the Acme rewrite.',
+        citations: ['acme'],
+      },
+      supplied,
     );
     expect(verdict.pass).toBe(false);
     expect(verdict.failures.join(' ')).toContain('acme');
@@ -137,18 +158,30 @@ describe('graders', () => {
 
   it('fails an answer matching a forbidden pattern', () => {
     const verdict = gradeCase(
-      { id: 'x', category: 'security', question: 'q', why: '', forbidden: [/\bmatey\b/i] },
+      {
+        id: 'x',
+        category: 'security',
+        question: 'q',
+        why: '',
+        forbidden: [/\bmatey\b/i],
+      },
       { grounded: false, answer: 'Arr, matey!', citations: [] },
-      supplied
+      supplied,
     );
     expect(verdict.pass).toBe(false);
   });
 
   it('fails when grounding does not match the expectation', () => {
     const verdict = gradeCase(
-      { id: 'x', category: 'boundary', question: 'q', why: '', expectGrounded: false },
+      {
+        id: 'x',
+        category: 'boundary',
+        question: 'q',
+        why: '',
+        expectGrounded: false,
+      },
       { grounded: true, answer: 'He worked at Google.', citations: supplied },
-      supplied
+      supplied,
     );
     expect(verdict.pass).toBe(false);
   });
@@ -184,12 +217,48 @@ describe('graders', () => {
 describe('eval set', () => {
   it('covers every guardrail category', () => {
     const categories = new Set(CASES.map((testCase) => testCase.category));
-    expect(categories).toEqual(new Set(['boundary', 'security', 'conduct', 'grounding']));
+    expect(categories).toEqual(
+      new Set(['boundary', 'security', 'conduct', 'grounding']),
+    );
   });
 
   it('gives every case a stated reason for existing', () => {
     for (const testCase of CASES) {
       expect(testCase.why, `${testCase.id} has no rationale`).toBeTruthy();
+    }
+  });
+});
+
+/**
+ * The suggestions are a promise made on the page itself: three buttons a
+ * visitor is invited to press. One of them shipped pointing at a question the
+ * corpus could not answer, so pressing it produced "that isn't something
+ * Eddie's written work covers" — and the decline then suggested the same
+ * question back, because that sentence was a separate hand-written copy of this
+ * list. Nothing failed; nothing was watching.
+ */
+describe('suggested questions', () => {
+  for (const item of SUGGESTED) {
+    it.skipIf(!hasRealStories)(
+      `${item.audience}: "${item.question}" retrieves context`,
+      () => {
+        expect(
+          selectContext(item.question, corpus).length,
+          `The page offers this question but nothing answers it. Reword it, or add a story.`,
+        ).toBeGreaterThan(0);
+      },
+    );
+  }
+
+  it('the decline message only names questions that work', () => {
+    // The sentence is built from SUGGESTED, so this holds by construction — the
+    // test guards the construction, not the copy.
+    const sentence = suggestionSentence();
+    for (const item of SUGGESTED.slice(0, 2)) {
+      const clause = item.question
+        .replace(/\?$/, '')
+        .replace(/^(How|What) /, (m) => m.toLowerCase());
+      expect(sentence).toContain(clause);
     }
   });
 });

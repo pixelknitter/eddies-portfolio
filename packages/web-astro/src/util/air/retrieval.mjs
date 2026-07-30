@@ -24,17 +24,92 @@
  * question that must be unanswerable became one the model had to decline.
  */
 const STOPWORDS = new Set([
-  'a', 'about', 'an', 'and', 'any', 'are', 'as', 'at', 'be', 'but', 'by',
-  'can', 'did', 'do', 'does', 'for', 'from', 'had', 'has', 'have', 'he',
-  'her', 'him', 'his', 'how', 'i', 'if', 'in', 'is', 'it', 'its', 'me',
-  'my', 'of', 'on', 'or', 'she', 'should', 'so', 'than', 'that', 'the',
-  'their', 'them', 'then', 'there', 'they', 'this', 'to', 'was', 'we',
-  'were', 'what', 'when', 'which', 'who', 'why', 'will', 'with', 'would',
-  'you', 'your',
+  'a',
+  'about',
+  'an',
+  'and',
+  'any',
+  'are',
+  'as',
+  'at',
+  'be',
+  'but',
+  'by',
+  'can',
+  'did',
+  'do',
+  'does',
+  'for',
+  'from',
+  'had',
+  'has',
+  'have',
+  'he',
+  'her',
+  'him',
+  'his',
+  'how',
+  'i',
+  'if',
+  'in',
+  'is',
+  'it',
+  'its',
+  'me',
+  'my',
+  'of',
+  'on',
+  'or',
+  'she',
+  'should',
+  'so',
+  'than',
+  'that',
+  'the',
+  'their',
+  'them',
+  'then',
+  'there',
+  'they',
+  'this',
+  'to',
+  'was',
+  'we',
+  'were',
+  'what',
+  'when',
+  'which',
+  'who',
+  'why',
+  'will',
+  'with',
+  'would',
+  'you',
+  'your',
   // Prepositions and comparatives — grammatical glue, never a topic.
-  'after', 'before', 'below', 'between', 'during', 'into', 'like', 'most',
-  'much', 'many', 'onto', 'other', 'out', 'over', 'per', 'some', 'such',
-  'under', 'until', 'upon', 'via', 'while', 'without',
+  'after',
+  'before',
+  'below',
+  'between',
+  'during',
+  'into',
+  'like',
+  'most',
+  'much',
+  'many',
+  'onto',
+  'other',
+  'out',
+  'over',
+  'per',
+  'some',
+  'such',
+  'under',
+  'until',
+  'upon',
+  'via',
+  'while',
+  'without',
 ]);
 
 /**
@@ -76,37 +151,87 @@ export function terms(text) {
 }
 
 /**
- * Suffixes stripped to reduce a word to a comparable stem, longest first.
+ * Derivational suffixes, longest first, stripped repeatedly.
  *
- * Without this, "a system nobody wants to own" did not match the story titled
- * "Migrating the Ecosystem to Owned Infrastructure" tagged `ownership` —
- * own/owned/ownership were three unrelated tokens. Exact matching makes recall
- * depend on a visitor guessing the same inflection the story happens to use.
+ * Without stemming, "a system nobody wants to own" did not match the story
+ * titled "Migrating the Ecosystem to Owned Infrastructure" tagged `ownership` —
+ * own/owned/ownership were three unrelated tokens, so recall depended on a
+ * visitor guessing the inflection a story happens to use.
+ *
+ * Longest-first matters: `reliability` must lose `ability` and reach the same
+ * stem as `reliable`, not lose `ity` and stop at `reliabil`. The -able/-ity pair
+ * is why "keep releases reliable" now finds the story tagged `reliability` —
+ * the visitor and the tag were describing one thing in two parts of speech.
  */
-const SUFFIXES = ['ization', 'ation', 'ship', 'ment', 'ness', 'ing', 'ion', 'ers', 'ed', 'er', 'es', 's'];
+const SUFFIXES = [
+  'ibility',
+  'ability',
+  'ization',
+  'ation',
+  'ility',
+  'ible',
+  'able',
+  'ship',
+  'ment',
+  'ness',
+  'ing',
+  'ion',
+  'ity',
+  'ers',
+  'er',
+  'ed',
+];
 
 /** Shortest stem allowed. Below this, stripping merges genuinely different words. */
 const MIN_STEM = 3;
 
 /**
- * Reduce a term to a stem by stripping suffixes repeatedly.
+ * Strip a plural, at most once.
+ *
+ * Separate from the loop below, and applied first, because folding plurals into
+ * repeated stripping over-stems: `releases` became `releas` and then `relea`,
+ * while `release` had no suffix to lose and stayed put — so the singular and the
+ * plural of the same word landed on different stems and stopped matching. That
+ * is worse than not stemming at all, because it breaks pairs that used to work.
+ *
+ * @param {string} word
+ * @returns {string}
+ */
+function depluralize(word) {
+  // "releases" → "release", "batches" → "batch": the e belongs to the stem in
+  // the first and to the suffix in the second.
+  if (/(?:s|z|ch|sh|x)es$/.test(word) && word.length - 2 >= MIN_STEM) {
+    return word.slice(0, /(?:ch|sh)es$/.test(word) ? -2 : -1);
+  }
+  // "systems" → "system", but never "ss" ("business" is not a plural).
+  if (/[^s]s$/.test(word) && word.length - 1 >= MIN_STEM)
+    return word.slice(0, -1);
+  return word;
+}
+
+/**
+ * Reduce a term to a comparable stem.
  *
  * Deliberately not a full Porter stemmer: this corpus is a few dozen curated
  * documents, and a dependency (plus its irregular-form tables) buys accuracy
- * that a relevance floor of 3 cannot even perceive. Applied repeatedly because
- * the words that matter here are doubly suffixed — ownership → owner → own.
+ * that a relevance floor of 3 cannot perceive. The derivational pass repeats
+ * because the words that matter here are doubly suffixed — ownership → owner →
+ * own.
  *
  * @param {string} term
  * @returns {string}
  */
 export function stem(term) {
-  let current = String(term ?? '');
+  let current = depluralize(String(term ?? ''));
 
   let changed = true;
   while (changed) {
     changed = false;
     for (const suffix of SUFFIXES) {
-      if (current.length - suffix.length >= MIN_STEM && current.endsWith(suffix)) {
+      if (
+        current.length - suffix.length >= MIN_STEM &&
+        current.endsWith(suffix)
+      ) {
         current = current.slice(0, -suffix.length);
         changed = true;
         break;
@@ -176,9 +301,21 @@ function scoreTags(questionNorm, questionTerms, tags) {
       continue;
     }
 
-    for (const fragment of stems(tag)) {
-      if (questionTerms.has(fragment)) score += TAG_FRAGMENT_WEIGHT;
+    const fragments = stems(tag);
+    let matched = 0;
+    for (const fragment of fragments) {
+      if (questionTerms.has(fragment)) matched += 1;
     }
+
+    // Matching every scoreable word of a compound tag *is* matching the tag,
+    // even in a different order. "decide whether to build or buy" hits both
+    // halves of `build-vs-buy`, which as two lone fragments scored 2 and fell
+    // just under the floor — the one phrasing a visitor is most likely to use
+    // was the one that retrieved nothing.
+    score +=
+      matched > 1 && matched === fragments.size
+        ? WEIGHTS.tags
+        : matched * TAG_FRAGMENT_WEIGHT;
   }
 
   return score;
@@ -206,7 +343,11 @@ export function scoreEntry(question, entry) {
     if (value == null) continue;
 
     if (field === 'tags') {
-      score += scoreTags(questionNorm, unique, Array.isArray(value) ? value : [String(value)]);
+      score += scoreTags(
+        questionNorm,
+        unique,
+        Array.isArray(value) ? value : [String(value)],
+      );
       continue;
     }
 
@@ -239,10 +380,24 @@ export function scoreEntry(question, entry) {
  */
 const OVERVIEW_TERMS = new Set(
   [
-    'work', 'hire', 'hiring', 'collaborate', 'strength', 'experience',
-    'background', 'skill', 'summary', 'overview', 'career', 'recommend',
-    'impact', 'expertise', 'specialty', 'good', 'best',
-  ].map(stem)
+    'work',
+    'hire',
+    'hiring',
+    'collaborate',
+    'strength',
+    'experience',
+    'background',
+    'skill',
+    'summary',
+    'overview',
+    'career',
+    'recommend',
+    'impact',
+    'expertise',
+    'specialty',
+    'good',
+    'best',
+  ].map(stem),
 );
 
 /**
@@ -278,19 +433,24 @@ function overviewSelection(entries, limit) {
     }
   }
 
-  return entries
-    .map((entry) => {
-      const tags = Array.isArray(entry.data?.tags) ? entry.data.tags : [];
-      return {
-        id: entry.id,
-        score: tags.reduce((total, tag) => total + (frequency.get(tag) ?? 0), 0),
-        data: entry.data,
-      };
-    })
-    // An entry with no tags tells us nothing about the through-line.
-    .filter((entry) => entry.score > 0)
-    .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
-    .slice(0, limit);
+  return (
+    entries
+      .map((entry) => {
+        const tags = Array.isArray(entry.data?.tags) ? entry.data.tags : [];
+        return {
+          id: entry.id,
+          score: tags.reduce(
+            (total, tag) => total + (frequency.get(tag) ?? 0),
+            0,
+          ),
+          data: entry.data,
+        };
+      })
+      // An entry with no tags tells us nothing about the through-line.
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
+      .slice(0, limit)
+  );
 }
 
 /**

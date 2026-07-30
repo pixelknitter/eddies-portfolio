@@ -164,11 +164,25 @@ test.describe('A.I.R. access request', () => {
 
     await expect(page.getByText(/sent\. eddie will take a look/i)).toBeVisible();
 
-    await page.keyboard.press('Escape');
+    // The confirmation replaces the form. Leaving a live "Send request" button
+    // on screen after a successful send invites a second submission and reads as
+    // though the first had not landed.
+    await expect(page.getByRole('heading', { name: /request sent/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /send request/i })).toHaveCount(0);
+    await expect(page.locator('#air-request-email')).toHaveCount(0);
+
+    // And it offers a way out that is not "Cancel", which would imply undoing
+    // something that has already happened.
+    const done = page.getByRole('button', { name: /^done$/i });
+    await expect(done).toBeVisible();
+    await done.click();
+    await expect(page.locator(dialog)).toHaveCount(0);
+
     await opener.click();
 
-    // Reopening with the previous outcome still under the button reads as a
-    // fresh response to a request that was never sent.
+    // Reopening shows the form again, not the previous outcome — a stale
+    // confirmation reads as a response to a request that was never sent.
+    await expect(page.locator('#air-request-email')).toBeVisible();
     await expect(page.getByText(/sent\. eddie will take a look/i)).toHaveCount(0);
   });
 });

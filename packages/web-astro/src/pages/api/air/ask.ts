@@ -4,6 +4,7 @@ import Anthropic from '@anthropic-ai/sdk';
 
 import { showAIR, showUnpublished } from '@util/visibility.mjs';
 import { selectContext } from '@util/air/retrieval.mjs';
+import { suggestionSentence } from '@util/air/suggested.mjs';
 import {
   ANSWER_SCHEMA,
   buildSystemPrompt,
@@ -32,13 +33,16 @@ const MAX_TOKENS = 2000;
 
 const MODEL = 'claude-opus-5';
 
-function json(body: unknown, status = 200, headers: Record<string, string> = {}) {
+function json(
+  body: unknown,
+  status = 200,
+  headers: Record<string, string> = {},
+) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'content-type': 'application/json', ...headers },
   });
 }
-
 
 export async function POST(context: APIContext): Promise<Response> {
   // The section is gated, and so is its API. A flagged-off feature whose
@@ -55,7 +59,9 @@ export async function POST(context: APIContext): Promise<Response> {
   // issued to one address by the request-and-approve flow. The personal code
   // carries the address it was issued to, signed, so it verifies with no
   // lookup — and a leaked one is attributable.
-  const personal = signingSecret ? await verifyAccessCode(signingSecret, supplied) : { ok: false };
+  const personal = signingSecret
+    ? await verifyAccessCode(signingSecret, supplied)
+    : { ok: false };
 
   if (!personal.ok && !isAuthorised(supplied, sharedCode)) {
     // Deliberately identical whether the code is wrong or unconfigured — the
@@ -73,7 +79,7 @@ export async function POST(context: APIContext): Promise<Response> {
     return json(
       { error: 'Too many questions in a short window. Try again shortly.' },
       429,
-      { 'retry-after': String(rate.retryAfterSeconds) }
+      { 'retry-after': String(rate.retryAfterSeconds) },
     );
   }
 
@@ -84,15 +90,23 @@ export async function POST(context: APIContext): Promise<Response> {
     return json({ error: 'Expected a JSON body.' }, 400);
   }
 
-  const validated = validateQuestion((payload as { question?: unknown })?.question);
+  const validated = validateQuestion(
+    (payload as { question?: unknown })?.question,
+  );
   if (!validated.ok) return json({ error: validated.reason }, 400);
 
   // The corpus is the STAR collection plus project write-ups, bundled at build
   // time. Drafts follow the same rule as everywhere else on the site.
   const reveal = showUnpublished(import.meta.env);
-  const stories = await getCollection('star', ({ data }) => reveal || data.draft !== true);
+  const stories = await getCollection(
+    'star',
+    ({ data }) => reveal || data.draft !== true,
+  );
   const projects = await getCollection('projects');
-  const corpus = [...stories, ...projects].map((entry) => ({ id: entry.id, data: entry.data }));
+  const corpus = [...stories, ...projects].map((entry) => ({
+    id: entry.id,
+    data: entry.data,
+  }));
 
   const selected = selectContext(validated.question, corpus);
 
@@ -102,8 +116,12 @@ export async function POST(context: APIContext): Promise<Response> {
   if (selected.length === 0) {
     return json({
       grounded: false,
+      // Suggestions come from the same array the buttons render, because this
+      // sentence used to be hand-written and drifted into naming a question the
+      // corpus could not answer either — a decline that suggested itself.
       answer:
-        "That isn't something Eddie's written work covers, so there's nothing here I'd stand behind as an answer. Try asking about how he approaches a system nobody wants to own, or what he does when requirements are still moving.",
+        "That isn't something Eddie's written work covers, so there's nothing here I'd stand behind" +
+        ` as an answer. Try asking about ${suggestionSentence()}.`,
       citations: [],
     });
   }
@@ -128,7 +146,12 @@ export async function POST(context: APIContext): Promise<Response> {
         format: { type: 'json_schema', schema: ANSWER_SCHEMA },
       },
       system: buildSystemPrompt(),
-      messages: [{ role: 'user', content: buildUserMessage(validated.question, selected) }],
+      messages: [
+        {
+          role: 'user',
+          content: buildUserMessage(validated.question, selected),
+        },
+      ],
     });
   } catch (error) {
     console.error('[air] model request failed', error);
@@ -140,12 +163,14 @@ export async function POST(context: APIContext): Promise<Response> {
   if (response.stop_reason === 'refusal') {
     return json({
       grounded: false,
-      answer: "I can't answer that one. Ask me about Eddie's work and I'll do better.",
+      answer:
+        "I can't answer that one. Ask me about Eddie's work and I'll do better.",
       citations: [],
     });
   }
 
-  const text = response.content.find((block) => block.type === 'text')?.text ?? '';
+  const text =
+    response.content.find((block) => block.type === 'text')?.text ?? '';
 
   let answer;
   try {
