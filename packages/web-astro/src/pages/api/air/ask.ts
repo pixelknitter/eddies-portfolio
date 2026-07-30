@@ -103,6 +103,10 @@ export async function POST(context: APIContext): Promise<Response> {
     ({ data }) => reveal || data.draft !== true,
   );
   const projects = await getCollection('projects');
+  // The resume. Its bullets live in the body, which is why the prompt carries
+  // bodies at all — before this, A.I.R. could not answer "what was his title at
+  // Frontdoor", because the resume existed nowhere it could reach.
+  const resume = await getCollection('resume');
 
   /*
    * The two collections mean opposite things by "body", so the distinction is
@@ -126,6 +130,11 @@ export async function POST(context: APIContext): Promise<Response> {
     })),
     ...projects.map((entry) => ({
       id: entry.id,
+      data: entry.data,
+      content: entry.body?.trim() || undefined,
+    })),
+    ...resume.map((entry) => ({
+      id: `resume/${entry.id}`,
       data: entry.data,
       content: entry.body?.trim() || undefined,
     })),

@@ -9,7 +9,14 @@ import { RESUME } from './resume.data';
  */
 type Node = Record<string, unknown>;
 
+/*
+ * Fed from the RESUME fixture rather than the content collection, because
+ * `getCollection` needs the Astro runtime and vitest has none. The collection is
+ * the runtime source; drift between the two is caught by the golden-render check
+ * in the e2e suite, which reads the actual pages.
+ */
 const graph = buildResumeJsonLd({
+  resume: RESUME,
   siteUrl: 'https://eddie.engineering',
   pagePath: '/air/resume/for-bots',
 }) as Node;

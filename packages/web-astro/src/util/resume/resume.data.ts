@@ -1,7 +1,18 @@
 /**
- * The resume, as data.
+ * Resume types, shared constants, and the reference fixture.
  *
- * Five surfaces render from this module: the collapsed visual page at
+ * **`RESUME` is no longer the runtime source.** The rendering surfaces load the
+ * sealed `resume` content collection through `./load.ts`; this copy stays as the
+ * fixture specs assert against, because `getCollection` needs the Astro runtime
+ * and vitest has none. Drift between the two is caught by the golden-render
+ * comparison in the e2e suite, which reads the rendered pages rather than either
+ * source. `scripts/resume-pdf.mjs` fingerprints this file, so an edit here also
+ * forces the PDFs to be regenerated.
+ *
+ * What follows described the module when it *was* the source, and still describes
+ * the shape and the contact-detail rule, both of which hold:
+ *
+ * Five surfaces render from this shape: the collapsed visual page at
  * `/air/resume/`, the complete machine-oriented page at `/air/resume/for-bots`,
  * the JSON-LD graph that page carries, and the two print routes the PDF
  * generator prints. They must agree, so there is exactly one copy of the prose.
@@ -608,8 +619,11 @@ export const CONTACT = {
  * descending, which is what a reader — human or machine — expects of a career.
  * Concurrent roles still interleave by when they began; that is accurate.
  */
-export function rolesByRecency(): ResumeRole[] {
-  const roles: ResumeRole[] = [RESUME.now, ...RESUME.experience];
+export function rolesByRecency(resume: {
+  now: ResumeRole;
+  experience: ResumeRole[];
+}): ResumeRole[] {
+  const roles: ResumeRole[] = [resume.now, ...resume.experience];
   return roles.sort((a, b) => b.start.localeCompare(a.start));
 }
 

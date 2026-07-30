@@ -1,7 +1,7 @@
 ---
 import Layout from '@layouts/Layout.astro';
 import ResumeFull from '@components/resume/ResumeFull.astro';
-import { RESUME } from '@util/resume/resume.data';
+import { loadResume } from '@util/resume/load';
 import { buildResumeJsonLd } from '@util/resume/jsonld';
 import { plainText } from '@util/resume/markup';
 import { showResume } from '@util/visibility.mjs';
@@ -28,6 +28,16 @@ if (!showResume(import.meta.env)) {
   return new Response(null, { status: 404, statusText: 'Not found' });
 }
 
+/*
+ * An empty collection means the seal key is absent, not that the resume is blank.
+ * 404 rather than publish a header with empty sections — and, for the machine
+ * page, a JSON-LD graph asserting a person with no work history.
+ */
+const resume = await loadResume();
+if (!resume) {
+  return new Response(null, { status: 404, statusText: 'Not found' });
+}
+
 const pagePath = '/air/resume/for-bots';
 
 /**
@@ -37,10 +47,10 @@ const pagePath = '/air/resume/for-bots';
  */
 const siteUrl = (Astro.site ?? new URL('https://eddie.engineering')).origin;
 
-const jsonLd = buildResumeJsonLd({ siteUrl, pagePath });
+const jsonLd = buildResumeJsonLd({ resume, siteUrl, pagePath });
 
-const pageTitle = `${RESUME.name} — complete resume`;
-const description = plainText(RESUME.longSummary).slice(0, 300);
+const pageTitle = `${resume.name} — complete resume`;
+const description = plainText(resume.longSummary).slice(0, 300);
 ---
 
 <Layout pageTitle={pageTitle} {description}>
@@ -62,5 +72,5 @@ const description = plainText(RESUME.longSummary).slice(0, 300);
     />
   </Fragment>
 
-  <ResumeFull />
+  <ResumeFull {resume} />
 </Layout>

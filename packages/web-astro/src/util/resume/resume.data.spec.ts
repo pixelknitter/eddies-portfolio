@@ -188,7 +188,14 @@ describe('isResumeRoute', () => {
   });
 
   it('does not match other routes', () => {
-    for (const path of ['/', '/air/', '/air', '/blog/', '/works/', '/air/resumes']) {
+    for (const path of [
+      '/',
+      '/air/',
+      '/air',
+      '/blog/',
+      '/works/',
+      '/air/resumes',
+    ]) {
       expect(isResumeRoute(path), path).toBe(false);
     }
   });

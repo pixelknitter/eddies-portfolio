@@ -2,7 +2,7 @@
 import Layout from '@layouts/Layout.astro';
 import ResumeVisual from '@components/resume/ResumeVisual.astro';
 import { ResumeDownload } from '../../../react/ResumeDownload';
-import { RESUME } from '@util/resume/resume.data';
+import { loadResume } from '@util/resume/load';
 import { showResume, showAIR } from '@util/visibility.mjs';
 import '../../../styles/resume-organic.css';
 // Carries the rules that swap this page for a notice when printed. The other
@@ -23,8 +23,18 @@ if (!showResume(import.meta.env)) {
   return new Response(null, { status: 404, statusText: 'Not found' });
 }
 
-const pageTitle = `${RESUME.name} — ${RESUME.headline}`;
-const description = `${RESUME.name}: ${RESUME.summary}`;
+/*
+ * An empty collection means the seal key is absent, not that the resume is blank.
+ * 404 rather than publish a header with empty sections — and, for the machine
+ * page, a JSON-LD graph asserting a person with no work history.
+ */
+const resume = await loadResume();
+if (!resume) {
+  return new Response(null, { status: 404, statusText: 'Not found' });
+}
+
+const pageTitle = `${resume.name} — ${resume.headline}`;
+const description = `${resume.name}: ${resume.summary}`;
 const botsPath = '/air/resume/for-bots';
 // Offer the chat only where it exists: the two features ship independently, and a
 // prominent link to a 404 is worse than no link.
@@ -74,8 +84,8 @@ const airPath = showAIR(import.meta.env) ? '/air/' : undefined;
   */
   }
   <div class="resume-print-notice">
-    <h1>{RESUME.name}</h1>
-    <p>{RESUME.headline}</p>
+    <h1>{resume.name}</h1>
+    <p>{resume.headline}</p>
     <p>
       This resume is available as a PDF — human-readable or ATS-friendly.
       Request a copy at
@@ -84,7 +94,7 @@ const airPath = showAIR(import.meta.env) ? '/air/' : undefined;
   </div>
 
   <div class="resume-no-print">
-    <ResumeVisual {botsPath} {airPath}>
+    <ResumeVisual {resume} {botsPath} {airPath}>
       {
         /*
         `client:visible` rather than `client:load`: the buttons sit above the fold

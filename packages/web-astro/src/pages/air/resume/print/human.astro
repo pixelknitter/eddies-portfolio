@@ -2,7 +2,7 @@
 import PrintLayout from '@layouts/PrintLayout.astro';
 import ResumeVisual from '@components/resume/ResumeVisual.astro';
 import PrintContact from '@components/resume/PrintContact.astro';
-import { RESUME } from '@util/resume/resume.data';
+import { loadResume } from '@util/resume/load';
 import { showResumePrint } from '@util/visibility.mjs';
 import '../../../../styles/resume-organic.css';
 
@@ -24,12 +24,22 @@ if (!showResumePrint(import.meta.env)) {
   return new Response(null, { status: 404, statusText: 'Not found' });
 }
 
+/*
+ * An empty collection means the seal key is absent, not that the resume is blank.
+ * 404 rather than publish a header with empty sections — and, for the machine
+ * page, a JSON-LD graph asserting a person with no work history.
+ */
+const resume = await loadResume();
+if (!resume) {
+  return new Response(null, { status: 404, statusText: 'Not found' });
+}
+
 // Becomes the PDF's document title, so it is what a file manager shows.
-const pageTitle = `${RESUME.name} — Resume`;
+const pageTitle = `${resume.name} — Resume`;
 ---
 
 <PrintLayout {pageTitle} variant="organic">
-  <ResumeVisual print>
+  <ResumeVisual {resume} print>
     <PrintContact slot="contact" />
   </ResumeVisual>
 </PrintLayout>

@@ -23,10 +23,13 @@
  *
  * No contact details, exactly as on the visual page.
  */
-import { RESUME, REQUEST_PATH, rolesByRecency } from '@util/resume/resume.data';
+import { REQUEST_PATH, rolesByRecency } from '@util/resume/resume.data';
+import type { Resume } from '@util/resume/load';
 import { emphasize } from '@util/resume/markup';
 
 interface Props {
+  /** The assembled resume; see the note on ResumeVisual's identical prop. */
+  resume: Resume;
   /**
    * Render for the PDF generator. Drops the request CTA — a button telling the
    * reader to request the document they are already holding — and makes room for
@@ -35,11 +38,11 @@ interface Props {
   print?: boolean;
 }
 
-const { print = false } = Astro.props;
+const { resume: RESUME, print = false } = Astro.props;
 
 // Chronological, not the tier grouping the visual page uses — see
 // rolesByRecency() for why the two orderings differ.
-const allRoles = rolesByRecency();
+const allRoles = rolesByRecency(RESUME);
 ---
 
 <article class="resume-full">

@@ -22,14 +22,17 @@
  * ever hidden outright: the complete set is also on `/air/resume/for-bots`.
  */
 import ResumeSection from './ResumeSection.astro';
-import {
-  RESUME,
-  rolesByRecency,
-  type ResumeRole,
-} from '@util/resume/resume.data';
+import { rolesByRecency, type ResumeRole } from '@util/resume/resume.data';
+import type { Resume } from '@util/resume/load';
 import { emphasize } from '@util/resume/markup';
 
 interface Props {
+  /**
+   * The assembled resume. Passed in rather than imported so the component has no
+   * opinion about where the content came from — it was a typed module, it is now
+   * a sealed content collection, and this file did not have to care either time.
+   */
+  resume: Resume;
   /** Where "ask A.I.R. about this" should point, or undefined when A.I.R. is off. */
   airPath?: string;
   /** Where the complete machine-readable version lives. */
@@ -51,6 +54,7 @@ interface Props {
 }
 
 const {
+  resume: RESUME,
   airPath,
   botsPath = '/air/resume/for-bots',
   print = false,
@@ -58,7 +62,7 @@ const {
 
 // In print, everything is "selected" and there is no compact grid.
 const selected = print
-  ? rolesByRecency().filter((role) => role !== RESUME.now)
+  ? rolesByRecency(RESUME).filter((role) => role !== RESUME.now)
   : RESUME.experience.filter((role) => role.tier === 'selected');
 const earlier = print
   ? []
@@ -94,7 +98,9 @@ const bulletsFor = (role: ResumeRole) =>
           <slot name="downloads" />
 
           <div class="resume-links">
-            {airPath && <a href={airPath}>Ask A.I.R. about any of this &rarr;</a>}
+            {airPath && (
+              <a href={airPath}>Ask A.I.R. about any of this &rarr;</a>
+            )}
             <a href={botsPath}>Complete version, for machines &rarr;</a>
           </div>
         </Fragment>

@@ -1,4 +1,5 @@
-import { RESUME, rolesByRecency, type ResumeRole } from './resume.data';
+import { rolesByRecency, type ResumeRole } from './resume.data';
+import type { Resume } from './load';
 import { plainText } from './markup';
 
 /**
@@ -40,6 +41,8 @@ type JsonValue =
   string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
 interface JsonLdOptions {
+  /** The assembled resume. */
+  resume: Resume;
   /** Absolute origin, e.g. "https://eddie.engineering". No trailing slash. */
   siteUrl: string;
   /** Path of the page carrying the graph, e.g. "/air/resume/for-bots". */
@@ -91,11 +94,12 @@ function organizationRole(role: ResumeRole): JsonValue {
  * here, and it nests the `Person` as `mainEntity` so both are addressable.
  */
 export function buildResumeJsonLd({
+  resume: RESUME,
   siteUrl,
   pagePath,
 }: JsonLdOptions): JsonValue {
   const pageUrl = `${siteUrl}${pagePath}`;
-  const allRoles = rolesByRecency();
+  const allRoles = rolesByRecency(RESUME);
 
   return {
     '@context': 'https://schema.org',
