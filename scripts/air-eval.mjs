@@ -80,12 +80,17 @@ const CONTENT = join(process.cwd(), 'packages/web-astro/src/content');
 
 function loadCollection(name) {
   const dir = join(CONTENT, name);
-  return readdirSync(dir)
+  const entries = readdirSync(dir)
     .filter((file) => file.endsWith('.md') && !file.startsWith('_'))
     .map((file) => ({
       id: file.replace(/\.md$/, ''),
       data: parseFrontmatter(readFileSync(join(dir, file), 'utf8')).frontmatter,
     }));
+
+  // Same rule as the site and the offline suite: fixtures are not served, so
+  // spending model budget grading against them measures the wrong corpus.
+  const real = entries.filter((entry) => !entry.id.startsWith('sample-'));
+  return real.length > 0 ? real : entries;
 }
 
 const corpus = [...loadCollection('star'), ...loadCollection('projects')];

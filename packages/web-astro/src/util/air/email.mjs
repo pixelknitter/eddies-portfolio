@@ -1,4 +1,5 @@
 import { TIER_STYLE } from './tier.mjs';
+import { escapeHtml } from '../html.mjs';
 
 /**
  * The one transactional email A.I.R. sends.
@@ -27,16 +28,14 @@ import { TIER_STYLE } from './tier.mjs';
  * The reason string is written by a stranger and is echoed back in the mail
  * Eddie reads, so it goes through here before it lands in markup.
  *
- * @param {string} value
+ * Re-exported rather than defined here: the resume surfaces need the same
+ * function, and one shared implementation cannot drift from itself. It is
+ * imported at the top of this module as well as re-exported — a bare
+ * `export … from` would satisfy importers while leaving the name unbound for
+ * this module's own use, which is exactly the bug the email-template test
+ * caught.
  */
-export function escapeHtml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+export { escapeHtml };
 
 /**
  * The email a requester receives once Eddie approves them.

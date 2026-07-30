@@ -40,13 +40,23 @@ const CONTENT_ROOT = contentRoot();
 
 function loadCollection(name: string) {
   const dir = join(CONTENT_ROOT, name);
-  return readdirSync(dir)
+  const entries = readdirSync(dir)
     .filter((file) => file.endsWith('.md') && !file.startsWith('_'))
     .map((file) => {
       const raw = readFileSync(join(dir, file), 'utf8');
       const { frontmatter } = parseFrontmatter(raw);
       return { id: file.replace(/\.md$/, ''), data: frontmatter as Record<string, unknown> };
     });
+
+  // Mirror the site: sample-*.md loads only behind PUBLIC_SHOW_FIXTURES, so
+  // grading against it measures a corpus no visitor is ever served. A fixture
+  // once matched a boundary case that the real stories correctly decline,
+  // failing the suite over content production does not have.
+  //
+  // Falling back rather than returning empty keeps a keyless fork build — where
+  // fixtures are the only content on disk — testing something real.
+  const real = entries.filter((entry) => !entry.id.startsWith('sample-'));
+  return real.length > 0 ? real : entries;
 }
 
 // Drafts are included deliberately: review tiers retrieve them, so they are
@@ -73,9 +83,7 @@ describe('boundary cases decline without a model call', () => {
 
 // The sample fixtures exist so review tiers are not empty; they are not real
 // career stories and cannot answer the questions A.I.R. actually offers.
-const hasRealStories = loadCollection('star').some(
-  (entry) => !String(entry.data.title ?? '').startsWith('SAMPLE')
-);
+const hasRealStories = loadCollection('star').some((entry) => !entry.id.startsWith('sample-'));
 
 describe('grounding cases have something to answer from', () => {
   // The counterweight to every test above. Guardrails tightened until the

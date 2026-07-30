@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { selectContext, scoreEntry, terms, RELEVANCE_FLOOR } from './retrieval.mjs';
+import {
+  selectContext,
+  scoreEntry,
+  terms,
+  stem,
+  isOverviewQuestion,
+  RELEVANCE_FLOOR,
+} from './retrieval.mjs';
 import { verifyAnswer, validateQuestion, buildUserMessage, MAX_QUESTION_LENGTH } from './prompt.mjs';
 import { safeEqual, isAuthorised, createRateLimiter } from './access.mjs';
 
@@ -34,7 +41,7 @@ describe('retrieval', () => {
   });
 
   it('scores a relevant entry above the floor', () => {
-    const score = scoreEntry(terms('deployment pipeline'), corpus[0].data);
+    const score = scoreEntry('deployment pipeline', corpus[0].data);
     expect(score).toBeGreaterThanOrEqual(RELEVANCE_FLOOR);
   });
 
@@ -195,5 +202,98 @@ describe('rate limiter', () => {
 
     time = 1001;
     expect(limiter.check('ip').allowed).toBe(true);
+  });
+});
+
+describe('stem', () => {
+  // own/owned/ownership were three unrelated tokens, so a question about
+  // owning a system missed the story titled "...Owned Infrastructure" tagged
+  // `ownership`. Recall should not depend on guessing the right inflection.
+  it('reduces inflections of one concept to a shared stem', () => {
+    expect(stem('owned')).toBe(stem('own'));
+    expect(stem('ownership')).toBe(stem('own'));
+    expect(stem('systems')).toBe(stem('system'));
+    expect(stem('migrations')).toBe(stem('migration'));
+  });
+
+  it('never strips below three characters', () => {
+    expect(stem('ops').length).toBeGreaterThanOrEqual(3);
+    expect(stem('ios')).toBe('ios');
+  });
+});
+
+describe('tag matching', () => {
+  const entry = { title: 'Release confidence', tags: ['ci-cd', 'ai'], result: 'Shipped.' };
+
+  // Compound and very short tags were unreachable: terms() split `ci-cd` into
+  // two 2-character tokens and dropped both, so no question about CI/CD could
+  // match the story about CI/CD.
+  it('matches a compound tag as a whole phrase', () => {
+    expect(scoreEntry('how do you handle ci cd', entry)).toBeGreaterThanOrEqual(RELEVANCE_FLOOR);
+    expect(scoreEntry('how do you handle ci/cd', entry)).toBeGreaterThanOrEqual(RELEVANCE_FLOOR);
+  });
+
+  it('matches a two-letter tag that the term filter would drop', () => {
+    expect(scoreEntry('what ai has he built', entry)).toBeGreaterThanOrEqual(RELEVANCE_FLOOR);
+  });
+
+  it('does not match a tag word inside an unrelated word', () => {
+    // " ai " must not hit "said" — the padding in normalize() is what prevents it.
+    expect(scoreEntry('what he said', entry)).toBe(0);
+  });
+
+  // The leak that made a made-up job title retrievable: `cost-engineering`
+  // split, and its fragment "engineering" claimed the full weight of a
+  // curated tag.
+  it('scores a fragment of a compound tag below the floor', () => {
+    const tagged = { tags: ['cost-engineering'] };
+    expect(scoreEntry('how many years as a VP of engineering', tagged)).toBeLessThan(
+      RELEVANCE_FLOOR
+    );
+  });
+});
+
+describe('isOverviewQuestion', () => {
+  it('recognises questions about the body of work', () => {
+    expect(isOverviewQuestion('Why should I work with Eddie Freeman?')).toBe(true);
+    expect(isOverviewQuestion("What is Eddie's background?")).toBe(true);
+  });
+
+  // The property that keeps the overview path from becoming a boundary hole:
+  // a question naming something absent shares none of these words.
+  it('does not recognise questions about absent specifics', () => {
+    expect(isOverviewQuestion("What is Eddie's favourite restaurant in Lisbon?")).toBe(false);
+    expect(isOverviewQuestion("What is Eddie's salary history?")).toBe(false);
+    expect(isOverviewQuestion('What did Eddie do at Google?')).toBe(false);
+  });
+});
+
+describe('overview fallback', () => {
+  const corpus = [
+    { id: 'a', data: { title: 'Platform', tags: ['platform', 'leadership'] } },
+    { id: 'b', data: { title: 'Team', tags: ['leadership'] } },
+    { id: 'c', data: { title: 'Untagged', tags: [] } },
+  ];
+
+  it('answers an overview question that matches nothing lexically', () => {
+    const selected = selectContext('Why should I work with him?', corpus);
+    expect(selected.length).toBeGreaterThan(0);
+    // Ranked by how often its tags recur, so the through-line story leads.
+    expect(selected[0].id).toBe('a');
+  });
+
+  it('omits entries with no tags, which say nothing about the through-line', () => {
+    expect(selectContext('Why should I work with him?', corpus).map((e) => e.id)).not.toContain('c');
+  });
+
+  // Order matters: checked only after lexical matching fails, so it can never
+  // widen what a question that did match is allowed to see.
+  it('does not widen a question that already matched', () => {
+    const selected = selectContext('platform work', corpus);
+    expect(selected.map((e) => e.id)).toEqual(['a']);
+  });
+
+  it('still declines an overview-shaped question with no tagged corpus', () => {
+    expect(selectContext('Why should I work with him?', [corpus[2]])).toEqual([]);
   });
 });
