@@ -1,0 +1,722 @@
+---
+/**
+ * The visual resume — the "Organic" design, collapsed by default.
+ *
+ * Renders from `util/resume/resume.data.ts` and nothing else, so this component
+ * and the machine-readable page cannot disagree about the facts. Prose carries
+ * `**bold**` markers converted by `emphasize()`; see `util/resume/markup.ts` for
+ * why the data holds markers rather than HTML.
+ *
+ * ## What is deliberately missing
+ *
+ * The source design opened with a row of contact tags — email, phone, profile
+ * links. There is none here. The visible resume publishes no address; it routes
+ * visitors through the request form instead, which is the whole basis of the
+ * lead-capture gate. `resume.data.spec.ts` enforces it at the data layer so this
+ * cannot be undone by editing markup.
+ *
+ * ## The web view is curated; the print view is complete
+ *
+ * On the web, selected roles show their `featured` bullet subset. With `print`
+ * set, every bullet on every role renders — see the prop's own note. Nothing is
+ * ever hidden outright: the complete set is also on `/air/resume/for-bots`.
+ */
+import ResumeSection from './ResumeSection.astro';
+import {
+  RESUME,
+  rolesByRecency,
+  type ResumeRole,
+} from '@util/resume/resume.data';
+import { emphasize } from '@util/resume/markup';
+
+interface Props {
+  /** Where "ask A.I.R. about this" should point. */
+  airPath?: string;
+  /** Where the complete machine-readable version lives. */
+  botsPath?: string;
+  /**
+   * Render for the PDF generator instead of the web.
+   *
+   * This is the "Full Resume" the download button promises, so `print` means
+   * *complete*: every bullet on every role, every role given the full treatment
+   * rather than a one-line entry in the "Earlier career" grid. It also drops the
+   * on-page affordances — the expand control and the cross-links — which have no
+   * meaning on paper.
+   *
+   * One component with a flag rather than a second print component: the two would
+   * share every class in the organic system and drift the first time one was
+   * edited alone.
+   */
+  print?: boolean;
+}
+
+const {
+  airPath = '/air/',
+  botsPath = '/air/resume/for-bots',
+  print = false,
+} = Astro.props;
+
+// In print, everything is "selected" and there is no compact grid.
+const selected = print
+  ? rolesByRecency().filter((role) => role !== RESUME.now)
+  : RESUME.experience.filter((role) => role.tier === 'selected');
+const earlier = print
+  ? []
+  : RESUME.experience.filter((role) => role.tier === 'earlier');
+
+/** Which bullets a role contributes. Print takes them all. */
+const bulletsFor = (role: ResumeRole) =>
+  print ? role.bullets : role.bullets.filter((bullet) => bullet.featured);
+---
+
+<article class="organic resume">
+  <header class="resume-header">
+    <h1 class="resume-name">{RESUME.name}</h1>
+    <p class="resume-headline">{RESUME.headline}</p>
+    <p class="resume-summary">{RESUME.summary}</p>
+
+    <div class="resume-meta">
+      <span class="tag tag-neutral resume-chip">{RESUME.location}</span>
+      <span class="tag tag-accent-2 resume-chip"
+        >Open to senior / staff roles</span
+      >
+    </div>
+
+    {
+      /* Print documents carry the contact block the web page deliberately omits. */
+    }
+    <slot name="contact" />
+
+    {
+      !print && (
+        <Fragment>
+          {/* Task 8 replaces this slot with the gated download island. */}
+          <slot name="downloads" />
+
+          <div class="resume-links">
+            <a href={airPath}>Ask A.I.R. about any of this &rarr;</a>
+            <a href={botsPath}>Complete version, for machines &rarr;</a>
+          </div>
+        </Fragment>
+      )
+    }
+  </header>
+
+  <section class="resume-stats" aria-label="At a glance">
+    {
+      RESUME.stats.map((stat) => (
+        <div class="card resume-stat">
+          <span class="resume-stat-value">{stat.value}</span>
+          <span class="resume-stat-label">{stat.label}</span>
+        </div>
+      ))
+    }
+  </section>
+
+  {
+    !print && (
+      <div class="resume-expand-row">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          data-resume-expand
+          aria-expanded="false"
+        >
+          Expand all
+        </button>
+      </div>
+    )
+  }
+
+  <div data-resume-sections>
+    <ResumeSection open={print} title="What I'm good at" id="strengths">
+      <div class="resume-strengths">
+        {
+          RESUME.strengths.map((strength) => (
+            <div
+              class:list={[
+                'card',
+                'resume-strength',
+                { 'resume-strength-wide': strength.wide },
+              ]}
+            >
+              <span class="resume-strength-title">{strength.title}</span>
+              <span class="resume-strength-detail">{strength.detail}</span>
+            </div>
+          ))
+        }
+      </div>
+    </ResumeSection>
+
+    <ResumeSection open={print} title="Now" id="now">
+      <div class="resume-role">
+        <div class="resume-role-head">
+          {
+            /* `{' '}` is load-bearing: Astro trims the newline between a text
+              node and an element, which would render "Curlfriend— Co-Owner". */
+          }
+          <h3 class="resume-role-title">
+            {RESUME.now.org}{' '}
+            <span class="resume-role-name">&mdash; {RESUME.now.role}</span>
+          </h3>
+          <span class="resume-role-dates"
+            >{RESUME.now.location} &middot; {RESUME.now.dates}</span
+          >
+        </div>
+
+        <p
+          class="resume-role-summary"
+          set:html={emphasize(RESUME.now.summary ?? '')}
+        />
+
+        <div class="resume-tags">
+          {
+            RESUME.now.tags?.map((tag) => (
+              <span class="tag tag-accent-2 resume-chip">{tag}</span>
+            ))
+          }
+        </div>
+
+        {
+          /*
+           * Web only. These three cards are a *precis* of the bullets below —
+           * the payroll figure, the POS migration, the vendor access. On the
+           * collapsed page they earn their place by carrying the outcome before
+           * anyone expands anything. In the complete PDF the same facts appear
+           * in full a few lines later, so keeping them costs a page to say
+           * everything twice.
+           */
+        }
+        {
+          !print && (
+            <div class="resume-highlights">
+              {RESUME.now.highlights?.map((highlight) => (
+                <div class="card resume-highlight">
+                  <span class="resume-highlight-value">{highlight.value}</span>
+                  <span class="resume-highlight-detail">
+                    {highlight.detail}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )
+        }
+
+        <ul class="resume-bullets">
+          {
+            bulletsFor(RESUME.now).map((bullet) => (
+              <li set:html={emphasize(bullet.text)} />
+            ))
+          }
+        </ul>
+      </div>
+    </ResumeSection>
+
+    <ResumeSection
+      open={print}
+      title={print ? 'Experience' : 'Selected experience'}
+      id="experience"
+    >
+      <div class="resume-roles">
+        {
+          selected.map((role) => (
+            <div class="resume-role">
+              <div class="resume-role-head">
+                <h3 class="resume-role-title">
+                  {role.org}{' '}
+                  <span class="resume-role-name">&mdash; {role.role}</span>
+                </h3>
+                <span class="resume-role-dates">
+                  {role.location} &middot; {role.dates}
+                </span>
+              </div>
+
+              {role.summary && (
+                <p
+                  class="resume-role-summary"
+                  set:html={emphasize(role.summary)}
+                />
+              )}
+
+              {role.tags && (
+                <div class="resume-tags">
+                  {role.tags.map((tag) => (
+                    <span class="tag tag-neutral resume-chip">{tag}</span>
+                  ))}
+                </div>
+              )}
+
+              <ul class="resume-bullets">
+                {bulletsFor(role).map((bullet) => (
+                  <li set:html={emphasize(bullet.text)} />
+                ))}
+              </ul>
+            </div>
+          ))
+        }
+        {
+          /* Print has no "Earlier career" grid, so the pre-2012 line lands here. */
+        }
+        {
+          print && (
+            <p
+              class="resume-role-summary"
+              set:html={emphasize(RESUME.earliest)}
+            />
+          )
+        }
+      </div>
+    </ResumeSection>
+
+    {
+      earlier.length > 0 && (
+        <ResumeSection open={print} title="Earlier career" id="earlier">
+          <dl class="resume-earlier">
+            {earlier.map((role) => (
+              <Fragment>
+                <dt class="resume-earlier-period">{role.period}</dt>
+                <dd
+                  class="resume-earlier-detail"
+                  set:html={emphasize(role.compact ?? '')}
+                />
+              </Fragment>
+            ))}
+            <dt class="resume-earlier-period">Earlier</dt>
+            <dd
+              class="resume-earlier-detail"
+              set:html={emphasize(RESUME.earliest)}
+            />
+          </dl>
+        </ResumeSection>
+      )
+    }
+
+    <ResumeSection open={print} title="Skills" id="skills">
+      <div class="resume-skills">
+        {
+          RESUME.skills.map((group) => (
+            <div class="resume-skill-group">
+              <span class="resume-skill-label">{group.group}</span>
+              <div class="resume-tags">
+                {group.items.map((item) => (
+                  <span class={`tag tag-${group.tone} resume-chip`}>
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </ResumeSection>
+
+    <ResumeSection open={print} title="Speaking & community" id="speaking">
+      <p
+        class="resume-prose"
+        set:html={emphasize(RESUME.speaking.evaluation)}
+      />
+
+      <div class="resume-talks">
+        {
+          RESUME.speaking.talks.map((talk) => (
+            <div class="card resume-talk">
+              <span class="resume-talk-org">{talk.org}</span>
+              <a class="resume-talk-title" href={talk.url}>
+                {talk.title}
+              </a>
+              <span class="resume-talk-detail">{talk.detail}</span>
+            </div>
+          ))
+        }
+      </div>
+
+      <p class="resume-prose">
+        {RESUME.speaking.footer} I write at{' '}
+        <a href={RESUME.speaking.writing.url}>{RESUME.speaking.writing.label}</a
+        >, {RESUME.speaking.writing.detail}.
+      </p>
+    </ResumeSection>
+
+    <ResumeSection open={print} title="Education" id="education">
+      <dl class="resume-earlier">
+        {
+          RESUME.education.map((entry) => (
+            <Fragment>
+              <dt class="resume-earlier-period">{entry.period}</dt>
+              <dd class="resume-earlier-detail">
+                <strong>{entry.institution}</strong> &mdash; {entry.detail}
+              </dd>
+            </Fragment>
+          ))
+        }
+      </dl>
+    </ResumeSection>
+  </div>
+</article>
+
+<style>
+  /*
+   * The source design sat the document on a 68px inset at a fixed 816px. Here it
+   * is fluid, so the inset scales — enough to read as a document rather than a
+   * slab of colour butted against the nav, without eating the measure on a
+   * phone. The radius matters only in light mode, where the organic cream sits
+   * against the site's pink page; in dark mode the two backgrounds match and the
+   * corners are invisible, which is the intended effect in both cases.
+   */
+  .resume {
+    padding: clamp(28px, 5vw, 56px) clamp(20px, 4vw, 48px)
+      clamp(48px, 6vw, 72px);
+    border-radius: var(--radius-lg);
+    margin-block: 20px 32px;
+  }
+
+  /* ── Header ─────────────────────────────────────────────────────────────── */
+
+  .resume-header {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding-bottom: var(--space-6);
+  }
+
+  .resume-name {
+    margin: 0;
+    font-size: clamp(38px, 9vw, 54px);
+    line-height: 1.02;
+    letter-spacing: -0.015em;
+    color: var(--color-neutral-900);
+  }
+
+  .resume-headline {
+    margin: 0;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 19px;
+    line-height: 1.35;
+    color: var(--color-accent-700);
+  }
+
+  .resume-summary {
+    margin: 0;
+    max-width: 60ch;
+    font-size: 16px;
+    line-height: 1.62;
+    color: var(--color-neutral-800);
+  }
+
+  .resume-meta,
+  .resume-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    align-items: center;
+  }
+
+  /* The design's chips are larger than the base .tag; keep .tag for colour. */
+  .resume-chip {
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .resume-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    font-size: 14.5px;
+  }
+
+  /* ── Stats ──────────────────────────────────────────────────────────────── */
+
+  .resume-stats {
+    display: grid;
+    /* auto-fit rather than a fixed 4 columns: at 768px four tiles of this
+       content would be unreadably narrow, and the design's 816px canvas does
+       not exist here. */
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    padding-bottom: var(--space-6);
+  }
+
+  .resume-stat {
+    padding: 18px 20px;
+    gap: 6px;
+  }
+
+  .resume-stat-value {
+    font-family: var(--font-heading);
+    font-weight: var(--font-heading-weight);
+    font-size: 34px;
+    line-height: 1;
+    color: var(--color-accent-700);
+  }
+
+  .resume-stat-label {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--color-neutral-800);
+  }
+
+  /* ── Expand control ─────────────────────────────────────────────────────── */
+
+  .resume-expand-row {
+    display: flex;
+    justify-content: flex-end;
+    padding-bottom: var(--space-2);
+  }
+
+  /* ── Strengths ──────────────────────────────────────────────────────────── */
+
+  .resume-strengths {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+  }
+
+  .resume-strength {
+    padding: 18px 22px;
+    gap: 5px;
+  }
+
+  /*
+   * Only spans two columns once there are two to span. Below that the grid is
+   * single-column and `span 2` would overflow the track.
+   */
+  @media (min-width: 560px) {
+    .resume-strength-wide {
+      grid-column: span 2;
+    }
+  }
+
+  .resume-strength-title {
+    font-weight: 700;
+    font-size: 15.5px;
+    line-height: 1.35;
+    color: var(--color-neutral-900);
+  }
+
+  .resume-strength-detail {
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: var(--color-neutral-800);
+  }
+
+  /* ── Roles ──────────────────────────────────────────────────────────────── */
+
+  .resume-roles {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .resume-role {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .resume-role-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 4px 16px;
+  }
+
+  .resume-role-title {
+    margin: 0;
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 17.5px;
+    line-height: 1.3;
+    letter-spacing: normal;
+    color: var(--color-neutral-900);
+  }
+
+  .resume-role-name {
+    font-weight: 500;
+    color: var(--color-accent-700);
+  }
+
+  .resume-role-dates {
+    font-size: 13.5px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--color-neutral-600);
+  }
+
+  .resume-role-summary,
+  .resume-prose {
+    margin: 0;
+    font-size: 15.5px;
+    line-height: 1.6;
+    color: var(--color-neutral-800);
+  }
+
+  .resume-highlights {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px;
+  }
+
+  .resume-highlight {
+    padding: 18px 22px;
+    gap: 5px;
+  }
+
+  .resume-highlight-value {
+    font-family: var(--font-heading);
+    font-weight: var(--font-heading-weight);
+    font-size: 19px;
+    line-height: 1.25;
+    color: var(--color-accent-700);
+    text-wrap: balance;
+  }
+
+  .resume-highlight-detail {
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--color-neutral-800);
+  }
+
+  /* ── Bullets ────────────────────────────────────────────────────────────── */
+
+  /*
+   * A real <ul>. The design drew bullets as flex rows with a decorative span,
+   * which reads to a screen reader as a run of unrelated paragraphs — a list of
+   * achievements is a list, and the marker is styled rather than rebuilt.
+   */
+  .resume-bullets {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .resume-bullets li {
+    position: relative;
+    padding-left: 19px;
+    font-size: 14.5px;
+    line-height: 1.64;
+    color: var(--color-neutral-800);
+  }
+
+  .resume-bullets li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    /* Aligns the dot to the first line's optical centre. */
+    top: 0.62em;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--color-accent-600);
+  }
+
+  .resume-bullets :global(strong) {
+    font-weight: 700;
+    color: var(--color-neutral-900);
+  }
+
+  .resume-role-summary :global(strong),
+  .resume-prose :global(strong),
+  .resume-earlier-detail :global(strong) {
+    font-weight: 700;
+    color: var(--color-neutral-900);
+  }
+
+  /* ── Earlier career & education ─────────────────────────────────────────── */
+
+  .resume-earlier {
+    display: grid;
+    grid-template-columns: 116px 1fr;
+    gap: 14px 20px;
+    align-items: baseline;
+    margin: 0;
+  }
+
+  @media (max-width: 520px) {
+    .resume-earlier {
+      grid-template-columns: 1fr;
+      gap: 4px 0;
+    }
+    .resume-earlier-detail {
+      padding-bottom: 10px;
+    }
+  }
+
+  .resume-earlier-period {
+    font-size: 13.5px;
+    font-weight: 500;
+    line-height: 1.5;
+    color: var(--color-neutral-600);
+  }
+
+  .resume-earlier-detail {
+    margin: 0;
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: var(--color-neutral-800);
+  }
+
+  /* ── Skills ─────────────────────────────────────────────────────────────── */
+
+  .resume-skills {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .resume-skill-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .resume-skill-label {
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-accent-700);
+  }
+
+  /* ── Talks ──────────────────────────────────────────────────────────────── */
+
+  .resume-talks {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 12px;
+    padding: var(--space-3) 0;
+  }
+
+  .resume-talk {
+    padding: 18px 22px;
+    gap: 6px;
+  }
+
+  .resume-talk-org {
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-accent-700);
+  }
+
+  .resume-talk-title {
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 1.4;
+  }
+
+  .resume-talk-detail {
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--color-neutral-800);
+  }
+</style>

@@ -1,0 +1,128 @@
+---
+import Layout from '@layouts/Layout.astro';
+import ResumeVisual from '@components/resume/ResumeVisual.astro';
+import { RESUME } from '@util/resume/resume.data';
+import { showAIR } from '@util/visibility.mjs';
+import '../../../styles/resume-organic.css';
+// Carries the rules that swap this page for a notice when printed. The other
+// half of that file styles the print routes; see the note at its top.
+import '../../../styles/print.css';
+
+/**
+ * The visual resume.
+ *
+ * Gated on the same flag as A.I.R. rather than its own: the resume lives under
+ * `/air/`, ships with it, and — the practical reason — production sets only
+ * `PUBLIC_SHOW_AIR`, so a separate flag would need adding to three workflow
+ * files and would ship the feature dark if any one were missed.
+ *
+ * The route is guarded, not just the nav link. An unlisted page is still a
+ * public page if it responds.
+ */
+if (!showAIR(import.meta.env)) {
+  return new Response(null, { status: 404, statusText: 'Not found' });
+}
+
+const pageTitle = `${RESUME.name} — ${RESUME.headline}`;
+const description = `${RESUME.name}: ${RESUME.summary}`;
+const botsPath = '/air/resume/for-bots';
+---
+
+<Layout pageTitle={pageTitle} {description}>
+  <Fragment slot="head">
+    {
+      /*
+      The two families the organic design needs. Loaded here rather than in
+      Layout.astro so no other route pays for them. The stylesheet also
+      @imports them, which covers the print routes; this link is what lets the
+      browser start fetching before the CSS has parsed.
+    */
+    }
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Caprasimo:wght@400&family=Figtree:wght@400;600;700&display=swap"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Caprasimo:wght@400&family=Figtree:wght@400;600;700&display=swap"
+    />
+    {
+      /*
+      Points machines at the complete version. The visible page is collapsed and
+      curated; `for-bots` carries every bullet plus the JSON-LD graph.
+    */
+    }
+    <link
+      rel="alternate"
+      type="text/html"
+      href={botsPath}
+      title="Complete resume, machine-readable"
+    />
+  </Fragment>
+
+  {
+    /*
+    Shown only on paper. Print-to-PDF is the easiest way around the download
+    gate, so printing this page yields the pointer rather than the document.
+    This is a deterrent against convenience, not a security control — the
+    protection that matters is that no PDF exists at a public URL, plus the
+    per-requester watermark on the file that is served.
+  */
+  }
+  <div class="resume-print-notice">
+    <h1>{RESUME.name}</h1>
+    <p>{RESUME.headline}</p>
+    <p>
+      This resume is available as a PDF — human-readable or ATS-friendly.
+      Request a copy at
+      <strong>eddie.engineering/air/resume</strong>.
+    </p>
+  </div>
+
+  <div class="resume-no-print">
+    <ResumeVisual {botsPath} />
+  </div>
+</Layout>
+<script>
+  /**
+   * "Expand all" / "Collapse all".
+   *
+   * Bound on `astro:page-load` rather than at module scope: that event fires on
+   * the first load *and* after every view transition, and the site persists its
+   * nav across swaps. A plain top-level listener would go stale on navigation.
+   */
+  function initResumeExpand() {
+    const button = document.querySelector<HTMLButtonElement>(
+      '[data-resume-expand]',
+    );
+    const scope = document.querySelector<HTMLElement>('[data-resume-sections]');
+    if (!button || !scope) return;
+
+    const sections = Array.from(
+      scope.querySelectorAll<HTMLDetailsElement>('details'),
+    );
+    if (sections.length === 0) return;
+
+    const sync = () => {
+      const allOpen = sections.every((section) => section.open);
+      button.textContent = allOpen ? 'Collapse all' : 'Expand all';
+      // The button controls the sections, so it reports their collective state.
+      button.setAttribute('aria-expanded', String(allOpen));
+    };
+
+    button.addEventListener('click', () => {
+      const allOpen = sections.every((section) => section.open);
+      for (const section of sections) section.open = !allOpen;
+      sync();
+    });
+
+    // Toggling any one section can complete or break "all open", so the label
+    // has to follow individual toggles too, not just its own clicks.
+    for (const section of sections) section.addEventListener('toggle', sync);
+
+    sync();
+  }
+
+  document.addEventListener('astro:page-load', initResumeExpand);
+</script>

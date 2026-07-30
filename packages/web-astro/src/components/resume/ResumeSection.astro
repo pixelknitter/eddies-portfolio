@@ -1,0 +1,139 @@
+---
+/**
+ * One collapsible section of the visual resume.
+ *
+ * ## Why <details> and not a scripted accordion
+ *
+ * Native disclosure gives keyboard operation, the correct screen-reader role and
+ * expanded/collapsed state for free, and — the reason it matters here — it keeps
+ * working with JavaScript disabled or still loading. A scripted accordion that
+ * starts collapsed and hydrates late shows a page with no content on it.
+ *
+ * It also costs nothing in GEO terms: content inside a *closed* `<details>` is
+ * present in the DOM and in the served HTML, so crawlers and language models
+ * read the whole resume even though a visitor sees it collapsed. Collapsing is
+ * a presentation choice, not a content one.
+ *
+ * The "Expand all" control in ResumeVisual.astro toggles the `open` attribute on
+ * every instance, which is why nothing here owns state.
+ */
+interface Props {
+  /** Section heading, e.g. "Selected experience". */
+  title: string;
+  /** Start expanded. Everything defaults to closed by decision. */
+  open?: boolean;
+  /** Anchor target, so a section can be linked to directly. */
+  id?: string;
+}
+
+const { title, open = false, id } = Astro.props;
+---
+
+<details class="resume-section" open={open} id={id}>
+  <summary class="resume-section-summary">
+    <span class="resume-section-dot" aria-hidden="true"></span>
+    <h2 class="resume-section-title">{title}</h2>
+    <svg
+      class="resume-section-chevron"
+      aria-hidden="true"
+      viewBox="0 0 16 16"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path d="M4 6l4 4 4-4"></path>
+    </svg>
+  </summary>
+  <div class="resume-section-body">
+    <slot />
+  </div>
+</details>
+
+<style>
+  .resume-section {
+    border-top: 1px solid var(--color-divider);
+    padding: var(--space-4) 0 var(--space-2);
+  }
+
+  /*
+   * The default triangle is replaced by the chevron above. Both properties are
+   * needed: ::marker is the standard, ::-webkit-details-marker is still what
+   * Safari uses.
+   */
+  .resume-section-summary::marker,
+  .resume-section-summary::-webkit-details-marker {
+    display: none;
+    content: '';
+  }
+
+  .resume-section-summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    list-style: none;
+    /* A generous hit area: the whole row toggles, not just the words. */
+    padding: 6px 4px;
+    border-radius: var(--radius-md);
+  }
+
+  .resume-section-summary:hover {
+    background: color-mix(in srgb, var(--color-text) 5%, transparent);
+  }
+
+  /*
+   * Focus lands on <summary>, so the ring has to be visible against both
+   * palettes. `outline-offset` keeps it clear of the hover fill.
+   */
+  .resume-section-summary:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  .resume-section-dot {
+    flex: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--color-accent-2-600);
+  }
+
+  .resume-section-title {
+    /* Matches the design's section heading: 22px organic display face. */
+    margin: 0;
+    flex: 1;
+    font-family: var(--font-heading);
+    font-weight: var(--font-heading-weight);
+    font-size: 22px;
+    line-height: 1.2;
+    color: var(--color-accent-2-700);
+  }
+
+  .resume-section-chevron {
+    flex: none;
+    color: var(--color-neutral-600);
+    transition: rotate 150ms ease;
+  }
+
+  .resume-section[open] .resume-section-chevron {
+    rotate: 180deg;
+  }
+
+  .resume-section-body {
+    padding: var(--space-3) 0 var(--space-4);
+  }
+
+  /*
+   * Reduced motion: the chevron still flips to convey state, it just does not
+   * animate getting there. Removing the rotation entirely would drop a state cue.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    .resume-section-chevron {
+      transition: none;
+    }
+  }
+</style>
