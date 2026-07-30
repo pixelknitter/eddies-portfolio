@@ -38,15 +38,20 @@ jobs:
       - name: Setup Node & install
         uses: ./.github/actions/setup
 
-      - name: Verify (check, lint, test)
-        run: yarn nx run-many --targets=check,lint,test --projects=web-astro
-
+      # Before Verify, not after: the A.I.R. eval suite grades the real corpus
+      # off disk, so running the tests first meant grading a corpus the site
+      # never serves. ci.yml and preview.yml were fixed; this file was missed,
+      # and it is what broke the deploy of #41.
+      #
       # Staging is a pre-production review tier, so it shows unpublished
       # content. The production job below deliberately does not.
       - name: Unseal scheduled content
         env:
           CONTENT_SEAL_KEY: ${{ secrets.CONTENT_SEAL_KEY }}
         run: node scripts/seal-content.mjs unseal-all --require-key
+
+      - name: Verify (check, lint, test)
+        run: yarn nx run-many --targets=check,lint,test --projects=web-astro
 
       - name: Build
         env:
