@@ -6,15 +6,24 @@ import {
   mintAccessCode,
   verifyAccessCode,
   APPROVAL_TTL_MS,
+  mintPurposeToken,
+  verifyPurposeToken,
+  RESUME_DOWNLOAD_TTL_MS,
 } from './requests.mjs';
-import { accessGrantedEmail, accessRequestNotification, escapeHtml } from './email.mjs';
+import {
+  accessGrantedEmail,
+  accessRequestNotification,
+  escapeHtml,
+} from './email.mjs';
 import { tierFromHostname, tierFromRequest, TIER_STYLE } from './tier.mjs';
 
 const SECRET = 'test-signing-secret';
 
 describe('request validation', () => {
   it('rejects a malformed address', () => {
-    expect(validateRequest('not-an-email', 'I would like to talk about a role.').ok).toBe(false);
+    expect(
+      validateRequest('not-an-email', 'I would like to talk about a role.').ok,
+    ).toBe(false);
   });
 
   it('rejects a note too short to be a reason', () => {
@@ -22,7 +31,10 @@ describe('request validation', () => {
   });
 
   it('accepts and trims a real request', () => {
-    const result = validateRequest('  Person@Example.com  ', '  Hiring for a platform role.  ');
+    const result = validateRequest(
+      '  Person@Example.com  ',
+      '  Hiring for a platform role.  ',
+    );
     expect(result).toEqual({
       ok: true,
       email: 'Person@Example.com',
@@ -61,7 +73,9 @@ describe('approval tokens', () => {
       .replace(/\//g, '_')
       .replace(/=+$/, '')}.${signature}`;
 
-    expect((await verifyApprovalToken(SECRET, forged, { now: 2_000 })).ok).toBe(false);
+    expect((await verifyApprovalToken(SECRET, forged, { now: 2_000 })).ok).toBe(
+      false,
+    );
   });
 
   it('rejects a token signed with a different secret', async () => {
@@ -70,7 +84,9 @@ describe('approval tokens', () => {
       reason: 'Hiring.',
       issuedAt: 1_000,
     });
-    expect((await verifyApprovalToken(SECRET, token, { now: 2_000 })).ok).toBe(false);
+    expect((await verifyApprovalToken(SECRET, token, { now: 2_000 })).ok).toBe(
+      false,
+    );
   });
 
   it('expires after the TTL', async () => {
@@ -79,7 +95,10 @@ describe('approval tokens', () => {
       reason: 'Hiring.',
       issuedAt: 0,
     });
-    expect((await verifyApprovalToken(SECRET, token, { now: APPROVAL_TTL_MS + 1 })).ok).toBe(false);
+    expect(
+      (await verifyApprovalToken(SECRET, token, { now: APPROVAL_TTL_MS + 1 }))
+        .ok,
+    ).toBe(false);
   });
 
   it('rejects malformed input rather than throwing', async () => {
@@ -98,11 +117,15 @@ describe('access codes', () => {
   });
 
   it('is deterministic for one address, so re-approving re-issues the same code', async () => {
-    expect(await mintAccessCode(SECRET, 'a@b.co')).toBe(await mintAccessCode(SECRET, 'a@b.co'));
+    expect(await mintAccessCode(SECRET, 'a@b.co')).toBe(
+      await mintAccessCode(SECRET, 'a@b.co'),
+    );
   });
 
   it('issues different codes to different people', async () => {
-    expect(await mintAccessCode(SECRET, 'a@b.co')).not.toBe(await mintAccessCode(SECRET, 'c@d.co'));
+    expect(await mintAccessCode(SECRET, 'a@b.co')).not.toBe(
+      await mintAccessCode(SECRET, 'c@d.co'),
+    );
   });
 
   it('rejects a code minted with another secret', async () => {
@@ -123,12 +146,15 @@ describe('access codes', () => {
 describe('email templates', () => {
   it('escapes untrusted text', () => {
     expect(escapeHtml('<script>alert(1)</script>')).toBe(
-      '&lt;script&gt;alert(1)&lt;/script&gt;'
+      '&lt;script&gt;alert(1)&lt;/script&gt;',
     );
   });
 
   it('includes both an html and a text part', () => {
-    const message = accessGrantedEmail({ code: 'abc.def', airUrl: 'https://x.test/air/' });
+    const message = accessGrantedEmail({
+      code: 'abc.def',
+      airUrl: 'https://x.test/air/',
+    });
     expect(message.html).toContain('abc.def');
     expect(message.text).toContain('abc.def');
     expect(message.subject).toBeTruthy();
@@ -140,7 +166,9 @@ describe('email templates', () => {
       reason: 'Hiring.',
       approveUrl: 'https://x.test/api/air/approve?token=t',
     });
-    expect(notification.embeds[0].description).toContain('https://x.test/api/air/approve?token=t');
+    expect(notification.embeds[0].description).toContain(
+      'https://x.test/api/air/approve?token=t',
+    );
     expect(notification.embeds[0].fields[0].value).toBe('person@example.com');
   });
 
@@ -150,10 +178,11 @@ describe('email templates', () => {
       reason: 'x'.repeat(2000),
       approveUrl: 'https://x.test/',
     });
-    expect(notification.embeds[0].fields[1].value.length).toBeLessThanOrEqual(901);
+    expect(notification.embeds[0].fields[1].value.length).toBeLessThanOrEqual(
+      901,
+    );
   });
 });
-
 
 describe('tier detection', () => {
   it('maps each known hostname to its tier', () => {
@@ -179,31 +208,45 @@ describe('tier detection', () => {
   });
 
   it('does not confuse a staging-looking subdomain with production', () => {
-    expect(tierFromHostname('staging.eddie.engineering')).not.toBe('production');
+    expect(tierFromHostname('staging.eddie.engineering')).not.toBe(
+      'production',
+    );
   });
 });
 
 describe('tier from a request', () => {
   const requestWith = (host?: string) =>
-    ({ headers: { get: (name: string) => (name === 'host' ? (host ?? null) : null) } }) as Request;
+    ({
+      headers: {
+        get: (name: string) => (name === 'host' ? (host ?? null) : null),
+      },
+    }) as Request;
 
   // The regression this guards: under wrangler dev, context.url reflects the
   // custom domain in wrangler.jsonc, so a localhost request announced itself
   // as Production. The Host header is what the client actually asked for.
   it('prefers the Host header over a reconstructed URL', () => {
     expect(
-      tierFromRequest(requestWith('127.0.0.1:4411'), new URL('https://eddie.engineering/x'))
+      tierFromRequest(
+        requestWith('127.0.0.1:4411'),
+        new URL('https://eddie.engineering/x'),
+      ),
     ).toBe('local');
   });
 
   it('strips the port before matching', () => {
-    expect(tierFromRequest(requestWith('staging.eddie.engineering:443'))).toBe('staging');
+    expect(tierFromRequest(requestWith('staging.eddie.engineering:443'))).toBe(
+      'staging',
+    );
   });
 
   it('falls back to the URL when there is no Host header', () => {
-    expect(tierFromRequest(requestWith(undefined), new URL('https://eddie.engineering/x'))).toBe(
-      'production'
-    );
+    expect(
+      tierFromRequest(
+        requestWith(undefined),
+        new URL('https://eddie.engineering/x'),
+      ),
+    ).toBe('production');
   });
 });
 
@@ -218,7 +261,9 @@ describe('notification carries the environment', () => {
 
     expect(notification.embeds[0].title).toContain('Staging');
     expect(notification.embeds[0].color).toBe(TIER_STYLE.staging.colour);
-    expect(notification.embeds[0].fields.some((f) => f.value === 'Staging')).toBe(true);
+    expect(
+      notification.embeds[0].fields.some((f) => f.value === 'Staging'),
+    ).toBe(true);
   });
 
   it('gives production its own colour so the two are not confusable', () => {
@@ -233,5 +278,129 @@ describe('notification carries the environment', () => {
       approveUrl: 'https://x.test/',
     });
     expect(notification.embeds[0].title).toContain('Dev preview');
+  });
+});
+
+describe('purpose-scoped tokens', () => {
+  it('round-trips its claims', async () => {
+    const token = await mintPurposeToken(SECRET, 'download', {
+      email: 'jane@acme.com',
+      format: 'human',
+    });
+    const result = await verifyPurposeToken(SECRET, 'download', token);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.claims).toEqual({ email: 'jane@acme.com', format: 'human' });
+    expect(result.issuedAt).toBeTypeOf('number');
+  });
+
+  /**
+   * The reason purpose scoping exists. One secret now signs two unrelated grants —
+   * chat access and a PDF download — and without separation either could be
+   * replayed as the other, turning two small permissions into one large one.
+   */
+  describe('cannot be replayed across purposes', () => {
+    it('rejects a token minted for another purpose', async () => {
+      const token = await mintPurposeToken(SECRET, 'download', {
+        email: 'a@b.co',
+      });
+      const result = await verifyPurposeToken(SECRET, 'newsletter', token);
+      expect(result.ok).toBe(false);
+    });
+
+    it('does not accept an A.I.R. approval token as a download token', async () => {
+      const approval = await mintApprovalToken(SECRET, {
+        email: 'a@b.co',
+        reason: 'because',
+        issuedAt: Date.now(),
+      });
+      expect((await verifyPurposeToken(SECRET, 'download', approval)).ok).toBe(
+        false,
+      );
+    });
+
+    it('does not accept a download token as an A.I.R. approval', async () => {
+      const download = await mintPurposeToken(SECRET, 'download', {
+        email: 'a@b.co',
+      });
+      expect((await verifyApprovalToken(SECRET, download)).ok).toBe(false);
+    });
+
+    it('does not accept a download token as an access code', async () => {
+      const download = await mintPurposeToken(SECRET, 'download', {
+        email: 'a@b.co',
+      });
+      expect((await verifyAccessCode(SECRET, download)).ok).toBe(false);
+    });
+
+    it('does not accept an access code as a download token', async () => {
+      const code = await mintAccessCode(SECRET, 'a@b.co');
+      expect((await verifyPurposeToken(SECRET, 'download', code)).ok).toBe(
+        false,
+      );
+    });
+  });
+
+  it('rejects a token signed with a different secret', async () => {
+    const token = await mintPurposeToken(SECRET, 'download', {
+      email: 'a@b.co',
+    });
+    const result = await verifyPurposeToken(
+      'another-secret',
+      'download',
+      token,
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('bad signature');
+  });
+
+  it('rejects a tampered payload', async () => {
+    const token = await mintPurposeToken(SECRET, 'download', {
+      email: 'a@b.co',
+    });
+    const [, signature] = token.split('.');
+    const forged = `${btoa(JSON.stringify({ email: 'evil@x.co', p: 'download', t: Date.now() }))}.${signature}`;
+    expect((await verifyPurposeToken(SECRET, 'download', forged)).ok).toBe(
+      false,
+    );
+  });
+
+  it('expires', async () => {
+    const token = await mintPurposeToken(SECRET, 'download', {
+      email: 'a@b.co',
+    });
+    const result = await verifyPurposeToken(SECRET, 'download', token, {
+      now: Date.now() + RESUME_DOWNLOAD_TTL_MS + 1000,
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('expired');
+  });
+
+  it('is still valid just inside its window', async () => {
+    const token = await mintPurposeToken(SECRET, 'download', {
+      email: 'a@b.co',
+    });
+    const result = await verifyPurposeToken(SECRET, 'download', token, {
+      now: Date.now() + RESUME_DOWNLOAD_TTL_MS - 1000,
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it('rejects malformed input without throwing', async () => {
+    for (const bad of ['', 'nodot', 'a.b.c.d', null, undefined]) {
+      expect(
+        (await verifyPurposeToken(SECRET, 'download', bad)).ok,
+        String(bad),
+      ).toBe(false);
+    }
+  });
+
+  // 15 minutes: the link goes straight back to the requesting browser, so it has to
+  // survive a click and a retry — not a forward.
+  it('uses a short download window', () => {
+    expect(RESUME_DOWNLOAD_TTL_MS).toBeLessThanOrEqual(60 * 60 * 1000);
+    expect(RESUME_DOWNLOAD_TTL_MS).toBeGreaterThanOrEqual(5 * 60 * 1000);
   });
 });

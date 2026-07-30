@@ -28,12 +28,8 @@ import { escapeHtml } from '../html.mjs';
  * The reason string is written by a stranger and is echoed back in the mail
  * Eddie reads, so it goes through here before it lands in markup.
  *
- * Re-exported rather than defined here: the resume surfaces need the same
- * function, and one shared implementation cannot drift from itself. It is
- * imported at the top of this module as well as re-exported — a bare
- * `export … from` would satisfy importers while leaving the name unbound for
- * this module's own use, which is exactly the bug the email-template test
- * caught.
+ * Re-exported so the resume surfaces share one implementation. Imported at the
+ * top as well: a bare `export … from` leaves the name unbound here.
  */
 export { escapeHtml };
 
@@ -55,7 +51,7 @@ export function accessGrantedEmail({ code, airUrl }) {
     '',
     `Paste it into the access field at ${airUrl} and ask away.`,
     '',
-    'A.I.R. answers from Eddie\'s written work and tells you when a question',
+    "A.I.R. answers from Eddie's written work and tells you when a question",
     "isn't something it can speak to. If it declines, that's the honest answer",
     'rather than a failure.',
     '',
@@ -108,7 +104,12 @@ export function accessGrantedEmail({ code, airUrl }) {
  *
  * @param {{email: string, reason: string, approveUrl: string, tier?: string}} input
  */
-export function accessRequestNotification({ email, reason, approveUrl, tier = 'dev' }) {
+export function accessRequestNotification({
+  email,
+  reason,
+  approveUrl,
+  tier = 'dev',
+}) {
   const style = TIER_STYLE[tier] ?? TIER_STYLE.dev;
 
   return {

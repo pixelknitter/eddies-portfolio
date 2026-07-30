@@ -20,7 +20,13 @@ export default defineConfig({
   // Serial locally keeps the shared dev server predictable; CI has the cores.
   workers: process.env.CI ? 2 : 1,
   reporter: process.env.CI
-    ? [['github'], ['html', { outputFolder: '../../dist/playwright-report', open: 'never' }]]
+    ? [
+        ['github'],
+        [
+          'html',
+          { outputFolder: '../../dist/playwright-report', open: 'never' },
+        ],
+      ]
     : [['list']],
 
   use: {
@@ -62,10 +68,18 @@ export default defineConfig({
           // production publication rules, and drafts must not be reachable.
           // PUBLIC_SHOW_FIXTURES is required, not incidental: this build has no seal
           // key, so sample-*.md is the only content that exists to assert on.
+          // PUBLIC_RESUME_PRINT is deliberately absent, so the suite can prove the
+          // print routes 404 in a normal build. They render the resume *with*
+          // contact details, and only the PDF generator should ever reach them.
           'PUBLIC_SHOW_BLOG=true PUBLIC_SHOW_PROJECTS=true PUBLIC_SHOW_AIR=true ' +
-          'PUBLIC_SHOW_FIXTURES=true ' +
+          'PUBLIC_SHOW_FIXTURES=true PUBLIC_SHOW_RESUME=true ' +
           'yarn astro build && ' +
-          'npx wrangler dev -c dist/server/wrangler.json --port 4321 --local',
+          // Test-only secrets, so the download flow is exercisable end to end. The
+          // webhook points at a local sink the resume spec starts; without a value
+          // the request endpoint would still succeed but report notified: false.
+          'npx wrangler dev -c dist/server/wrangler.json --port 4321 --local ' +
+          '--var AIR_SIGNING_SECRET:e2e-not-a-secret ' +
+          '--var DISCORD_ACCESS_WEBHOOK_URL:http://127.0.0.1:4399/sink',
         url: baseURL,
         cwd: '../web-astro',
         reuseExistingServer: !process.env.CI,

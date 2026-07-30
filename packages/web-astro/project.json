@@ -40,6 +40,9 @@
           "env": "PUBLIC_SHOW_FIXTURES"
         },
         {
+          "env": "PUBLIC_SHOW_RESUME"
+        },
+        {
           "env": "PUBLIC_RESUME_PRINT"
         }
       ]

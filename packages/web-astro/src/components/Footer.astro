@@ -1,5 +1,20 @@
 ---
+import { isResumeRoute, REQUEST_PATH } from '@util/resume/resume.data';
+
 const year = new Date().getFullYear();
+
+/**
+ * On resume routes the mail icon becomes a link to the request form.
+ *
+ * The resume deliberately publishes no address — visitors are routed through the
+ * request flow, which is what captures the lead and what gates the PDFs. A
+ * `mailto:` in the footer of that same page walks straight around all of it, so
+ * the icon changes target there and nowhere else.
+ *
+ * Decided from the pathname rather than a prop so a future resume route inherits
+ * the behaviour instead of having to remember to ask for it.
+ */
+const gateContact = isResumeRoute(Astro.url.pathname);
 ---
 <footer class="my-16 cursor-default p-0 list-none">
     <div class="text-center">
@@ -11,8 +26,11 @@ const year = new Date().getFullYear();
             </a>
           </li>
           <li class="inline-block">
-            <a class="icon-btn" href="mailto:connect@eddie.engineering">
-              <span class="mail-icon block">Email</span>
+            <a
+              class="icon-btn"
+              href={gateContact ? REQUEST_PATH : 'mailto:connect@eddie.engineering'}
+            >
+              <span class="mail-icon block">{gateContact ? 'Request a copy' : 'Email'}</span>
             </a>
           </li>
           <li class="inline-block">

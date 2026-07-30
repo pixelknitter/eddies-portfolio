@@ -68,24 +68,64 @@ export function showProjects(env = {}) {
 }
 
 /**
- * Whether sample/fixture content (`sample-*.md`) is loaded into the content
- * collections.
+ * Whether the resume pages are enabled.
  *
- * Fixtures are committed in plaintext because real posts exist in the repo only
- * as encrypted blobs: a build with no seal key — a fork pull request, or the
- * e2e suite asserting publication rules — would otherwise render nothing to
- * assert on. That makes them the one kind of content that must never appear
- * beside real work, so they load only where explicitly asked for.
+ * Separate from showAIR, and the separation is the point. The two features want
+ * opposite things: A.I.R. is deliberately held back — the deploy workflow sets no
+ * PUBLIC_SHOW_* flags in production precisely because "it is not ready to be
+ * found" — while the resume exists to be found, and carries a JSON-LD graph and a
+ * per-tier robots.txt to make sure it is.
  *
- * Note the absent DEV check, for the opposite reason to showHighlights: locally
- * you have the key and the real content, so fixtures would be pure clutter.
- * Useful in a preview when a branch's real content is thin and you want to see
- * a section's layout with something in it — hence the opt-in label rather than
- * a permanent setting.
+ * Riding showAIR would mean the resume could never go live without also exposing
+ * the chat. It shipped that way first, on the since-invalidated reasoning that
+ * production set only that one flag.
+ *
+ * The print routes have their own flag again; see showResumePrint.
  *
  * `DEV` is declared but unused so this accepts `import.meta.env` directly —
  * TypeScript rejects a call whose argument type shares no property with the
- * parameter type, and every other caller of these helpers passes that object.
+ * parameter type, the same reason showFixtures declares it.
+ *
+ * @param {{DEV?: boolean, PUBLIC_SHOW_RESUME?: string | boolean}} env
+ */
+export function showResume(env = {}) {
+  return flagEnabled(env.PUBLIC_SHOW_RESUME);
+}
+
+/**
+ * Whether the print-only resume render routes are reachable.
+ *
+ * These routes exist for one reason: `scripts/resume-pdf.mjs` points a headless
+ * browser at them to produce the downloadable PDFs. They are the same leak the
+ * gated PDFs are — the full resume, contact details included, in a *more*
+ * parseable form than a PDF — so they need the same gate.
+ *
+ * Hence a flag separate from showAIR, set only by the generation build and by
+ * nothing else. No deploy workflow sets it, so the routes 404 on every tier
+ * including production. That is the intended steady state, not an oversight:
+ * the PDFs are generated locally and committed, so production never needs to
+ * render one.
+ *
+ * Note the absent DEV check. Dev does not imply on, because the routes bypass
+ * the contact-hiding the visible resume relies on — reaching them should always
+ * be a deliberate act. Set PUBLIC_RESUME_PRINT=true to iterate on the print
+ * layout locally.
+ *
+ * @param {{DEV?: boolean, PUBLIC_RESUME_PRINT?: string | boolean}} env
+ */
+export function showResumePrint(env = {}) {
+  return flagEnabled(env.PUBLIC_RESUME_PRINT);
+}
+
+/**
+ * Whether sample fixtures (`sample-*.md`) are loaded into the collections.
+ *
+ * Off by default, including in dev: they exist so a keyless build (fork CI, the
+ * e2e suite) has content to assert on, and must never appear beside real work.
+ * The e2e build and the `show-fixtures` PR label turn them on.
+ *
+ * `DEV` is declared but unused so this accepts `import.meta.env` — TypeScript
+ * rejects an argument sharing no property with the parameter type.
  *
  * @param {{DEV?: boolean, PUBLIC_SHOW_FIXTURES?: string | boolean}} env
  */

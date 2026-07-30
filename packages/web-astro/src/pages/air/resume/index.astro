@@ -1,0 +1,173 @@
+---
+import Layout from '@layouts/Layout.astro';
+import ResumeVisual from '@components/resume/ResumeVisual.astro';
+import { ResumeDownload } from '../../../react/ResumeDownload';
+import { loadResume } from '@util/resume/load';
+import { showResume, showAIR } from '@util/visibility.mjs';
+import '../../../styles/resume-organic.css';
+// Carries the rules that swap this page for a notice when printed. The other
+// half of that file styles the print routes; see the note at its top.
+import '../../../styles/print.css';
+
+/**
+ * The visual resume.
+ *
+ * Has its own flag rather than riding `showAIR`. A.I.R. is deliberately held back
+ * in production; the resume is meant to be found. Sharing a flag would mean the
+ * resume could not go live without also exposing the chat.
+ *
+ * The route is guarded, not just the nav link. An unlisted page is still a public
+ * page if it responds.
+ */
+if (!showResume(import.meta.env)) {
+  return new Response(null, { status: 404, statusText: 'Not found' });
+}
+
+/*
+ * An empty collection means the seal key is absent, not that the resume is blank.
+ * 404 rather than publish a header with empty sections — and, for the machine
+ * page, a JSON-LD graph asserting a person with no work history.
+ */
+const resume = await loadResume();
+if (!resume) {
+  return new Response(null, { status: 404, statusText: 'Not found' });
+}
+
+const pageTitle = `${resume.name} — ${resume.headline}`;
+const description = `${resume.name}: ${resume.summary}`;
+const botsPath = '/air/resume/for-bots';
+// Offer the chat only where it exists: the two features ship independently, and a
+// prominent link to a 404 is worse than no link.
+const airPath = showAIR(import.meta.env) ? '/air/' : undefined;
+---
+
+<Layout pageTitle={pageTitle} {description}>
+  <Fragment slot="head">
+    {
+      /*
+      The two families the organic design needs. Loaded here rather than in
+      Layout.astro so no other route pays for them. The stylesheet also
+      @imports them, which covers the print routes; this link is what lets the
+      browser start fetching before the CSS has parsed.
+    */
+    }
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Caprasimo:wght@400&family=Figtree:wght@400;600;700&display=swap"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Caprasimo:wght@400&family=Figtree:wght@400;600;700&display=swap"
+    />
+    {
+      /*
+      Points machines at the complete version. The visible page is collapsed and
+      curated; `for-bots` carries every bullet plus the JSON-LD graph.
+    */
+    }
+    <link
+      rel="alternate"
+      type="text/html"
+      href={botsPath}
+      title="Complete resume, machine-readable"
+    />
+  </Fragment>
+
+  {
+    /*
+    Shown only on paper. Print-to-PDF is the easiest way around the download
+    gate, so printing this page yields the pointer rather than the document.
+    This is a deterrent against convenience, not a security control — the
+    protection that matters is that no PDF exists at a public URL, plus the
+    per-requester watermark on the file that is served.
+  */
+  }
+  <div class="resume-print-notice">
+    <h1>{resume.name}</h1>
+    <p>{resume.headline}</p>
+    <p>
+      This resume is available as a PDF — human-readable or ATS-friendly.
+      Request a copy at
+      <strong>eddie.engineering/air/resume</strong>.
+    </p>
+  </div>
+
+  {
+    /*
+    The action bar. Sticky under the site nav so the download stays reachable in a
+    long document, and separated from the nav by real space — the header used to
+    butt straight against the page chrome.
+
+    `organic` on the wrapper so the CTA classes resolve their tokens; the bar sits
+    outside the document card deliberately, because it is page chrome rather than
+    part of the resume.
+  */
+  }
+  <div class="organic resume-action-bar resume-no-print">
+    <ResumeDownload client:visible />
+    <span class="resume-action-bar-spacer"></span>
+    <button
+      type="button"
+      class="resume-cta resume-cta-secondary"
+      data-resume-expand
+      aria-expanded="false"
+    >
+      Expand all
+    </button>
+  </div>
+
+  <div class="resume-no-print">
+    <ResumeVisual {resume} {botsPath} {airPath}>
+      {
+        /*
+        `client:visible` rather than `client:load`: the buttons sit above the fold
+        but nobody presses them before reading, and the resume itself is static —
+        this is the only JavaScript the page needs.
+      */
+      }
+    </ResumeVisual>
+  </div>
+</Layout>
+<script>
+  /**
+   * "Expand all" / "Collapse all".
+   *
+   * Bound on `astro:page-load` rather than at module scope: that event fires on
+   * the first load *and* after every view transition, and the site persists its
+   * nav across swaps. A plain top-level listener would go stale on navigation.
+   */
+  function initResumeExpand() {
+    const button = document.querySelector<HTMLButtonElement>(
+      '[data-resume-expand]',
+    );
+    const scope = document.querySelector<HTMLElement>('[data-resume-sections]');
+    if (!button || !scope) return;
+
+    const sections = Array.from(
+      scope.querySelectorAll<HTMLDetailsElement>('details'),
+    );
+    if (sections.length === 0) return;
+
+    const sync = () => {
+      const allOpen = sections.every((section) => section.open);
+      button.textContent = allOpen ? 'Collapse all' : 'Expand all';
+      // The button controls the sections, so it reports their collective state.
+      button.setAttribute('aria-expanded', String(allOpen));
+    };
+
+    button.addEventListener('click', () => {
+      const allOpen = sections.every((section) => section.open);
+      for (const section of sections) section.open = !allOpen;
+      sync();
+    });
+
+    // Toggling any one section can complete or break "all open", so the label
+    // has to follow individual toggles too, not just its own clicks.
+    for (const section of sections) section.addEventListener('toggle', sync);
+
+    sync();
+  }
+
+  document.addEventListener('astro:page-load', initResumeExpand);
+</script>

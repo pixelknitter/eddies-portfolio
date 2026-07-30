@@ -120,6 +120,17 @@ const WEIGHTS = {
   situation: 1,
   task: 1,
   action: 1,
+  // Resume entries. New keys only, so STAR and project scores are unchanged —
+  // an entry is scored on the fields it has, and no existing entry has these.
+  //
+  // `org` and `role` match `title`'s weight because a question naming an employer
+  // or a job title is naming the entry almost exactly. `summary` sits with the
+  // narrative fields. Bullets live in the markdown body and are not scored at all:
+  // scoring reads frontmatter, which is why resume tags carry the vocabulary a
+  // question is actually asked in rather than only the stack.
+  org: 4,
+  role: 4,
+  summary: 1,
 };
 
 /**

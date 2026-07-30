@@ -32,7 +32,10 @@ export const MAX_REASON_LENGTH = 1000;
 function toBase64Url(bytes) {
   let binary = '';
   for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return btoa(binary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 }
 
 function fromBase64Url(text) {
@@ -52,9 +55,13 @@ async function sign(secret, message) {
     encoder.encode(secret),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
-    ['sign']
+    ['sign'],
   );
-  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(message));
+  const signature = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    encoder.encode(message),
+  );
   return toBase64Url(new Uint8Array(signature));
 }
 
@@ -90,14 +97,23 @@ export function validateRequest(email, reason) {
   const trimmedEmail = email.trim();
   const trimmedReason = reason.trim();
 
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail) || trimmedEmail.length > MAX_EMAIL_LENGTH) {
+  if (
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail) ||
+    trimmedEmail.length > MAX_EMAIL_LENGTH
+  ) {
     return { ok: false, reason: 'That does not look like an email address.' };
   }
   if (trimmedReason.length < 10) {
-    return { ok: false, reason: 'Tell me a little about why you are reaching out.' };
+    return {
+      ok: false,
+      reason: 'Tell me a little about why you are reaching out.',
+    };
   }
   if (trimmedReason.length > MAX_REASON_LENGTH) {
-    return { ok: false, reason: `Keep it under ${MAX_REASON_LENGTH} characters.` };
+    return {
+      ok: false,
+      reason: `Keep it under ${MAX_REASON_LENGTH} characters.`,
+    };
   }
 
   return { ok: true, email: trimmedEmail, reason: trimmedReason };
@@ -112,7 +128,13 @@ export function validateRequest(email, reason) {
  */
 export async function mintApprovalToken(secret, request) {
   const payload = toBase64Url(
-    encoder.encode(JSON.stringify({ e: request.email, r: request.reason, t: request.issuedAt }))
+    encoder.encode(
+      JSON.stringify({
+        e: request.email,
+        r: request.reason,
+        t: request.issuedAt,
+      }),
+    ),
   );
   return `${payload}.${await sign(secret, payload)}`;
 }
@@ -177,8 +199,101 @@ export async function verifyAccessCode(secret, code) {
   if (!constantTimeEqual(signature, expected)) return { ok: false };
 
   try {
-    return { ok: true, email: new TextDecoder().decode(fromBase64Url(payload)) };
+    return {
+      ok: true,
+      email: new TextDecoder().decode(fromBase64Url(payload)),
+    };
   } catch {
     return { ok: false };
   }
+}
+
+/**
+ * How long a resume download link stays valid.
+ *
+ * Short, because the link goes straight back to the browser that asked for it: it
+ * needs to survive a click and one retry, not a forwarded email. The value is a
+ * parameter rather than baked in, which is the seam for emailing links once
+ * Cloudflare Email Sending is enabled — that variant wants days, not minutes.
+ */
+export const RESUME_DOWNLOAD_TTL_MS = 15 * 60 * 1000;
+
+/**
+ * Mint a token scoped to one purpose.
+ *
+ * ## Why a purpose at all
+ *
+ * `AIR_SIGNING_SECRET` now signs two unrelated grants: access to the A.I.R. chat,
+ * and permission to download a resume PDF. Without domain separation a token
+ * issued for one could be replayed as the other, which is the classic way a shared
+ * signing key turns two small permissions into one large one.
+ *
+ * The idiom already exists here — `mintAccessCode` signs `access:${payload}` while
+ * `mintApprovalToken` signs the bare payload, so an approval link cannot be used
+ * as an access code. This generalises it.
+ *
+ * ## Belt and braces
+ *
+ * The purpose is bound twice: mixed into the signature *and* carried in the
+ * payload as `p`. The signature prefix is what actually prevents cross-purpose
+ * reuse today; the claim is what stops a later refactor that drops the prefix from
+ * silently re-opening it, because verification checks both.
+ *
+ * `mintApprovalToken` is deliberately left alone. It is the one token type with no
+ * separator, which is exactly why this one has two — and changing it would
+ * invalidate every approval link already in someone's inbox.
+ *
+ * @param {string} secret
+ * @param {string} purpose e.g. 'download'
+ * @param {Record<string, unknown>} claims Serialised into the payload.
+ * @returns {Promise<string>}
+ */
+export async function mintPurposeToken(secret, purpose, claims = {}) {
+  const payload = toBase64Url(
+    encoder.encode(JSON.stringify({ ...claims, p: purpose, t: Date.now() })),
+  );
+  return `${payload}.${await sign(secret, `${purpose}:${payload}`)}`;
+}
+
+/**
+ * Verify a purpose-scoped token.
+ *
+ * Returns a discriminated result rather than throwing, matching
+ * `verifyApprovalToken`: the caller has to render something for a stale link, and
+ * the reason is worth showing.
+ *
+ * @param {string} secret
+ * @param {string} purpose The purpose the caller requires.
+ * @param {string | null | undefined} token
+ * @param {{now?: number, ttlMs?: number}} [options]
+ * @returns {Promise<{ok: true, claims: Record<string, unknown>, issuedAt: number} | {ok: false, reason: string}>}
+ */
+export async function verifyPurposeToken(secret, purpose, token, options = {}) {
+  const { now = Date.now(), ttlMs = RESUME_DOWNLOAD_TTL_MS } = options;
+
+  const [payload, signature] = String(token ?? '').split('.');
+  if (!payload || !signature) return { ok: false, reason: 'malformed token' };
+
+  if (
+    !constantTimeEqual(signature, await sign(secret, `${purpose}:${payload}`))
+  ) {
+    return { ok: false, reason: 'bad signature' };
+  }
+
+  let decoded;
+  try {
+    decoded = JSON.parse(new TextDecoder().decode(fromBase64Url(payload)));
+  } catch {
+    return { ok: false, reason: 'unreadable payload' };
+  }
+
+  // The signature already bound the purpose. Checking the claim as well means a
+  // future change to how the signature is composed cannot quietly widen scope.
+  if (decoded?.p !== purpose) return { ok: false, reason: 'wrong purpose' };
+  if (typeof decoded?.t !== 'number' || now - decoded.t > ttlMs) {
+    return { ok: false, reason: 'expired' };
+  }
+
+  const { p: _purpose, t: issuedAt, ...claims } = decoded;
+  return { ok: true, claims, issuedAt };
 }

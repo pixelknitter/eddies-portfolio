@@ -1,0 +1,82 @@
+---
+/**
+ * The contact block, for print surfaces only.
+ *
+ * This is the one component that imports `CONTACT`. Keeping it in a single file
+ * whose name says "print" makes the rule reviewable: if this component appears in
+ * a route that serves the public web, that is the bug, and it is visible in the
+ * import list rather than buried in a conditional.
+ *
+ * Someone reading a PDF asked for it by name and identified themselves to get it,
+ * so reciprocating with an address is reasonable. No phone number — a number in a
+ * PDF travels with every forward of the file and cannot be un-shared.
+ */
+import { CONTACT, RESUME } from '@util/resume/resume.data';
+
+interface Props {
+  /** Render as plain lines rather than organic chips. */
+  plain?: boolean;
+}
+
+const { plain = false } = Astro.props;
+
+const entries = [
+  { label: RESUME.location, href: null },
+  { label: CONTACT.email, href: `mailto:${CONTACT.email}` },
+  { label: CONTACT.site, href: CONTACT.siteUrl },
+  { label: CONTACT.linkedin, href: CONTACT.linkedinUrl },
+  { label: CONTACT.github, href: CONTACT.githubUrl },
+];
+---
+
+{
+  plain ? (
+    <p class="print-contact-plain">
+      {entries.map((entry, i) => (
+        <>
+          {i > 0 && <span aria-hidden="true"> · </span>}
+          {entry.href ? (
+            <a href={entry.href}>{entry.label}</a>
+          ) : (
+            <span>{entry.label}</span>
+          )}
+        </>
+      ))}
+    </p>
+  ) : (
+    <div class="print-contact">
+      {entries.map((entry) =>
+        entry.href ? (
+          <a class="tag tag-accent print-contact-chip" href={entry.href}>
+            {entry.label}
+          </a>
+        ) : (
+          <span class="tag tag-neutral print-contact-chip">{entry.label}</span>
+        ),
+      )}
+    </div>
+  )
+}
+
+<style>
+  .print-contact {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    align-items: center;
+  }
+
+  .print-contact-chip {
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    /* The organic link rule underlines anchors; chips read as chips. */
+    text-decoration: none;
+    border-bottom: none;
+  }
+
+  .print-contact-plain {
+    margin: 0.5rem 0 0;
+    font-size: 0.95rem;
+  }
+</style>

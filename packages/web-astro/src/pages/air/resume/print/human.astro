@@ -1,0 +1,45 @@
+---
+import PrintLayout from '@layouts/PrintLayout.astro';
+import ResumeVisual from '@components/resume/ResumeVisual.astro';
+import PrintContact from '@components/resume/PrintContact.astro';
+import { loadResume } from '@util/resume/load';
+import { showResumePrint } from '@util/visibility.mjs';
+import '../../../../styles/resume-organic.css';
+
+/**
+ * The "Human Readable" PDF source: the organic design, complete.
+ *
+ * ## This route is as sensitive as the PDF itself
+ *
+ * It renders the full resume *with* contact details, as parseable HTML. Left
+ * public it would be a strictly better version of the file the download gate
+ * protects, which is why it has its own flag rather than riding `showAIR`.
+ *
+ * `PUBLIC_RESUME_PRINT` is set only by `scripts/resume-pdf.mjs`, for the duration
+ * of the build it drives. No deploy workflow sets it, so this 404s on production,
+ * staging and every preview. `robots.txt` disallows the path as a second layer,
+ * and `PrintLayout` sends `noindex` as a third.
+ */
+if (!showResumePrint(import.meta.env)) {
+  return new Response(null, { status: 404, statusText: 'Not found' });
+}
+
+/*
+ * An empty collection means the seal key is absent, not that the resume is blank.
+ * 404 rather than publish a header with empty sections — and, for the machine
+ * page, a JSON-LD graph asserting a person with no work history.
+ */
+const resume = await loadResume();
+if (!resume) {
+  return new Response(null, { status: 404, statusText: 'Not found' });
+}
+
+// Becomes the PDF's document title, so it is what a file manager shows.
+const pageTitle = `${resume.name} — Resume`;
+---
+
+<PrintLayout {pageTitle} variant="organic">
+  <ResumeVisual {resume} print>
+    <PrintContact slot="contact" />
+  </ResumeVisual>
+</PrintLayout>

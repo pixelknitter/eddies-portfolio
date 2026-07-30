@@ -1,0 +1,43 @@
+---
+import PrintLayout from '@layouts/PrintLayout.astro';
+import ResumeFull from '@components/resume/ResumeFull.astro';
+import PrintContact from '@components/resume/PrintContact.astro';
+import { loadResume } from '@util/resume/load';
+import { showResumePrint } from '@util/visibility.mjs';
+
+/**
+ * The "Bot Readable" PDF source: one column, ink on white, complete.
+ *
+ * ## What "bot readable" means concretely
+ *
+ * Applicant-tracking systems and language models extract text, not layout. What
+ * breaks them is multi-column flow, text baked into images, tables used for
+ * positioning, and glyph runs with no structure. So this variant is deliberately
+ * plain: a single column of real headings and real lists, which the generator
+ * prints with `tagged: true` so the PDF carries a structure tree rather than
+ * positioned text. `printBackground` is off — light on white, and a smaller file.
+ *
+ * Same gating as its sibling: `PUBLIC_RESUME_PRINT` only, set by the generator.
+ */
+if (!showResumePrint(import.meta.env)) {
+  return new Response(null, { status: 404, statusText: 'Not found' });
+}
+
+/*
+ * An empty collection means the seal key is absent, not that the resume is blank.
+ * 404 rather than publish a header with empty sections — and, for the machine
+ * page, a JSON-LD graph asserting a person with no work history.
+ */
+const resume = await loadResume();
+if (!resume) {
+  return new Response(null, { status: 404, statusText: 'Not found' });
+}
+
+const pageTitle = `${resume.name} — Resume (plain text)`;
+---
+
+<PrintLayout {pageTitle} variant="plain">
+  <ResumeFull {resume} print>
+    <PrintContact slot="contact" plain />
+  </ResumeFull>
+</PrintLayout>

@@ -80,6 +80,11 @@ jobs:
       - name: Scan build output for secrets
         run: node scripts/check-bundle-secrets.mjs
 
+      # Cloudflare serves dist/client before the Worker, so a PDF in there would be
+      # fetchable without a token and the download gate would be decoration.
+      - name: Check no gated files are publicly servable
+        run: node scripts/check-gated-assets.mjs
+
       # The Discord webhooks are repo-level secrets, so this needs no
       # `environment:` and can live in the same job.
       - name: Notify alerts channel (failure)

@@ -20,6 +20,15 @@ interface ImportMetaEnv {
   readonly PUBLIC_SHOW_BLOG?: string;
   readonly PUBLIC_SHOW_PROJECTS?: string;
   readonly PUBLIC_SHOW_HIGHLIGHTS?: string;
+  /** The resume pages. Independent of A.I.R. — see showResume. */
+  readonly PUBLIC_SHOW_RESUME?: string;
+  /**
+   * Reachability of the print-only resume render routes. Set by
+   * scripts/resume-pdf.mjs for the duration of a generation build and by
+   * nothing else — no deploy workflow sets it, so those routes 404 on every
+   * deployed tier. See showResumePrint in util/visibility.mjs.
+   */
+  readonly PUBLIC_RESUME_PRINT?: string;
   /** Git SHA of the build, stamped into every page by Layout.astro. */
   readonly PUBLIC_BUILD_SHA?: string;
 }

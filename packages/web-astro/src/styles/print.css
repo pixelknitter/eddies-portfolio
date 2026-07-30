@@ -1,0 +1,335 @@
+/*
+ * Print rules. Two entirely separate jobs live here, and conflating them is the
+ * bug this file is organised to prevent.
+ *
+ *   1. On the *visible* resume page, printing is blocked: Cmd-P swaps the
+ *      document for a short notice pointing at the request form. Casual
+ *      print-to-PDF is the easiest way around the gate, so it is closed.
+ *
+ *   2. On the *print* routes — the ones `scripts/resume-pdf.mjs` renders — the
+ *      document must print in full, on Letter, in ink-friendly colours.
+ *
+ * ## The guard, and why it is shaped this way
+ *
+ * Every blocking rule is written `html:not([data-print-doc])`. `PrintLayout.astro`
+ * sets `data-print-doc` on <html>; nothing else does. So a rule added later that
+ * *forgets* the guard breaks the visible page — loudly, in front of whoever added
+ * it — rather than silently blanking the generated PDF, which nobody would notice
+ * until a recruiter opened an empty file.
+ *
+ * That asymmetry is the whole design. Prefer a guard that fails toward the
+ * observable surface.
+ */
+
+/* ── 1. Block printing of the visible resume ─────────────────────────────── */
+
+@media print {
+  html:not([data-print-doc]) .resume-no-print {
+    display: none !important;
+  }
+
+  html:not([data-print-doc]) .resume-print-notice {
+    display: block !important;
+  }
+
+  /* Site chrome is noise on paper regardless of which document this is. */
+  html:not([data-print-doc]) header,
+  html:not([data-print-doc]) nav,
+  html:not([data-print-doc]) footer {
+    display: none !important;
+  }
+}
+
+/* Shown only when printing the visible page; never on screen. */
+.resume-print-notice {
+  display: none;
+}
+
+/* ── 2. The print documents themselves ───────────────────────────────────── */
+
+/*
+ * Page geometry lives here and *only* here. `scripts/resume-pdf.mjs` passes
+ * `preferCSSPageSize: true`, which makes Playwright's `format` and `margin`
+ * options no-ops — so setting them there would look effective and do nothing.
+ * Letter because the audience is US hiring; parameterise if A4 is ever needed.
+ */
+@page {
+  size: Letter;
+  margin: 14mm 16mm;
+}
+
+html[data-print-doc],
+html[data-print-doc] body {
+  margin: 0;
+  padding: 0;
+  /* The site constrains body to max-w-screen-md and centres it; on a printed
+     page that would leave the document floating in a narrow column. */
+  max-width: none;
+  background: #fff;
+  text-align: left;
+}
+
+html[data-print-doc] .organic {
+  /* The document fills the printable area; @page owns the margins. */
+  padding: 0;
+  margin: 0;
+  border-radius: 0;
+  /* Cards keep their fills via printBackground, but a page-wide tint wastes
+     toner and reads worse than white for the bot variant. */
+  background: transparent;
+}
+
+/*
+ * Keep a role, a card or a heading from splitting across a page boundary.
+ * `break-inside` is the modern property; Chrome honours it in print.
+ */
+html[data-print-doc] .resume-role,
+html[data-print-doc] .card,
+html[data-print-doc] .resume-strength,
+html[data-print-doc] .resume-highlight,
+html[data-print-doc] section {
+  break-inside: avoid;
+}
+
+html[data-print-doc] h1,
+html[data-print-doc] h2,
+html[data-print-doc] h3 {
+  break-after: avoid;
+}
+
+/*
+ * The disclosure affordance, not the row.
+ *
+ * `<summary>` *contains* the section's `<h2>`, so `summary { display: none }`
+ * removes every heading from the document — it was in this file and only failed
+ * to apply because the component's scoped rule outranked it, which is the sole
+ * reason the printed PDF had headings at all. Hide the chevron; keep the row.
+ *
+ * These carry the extra `.organic`/attribute qualifiers for the same specificity
+ * reason documented in the density block below.
+ */
+html[data-print-doc] .resume-section-chevron {
+  display: none;
+}
+
+/* Nothing here is interactive on paper. */
+html[data-print-doc] .resume-section-summary {
+  cursor: default;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/*
+ * Expansion itself is *not* done here. `display: block` on a closed <details>
+ * leaves its content hidden — Chrome hides it through the element's internal
+ * content slot, which no selector in this file reaches. The print routes pass
+ * `open` on the element instead; see the `print` prop in ResumeVisual.astro.
+ */
+
+/*
+ * Links: keep them coloured but drop the underline noise. The URL is not
+ * appended after each link — on a resume that turns every talk title into a
+ * line of unreadable machine text. The PDF keeps the links clickable instead.
+ */
+html[data-print-doc] a {
+  text-decoration: none;
+}
+
+/* Shadows print as grey smears. */
+html[data-print-doc] * {
+  box-shadow: none !important;
+}
+
+/* ── 3. Typography for the machine-readable document ─────────────────────── */
+
+/*
+ * The plain variant forces a system sans for everything, headings included.
+ *
+ * This is a deliberate choice rather than an oversight about branding. The site's
+ * display face is Pacifico — a script face — and a resume whose whole purpose is
+ * to be parsed by applicant-tracking systems and language models is the worst
+ * possible place for decorative type: it complicates text extraction, and a
+ * script heading on a resume reads as a mistake. A system stack also means this
+ * document embeds no webfont and needs no network at generation time.
+ *
+ * These selectors carry no `!important`. They do not need it: print.css is
+ * unlayered, and an unlayered rule outranks anything in Tailwind's `@layer base`
+ * regardless of specificity — which is where `font-header` is applied.
+ */
+html[data-print-doc='plain'],
+html[data-print-doc='plain'] body,
+html[data-print-doc='plain'] h1,
+html[data-print-doc='plain'] h2,
+html[data-print-doc='plain'] h3,
+html[data-print-doc='plain'] h4,
+html[data-print-doc='plain'] h5,
+html[data-print-doc='plain'] h6,
+html[data-print-doc='plain'] p,
+html[data-print-doc='plain'] li,
+html[data-print-doc='plain'] dt,
+html[data-print-doc='plain'] dd,
+html[data-print-doc='plain'] a,
+html[data-print-doc='plain'] time,
+html[data-print-doc='plain'] strong {
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Headings still need to outrank body text; the display face was doing that. */
+html[data-print-doc='plain'] h1 {
+  font-size: 26pt;
+}
+html[data-print-doc='plain'] h2 {
+  font-size: 14pt;
+  /* The site underlines h2 decoratively; on paper a rule reads better. */
+  text-decoration: none;
+  border-bottom: 1px solid #999;
+  padding-bottom: 2pt;
+}
+html[data-print-doc='plain'] h3 {
+  font-size: 11.5pt;
+}
+html[data-print-doc='plain'] body {
+  font-size: 10pt;
+  line-height: 1.45;
+  color: #111;
+}
+
+/* ── 4. Print density for the organic document ───────────────────────────── */
+
+/*
+ * The organic design was authored for screen: generous card padding, a 54px
+ * display name, 34px stat figures. Rendered to Letter with the complete bullet
+ * set it ran to **seven pages**, which is not a resume anyone reads — the first
+ * measured output of this pipeline, and the reason this block exists.
+ *
+ * Note the extra `.organic` qualifier on these selectors. Astro compiles a
+ * component's scoped `<style>` to selectors of the same specificity as the
+ * obvious override here — `.resume-bullets li` becomes `.resume-bullets
+ * li[data-astro-cid-…]`, i.e. (0,2,1) — and injects them *after* this file, so a
+ * tie goes to the component. The bullets, which are most of the document, were
+ * silently keeping their 14.5px screen size. One more class outranks them
+ * without reaching for !important.
+ *
+ * So print gets its own density. The content is unchanged and complete; only the
+ * type scale and the spacing tighten. Sizes are in points because this only ever
+ * renders to paper, and pt is what the page box is measured in.
+ */
+html[data-print-doc='organic'] .organic {
+  font-size: 9.5pt;
+  line-height: 1.4;
+}
+
+html[data-print-doc='organic'] .organic .resume-name {
+  font-size: 26pt;
+}
+html[data-print-doc='organic'] .organic .resume-headline {
+  font-size: 11pt;
+}
+html[data-print-doc='organic'] .organic .resume-summary {
+  font-size: 9.5pt;
+  line-height: 1.45;
+  max-width: none;
+}
+html[data-print-doc='organic'] .organic .resume-header {
+  gap: 7pt;
+  padding-bottom: 10pt;
+}
+
+/* The section heading rows: smaller dot, smaller title, less air. */
+html[data-print-doc='organic'] .organic .resume-section {
+  padding: 7pt 0 3pt;
+}
+html[data-print-doc='organic'] .organic .resume-section-title {
+  font-size: 13pt;
+}
+html[data-print-doc='organic'] .organic .resume-section-dot {
+  width: 7pt;
+  height: 7pt;
+}
+html[data-print-doc='organic'] .organic .resume-section-body {
+  padding: 5pt 0 6pt;
+}
+
+/* Cards carry most of the excess: padding and gaps come down hardest. */
+html[data-print-doc='organic'] .organic .card {
+  padding: 7pt 9pt;
+  gap: 2pt;
+  border-radius: 8pt;
+}
+html[data-print-doc='organic'] .organic .resume-stats,
+html[data-print-doc='organic'] .organic .resume-strengths,
+html[data-print-doc='organic'] .organic .resume-highlights,
+html[data-print-doc='organic'] .organic .resume-talks {
+  gap: 6pt;
+  padding-bottom: 6pt;
+}
+
+/* Four stats across, as designed — auto-fit would stack them on a page box. */
+html[data-print-doc='organic'] .organic .resume-stats {
+  grid-template-columns: repeat(4, 1fr);
+}
+html[data-print-doc='organic'] .organic .resume-stat-value {
+  font-size: 18pt;
+}
+html[data-print-doc='organic'] .organic .resume-stat-label,
+html[data-print-doc='organic'] .organic .resume-strength-detail,
+html[data-print-doc='organic'] .organic .resume-highlight-detail,
+html[data-print-doc='organic'] .organic .resume-talk-detail {
+  font-size: 8pt;
+  line-height: 1.35;
+}
+html[data-print-doc='organic'] .organic .resume-strength-title {
+  font-size: 9.5pt;
+}
+html[data-print-doc='organic'] .organic .resume-highlight-value {
+  font-size: 11pt;
+}
+
+html[data-print-doc='organic'] .organic .resume-role-title {
+  font-size: 11pt;
+}
+html[data-print-doc='organic'] .organic .resume-role-dates {
+  font-size: 8.5pt;
+}
+html[data-print-doc='organic'] .organic .resume-role-summary,
+html[data-print-doc='organic'] .organic .resume-earlier-detail {
+  font-size: 9pt;
+  line-height: 1.45;
+}
+html[data-print-doc='organic'] .organic .resume-roles {
+  gap: 10pt;
+}
+html[data-print-doc='organic'] .organic .resume-role {
+  gap: 5pt;
+}
+
+html[data-print-doc='organic'] .organic .resume-bullets {
+  gap: 4pt;
+}
+html[data-print-doc='organic'] .organic .resume-bullets li {
+  font-size: 9pt;
+  line-height: 1.42;
+  padding-left: 12pt;
+}
+html[data-print-doc='organic'] .organic .resume-bullets li::before {
+  width: 4pt;
+  height: 4pt;
+  top: 0.5em;
+}
+
+html[data-print-doc='organic'] .organic .resume-chip,
+html[data-print-doc='organic'] .organic .print-contact-chip {
+  padding: 2pt 7pt;
+  font-size: 8pt;
+}
+html[data-print-doc='organic'] .organic .resume-skills {
+  gap: 6pt;
+}
+html[data-print-doc='organic'] .organic .resume-skill-group {
+  gap: 3pt;
+}
+html[data-print-doc='organic'] .organic .resume-skill-label,
+html[data-print-doc='organic'] .organic .resume-talk-org {
+  font-size: 8pt;
+}

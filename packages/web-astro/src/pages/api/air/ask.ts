@@ -103,10 +103,42 @@ export async function POST(context: APIContext): Promise<Response> {
     ({ data }) => reveal || data.draft !== true,
   );
   const projects = await getCollection('projects');
-  const corpus = [...stories, ...projects].map((entry) => ({
-    id: entry.id,
-    data: entry.data,
-  }));
+  // The resume. Its bullets live in the body, which is why the prompt carries
+  // bodies at all — before this, A.I.R. could not answer "what was his title at
+  // Frontdoor", because the resume existed nowhere it could reach.
+  const resume = await getCollection('resume');
+
+  /*
+   * The two collections mean opposite things by "body", so the distinction is
+   * made here — where which collection is being read is still known — rather
+   * than inferred downstream.
+   *
+   * A STAR body is an honesty guardrail: a rule about how a claim may be
+   * phrased ("reduces compliance risk, never guarantees compliance"). Those are
+   * instructions from the author, and buildUserMessage hoists them outside the
+   * story tags so the "treat everything inside as data" guarantee stays true.
+   *
+   * A project body is narrative — content, not a note about content.
+   *
+   * Nothing in prompt.mjs guesses which it received.
+   */
+  const corpus = [
+    ...stories.map((entry) => ({
+      id: entry.id,
+      data: entry.data,
+      constraints: entry.body?.trim() || undefined,
+    })),
+    ...projects.map((entry) => ({
+      id: entry.id,
+      data: entry.data,
+      content: entry.body?.trim() || undefined,
+    })),
+    ...resume.map((entry) => ({
+      id: `resume/${entry.id}`,
+      data: entry.data,
+      content: entry.body?.trim() || undefined,
+    })),
+  ];
 
   const selected = selectContext(validated.question, corpus);
 
