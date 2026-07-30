@@ -203,6 +203,66 @@ describe('seal-content', () => {
     });
   });
 
+  /**
+   * Rotating the passphrase changes every blob *name*, because the name is
+   * HMAC(key, path). The old blobs stay behind undecryptable while the
+   * re-sealed ones appear alongside — a rotation silently doubles the vault.
+   * This is the real scenario: it took the repo vault from 12 blobs to 25.
+   */
+  describe('prune', () => {
+    const ROTATED = 'the passphrase after rotating';
+
+    function sealThenRotate() {
+      const path = fixture('rotated.md', 'body\n');
+      run(['seal', `${CONTENT_REL}/rotated.md`], { CONTENT_SEAL_KEY: KEY });
+      const beforeRotation = readdirSync(VAULT).filter((f) => f.endsWith('.sealed'));
+
+      // Re-seal the same file under the new passphrase: same salt, different
+      // derived key, therefore a different blob name.
+      run(['seal', `${CONTENT_REL}/rotated.md`], { CONTENT_SEAL_KEY: ROTATED });
+      const afterRotation = readdirSync(VAULT).filter((f) => f.endsWith('.sealed'));
+
+      return { path, beforeRotation, afterRotation };
+    }
+
+    it('a rotation leaves the old blob behind — the problem prune exists for', () => {
+      const { beforeRotation, afterRotation } = sealThenRotate();
+      expect(beforeRotation).toHaveLength(1);
+      expect(afterRotation).toHaveLength(2);
+    });
+
+    it('removes only the blob orphaned by the rotation', () => {
+      sealThenRotate();
+
+      const output = run(['prune'], { CONTENT_SEAL_KEY: ROTATED });
+      expect(output).toContain('1 current blob(s), 1 orphaned');
+
+      const remaining = readdirSync(VAULT).filter((f) => f.endsWith('.sealed'));
+      expect(remaining).toHaveLength(1);
+
+      // The survivor must still open under the current key.
+      const status = run(['status'], { CONTENT_SEAL_KEY: ROTATED });
+      expect(status).toContain('rotated.md');
+    });
+
+    it('--dry-run reports without removing anything', () => {
+      sealThenRotate();
+
+      const output = run(['prune', '--dry-run'], { CONTENT_SEAL_KEY: ROTATED });
+      expect(output).toContain('Dry run — nothing removed');
+      expect(readdirSync(VAULT).filter((f) => f.endsWith('.sealed'))).toHaveLength(2);
+    });
+
+    it('leaves a healthy vault untouched', () => {
+      fixture('healthy.md', 'body\n');
+      run(['seal', `${CONTENT_REL}/healthy.md`], { CONTENT_SEAL_KEY: KEY });
+
+      const output = run(['prune'], { CONTENT_SEAL_KEY: KEY });
+      expect(output).toContain('1 current blob(s), 0 orphaned');
+      expect(readdirSync(VAULT).filter((f) => f.endsWith('.sealed'))).toHaveLength(1);
+    });
+  });
+
   it('status without a key reports the count but not the names', () => {
     fixture('secret-topic.md', 'a\n');
     run(['seal', `${CONTENT_REL}/secret-topic.md`], { CONTENT_SEAL_KEY: KEY });
