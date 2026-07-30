@@ -265,7 +265,10 @@
   margin: 0 0 var(--space-3);
 }
 .organic a {
-  color: var(--color-accent);
+  /* accent-700, not `--color-accent`: #c67139 on the cream ground measures 3.03:1,
+     under the 4.5 needed for body text. accent-700 measures 5.72:1. Dark mode
+     remaps the ramp, so this stays correct in both. */
+  color: var(--color-accent-700);
   text-underline-offset: 3px;
 }
 .organic img {
@@ -489,4 +492,115 @@
 }
 .organic .input {
   padding-inline: 14px;
+}
+
+/* ─── CTA ─────────────────────────────────────────────────────────────────────
+ *
+ * `.organic .btn` is a *base*: it deliberately has a transparent border and no
+ * background, expecting `-primary` or `-secondary` to finish it. Used bare — which
+ * is what the download island did — it renders as bold display text with no
+ * border, no fill and no hover, and reads as a heading rather than a control.
+ * That also silently defeated the site's own `.btn`, whose `border-2` and
+ * `hover:bg-button` live in `@layer components` and lose to this unlayered sheet.
+ *
+ * These two classes are the resume's buttons. One filled, one outlined, both with
+ * a hover, an active and a focus state, sized to sit beside body text rather than
+ * beneath a heading.
+ */
+.organic .resume-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 20px;
+  border-radius: 999px;
+  font-family: var(--font-body);
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.organic .resume-cta-primary {
+  background: var(--color-accent-600);
+  border-color: var(--color-accent-600);
+  color: var(--color-bg);
+}
+.organic .resume-cta-primary:hover {
+  background: var(--color-accent-700);
+  border-color: var(--color-accent-700);
+}
+.organic .resume-cta-primary:active {
+  background: var(--color-accent-800);
+  border-color: var(--color-accent-800);
+}
+
+.organic .resume-cta-secondary {
+  background: transparent;
+  border-color: var(--color-divider);
+  color: var(--color-neutral-900);
+}
+.organic .resume-cta-secondary:hover {
+  border-color: var(--color-accent-600);
+  color: var(--color-accent-700);
+}
+.organic .resume-cta-secondary:active {
+  background: color-mix(in srgb, var(--color-accent-600) 12%, transparent);
+}
+
+.organic .resume-cta:focus-visible {
+  outline: 2px solid var(--color-accent-600);
+  outline-offset: 2px;
+}
+
+.organic .resume-cta:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─── Action bar ──────────────────────────────────────────────────────────────
+ *
+ * Sticky under the site nav, so the download stays reachable in a long document.
+ * `backdrop-filter` keeps the resume readable as it scrolls beneath.
+ */
+.resume-action-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  margin-bottom: 20px;
+  padding: 12px 4px;
+  /*
+   * The *page* background, not the document's. The bar sits outside the resume
+   * card, so it has to match what is behind it — `--color-light` and
+   * `--color-dark` are the site's own @theme tokens, which Tailwind exposes as
+   * custom properties. An earlier version used `var(--color-page, #fdebf3)`; that
+   * variable does not exist, so the fallback painted the bar pink in dark mode.
+   */
+  background: color-mix(in srgb, var(--color-light) 90%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.dark .resume-action-bar {
+  background: color-mix(in srgb, var(--color-dark) 90%, transparent);
+}
+
+.resume-action-bar-spacer {
+  flex: 1 1 auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .organic .resume-cta {
+    transition: none;
+  }
 }

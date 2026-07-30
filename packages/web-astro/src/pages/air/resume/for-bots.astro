@@ -4,7 +4,7 @@ import ResumeFull from '@components/resume/ResumeFull.astro';
 import { loadResume } from '@util/resume/load';
 import { buildResumeJsonLd } from '@util/resume/jsonld';
 import { plainText } from '@util/resume/markup';
-import { showResume } from '@util/visibility.mjs';
+import { showResume, showAIR } from '@util/visibility.mjs';
 
 /**
  * The complete resume, plus the JSON-LD graph.
@@ -72,5 +72,9 @@ const description = plainText(resume.longSummary).slice(0, 300);
     />
   </Fragment>
 
-  <ResumeFull {resume} />
+  <ResumeFull
+    {resume}
+    visualPath="/air/resume/"
+    airPath={showAIR(import.meta.env) ? '/air/' : undefined}
+  />
 </Layout>

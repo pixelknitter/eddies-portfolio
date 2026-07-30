@@ -119,21 +119,6 @@ const bulletsFor = (role: ResumeRole) =>
     }
   </section>
 
-  {
-    !print && (
-      <div class="resume-expand-row">
-        <button
-          type="button"
-          class="btn btn-secondary"
-          data-resume-expand
-          aria-expanded="false"
-        >
-          Expand all
-        </button>
-      </div>
-    )
-  }
-
   <div data-resume-sections>
     <ResumeSection open={print} title="What I'm good at" id="strengths">
       <div class="resume-strengths">
@@ -418,11 +403,16 @@ const bulletsFor = (role: ResumeRole) =>
     align-items: center;
   }
 
-  /* The design's chips are larger than the base .tag; keep .tag for colour. */
+  /*
+   * Chips sit beside 15px body text, so 13px read as an afterthought. 14px with
+   * more vertical padding gives them the same optical weight as the prose they
+   * annotate — `.tag` still supplies the colour.
+   */
   .resume-chip {
-    padding: 6px 14px;
-    font-size: 13px;
+    padding: 7px 15px;
+    font-size: 14px;
     font-weight: 500;
+    line-height: 1.3;
   }
 
   .resume-links {
@@ -462,14 +452,6 @@ const bulletsFor = (role: ResumeRole) =>
     font-weight: 500;
     line-height: 1.4;
     color: var(--color-neutral-800);
-  }
-
-  /* ── Expand control ─────────────────────────────────────────────────────── */
-
-  .resume-expand-row {
-    display: flex;
-    justify-content: flex-end;
-    padding-bottom: var(--space-2);
   }
 
   /* ── Strengths ──────────────────────────────────────────────────────────── */

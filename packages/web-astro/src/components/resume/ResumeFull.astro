@@ -30,6 +30,10 @@ import { emphasize } from '@util/resume/markup';
 interface Props {
   /** The assembled resume; see the note on ResumeVisual's identical prop. */
   resume: Resume;
+  /** Back to the visual resume. Omitted in print. */
+  visualPath?: string;
+  /** Back to the chat, when A.I.R. is enabled. Omitted in print. */
+  airPath?: string;
   /**
    * Render for the PDF generator. Drops the request CTA — a button telling the
    * reader to request the document they are already holding — and makes room for
@@ -38,7 +42,7 @@ interface Props {
   print?: boolean;
 }
 
-const { resume: RESUME, print = false } = Astro.props;
+const { resume: RESUME, visualPath, airPath, print = false } = Astro.props;
 
 // Chronological, not the tier grouping the visual page uses — see
 // rolesByRecency() for why the two orderings differ.
@@ -56,10 +60,14 @@ const allRoles = rolesByRecency(RESUME);
     <p class="mt-4" set:html={emphasize(RESUME.longSummary)} />
     {
       !print && (
-        <p class="mt-4">
+        <p class="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
           <a class="btn" href={REQUEST_PATH}>
             Request a PDF copy
           </a>
+          {/* This page had no way back to either sibling — a dead end once you
+              followed the machine-readable link. */}
+          {visualPath && <a href={visualPath}>&larr; Visual resume</a>}
+          {airPath && <a href={airPath}>Ask A.I.R. &rarr;</a>}
         </p>
       )
     }

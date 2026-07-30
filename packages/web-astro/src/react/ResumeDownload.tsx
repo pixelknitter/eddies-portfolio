@@ -123,16 +123,29 @@ export function ResumeDownload() {
 
   return (
     <div className="font-body">
-      <div className="flex flex-wrap gap-3">
+      {/*
+        `resume-cta`, not the site's `.btn`. The unlayered organic stylesheet
+        outranks `@layer components`, so `.btn` arrived here stripped of its border
+        and its hover — rendering as bold display text that read as a heading
+        rather than a control. These carry their own hover, active and focus states.
+
+        Labels shortened: the bar itself says what this is, and "Full Resume —"
+        twice was the longest text on the page.
+      */}
+      <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          className="btn"
+          className="resume-cta resume-cta-primary"
           onClick={() => setWanted('human')}
         >
-          Full Resume &mdash; Human Readable
+          <span aria-hidden="true">⤓</span> Human readable
         </button>
-        <button type="button" className="btn" onClick={() => setWanted('bot')}>
-          Full Resume &mdash; Bot Readable
+        <button
+          type="button"
+          className="resume-cta resume-cta-secondary"
+          onClick={() => setWanted('bot')}
+        >
+          <span aria-hidden="true">⤓</span> Bot readable
         </button>
       </div>
 
@@ -187,14 +200,14 @@ export function ResumeDownload() {
           <div className="flex flex-wrap gap-3">
             <button
               type="submit"
-              className="btn"
+              className="resume-cta resume-cta-primary"
               disabled={state.status === 'sending'}
             >
               {state.status === 'sending' ? 'Sending…' : 'Get the PDF'}
             </button>
             <button
               type="button"
-              className="btn"
+              className="resume-cta resume-cta-secondary"
               onClick={() => setWanted(null)}
             >
               Cancel

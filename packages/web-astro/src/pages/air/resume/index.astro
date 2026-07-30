@@ -93,6 +93,30 @@ const airPath = showAIR(import.meta.env) ? '/air/' : undefined;
     </p>
   </div>
 
+  {
+    /*
+    The action bar. Sticky under the site nav so the download stays reachable in a
+    long document, and separated from the nav by real space — the header used to
+    butt straight against the page chrome.
+
+    `organic` on the wrapper so the CTA classes resolve their tokens; the bar sits
+    outside the document card deliberately, because it is page chrome rather than
+    part of the resume.
+  */
+  }
+  <div class="organic resume-action-bar resume-no-print">
+    <ResumeDownload client:visible />
+    <span class="resume-action-bar-spacer"></span>
+    <button
+      type="button"
+      class="resume-cta resume-cta-secondary"
+      data-resume-expand
+      aria-expanded="false"
+    >
+      Expand all
+    </button>
+  </div>
+
   <div class="resume-no-print">
     <ResumeVisual {resume} {botsPath} {airPath}>
       {
@@ -102,7 +126,6 @@ const airPath = showAIR(import.meta.env) ? '/air/' : undefined;
         this is the only JavaScript the page needs.
       */
       }
-      <ResumeDownload slot="downloads" client:visible />
     </ResumeVisual>
   </div>
 </Layout>
