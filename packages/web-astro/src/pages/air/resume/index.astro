@@ -2,7 +2,7 @@
 import Layout from '@layouts/Layout.astro';
 import ResumeVisual from '@components/resume/ResumeVisual.astro';
 import { RESUME } from '@util/resume/resume.data';
-import { showAIR } from '@util/visibility.mjs';
+import { showResume, showAIR } from '@util/visibility.mjs';
 import '../../../styles/resume-organic.css';
 // Carries the rules that swap this page for a notice when printed. The other
 // half of that file styles the print routes; see the note at its top.
@@ -11,21 +11,23 @@ import '../../../styles/print.css';
 /**
  * The visual resume.
  *
- * Gated on the same flag as A.I.R. rather than its own: the resume lives under
- * `/air/`, ships with it, and — the practical reason — production sets only
- * `PUBLIC_SHOW_AIR`, so a separate flag would need adding to three workflow
- * files and would ship the feature dark if any one were missed.
+ * Has its own flag rather than riding `showAIR`. A.I.R. is deliberately held back
+ * in production; the resume is meant to be found. Sharing a flag would mean the
+ * resume could not go live without also exposing the chat.
  *
- * The route is guarded, not just the nav link. An unlisted page is still a
- * public page if it responds.
+ * The route is guarded, not just the nav link. An unlisted page is still a public
+ * page if it responds.
  */
-if (!showAIR(import.meta.env)) {
+if (!showResume(import.meta.env)) {
   return new Response(null, { status: 404, statusText: 'Not found' });
 }
 
 const pageTitle = `${RESUME.name} — ${RESUME.headline}`;
 const description = `${RESUME.name}: ${RESUME.summary}`;
 const botsPath = '/air/resume/for-bots';
+// Offer the chat only where it exists: the two features ship independently, and a
+// prominent link to a 404 is worse than no link.
+const airPath = showAIR(import.meta.env) ? '/air/' : undefined;
 ---
 
 <Layout pageTitle={pageTitle} {description}>
@@ -81,7 +83,7 @@ const botsPath = '/air/resume/for-bots';
   </div>
 
   <div class="resume-no-print">
-    <ResumeVisual {botsPath} />
+    <ResumeVisual {botsPath} {airPath} />
   </div>
 </Layout>
 <script>

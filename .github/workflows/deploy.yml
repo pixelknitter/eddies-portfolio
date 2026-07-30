@@ -57,6 +57,7 @@ jobs:
         env:
           PUBLIC_SHOW_UNPUBLISHED: 'true'
           PUBLIC_SHOW_AIR: 'true'
+          PUBLIC_SHOW_RESUME: 'true'
           PUBLIC_SHOW_BLOG: 'true'
           PUBLIC_SHOW_PROJECTS: 'true'
           PUBLIC_SHOW_HIGHLIGHTS: 'true'

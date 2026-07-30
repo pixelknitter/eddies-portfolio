@@ -1,7 +1,7 @@
 ---
 import Layout from "@layouts/Layout.astro"
 import { AIResume } from '../../react/AIResume'
-import { showAIR } from '@util/visibility.mjs'
+import { showAIR, showResume } from '@util/visibility.mjs'
 
 // Gate the route, not just the nav link — an unlisted page is still a public
 // page if it responds.
@@ -20,7 +20,11 @@ const pageTitle = "AIR: AI-Powered Resume for Eddie Freeman"
     can read right now. Placed after the island rather than before it so the
     page still opens on A.I.R. itself.
   */}
-  <p class="mt-8 text-center font-body">
-    <a href="/air/resume/">Read the resume instead &rarr;</a>
-  </p>
+  {
+    showResume(import.meta.env) && (
+      <p class="mt-8 text-center font-body">
+        <a href="/air/resume/">Read the resume instead &rarr;</a>
+      </p>
+    )
+  }
 </Layout>

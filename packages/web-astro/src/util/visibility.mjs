@@ -68,6 +68,31 @@ export function showProjects(env = {}) {
 }
 
 /**
+ * Whether the resume pages are enabled.
+ *
+ * Separate from showAIR, and the separation is the point. The two features want
+ * opposite things: A.I.R. is deliberately held back — the deploy workflow sets no
+ * PUBLIC_SHOW_* flags in production precisely because "it is not ready to be
+ * found" — while the resume exists to be found, and carries a JSON-LD graph and a
+ * per-tier robots.txt to make sure it is.
+ *
+ * Riding showAIR would mean the resume could never go live without also exposing
+ * the chat. It shipped that way first, on the since-invalidated reasoning that
+ * production set only that one flag.
+ *
+ * The print routes have their own flag again; see showResumePrint.
+ *
+ * `DEV` is declared but unused so this accepts `import.meta.env` directly —
+ * TypeScript rejects a call whose argument type shares no property with the
+ * parameter type, the same reason showFixtures declares it.
+ *
+ * @param {{DEV?: boolean, PUBLIC_SHOW_RESUME?: string | boolean}} env
+ */
+export function showResume(env = {}) {
+  return flagEnabled(env.PUBLIC_SHOW_RESUME);
+}
+
+/**
  * Whether the print-only resume render routes are reachable.
  *
  * These routes exist for one reason: `scripts/resume-pdf.mjs` points a headless

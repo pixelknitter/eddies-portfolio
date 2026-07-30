@@ -4,7 +4,7 @@ import ResumeFull from '@components/resume/ResumeFull.astro';
 import { RESUME } from '@util/resume/resume.data';
 import { buildResumeJsonLd } from '@util/resume/jsonld';
 import { plainText } from '@util/resume/markup';
-import { showAIR } from '@util/visibility.mjs';
+import { showResume } from '@util/visibility.mjs';
 
 /**
  * The complete resume, plus the JSON-LD graph.
@@ -24,7 +24,7 @@ import { showAIR } from '@util/visibility.mjs';
  * index by `robots.txt`, which is derived per tier from the request host rather
  * than from a build flag — see `src/pages/robots.txt.ts`.
  */
-if (!showAIR(import.meta.env)) {
+if (!showResume(import.meta.env)) {
   return new Response(null, { status: 404, statusText: 'Not found' });
 }
 

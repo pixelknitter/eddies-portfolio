@@ -4,6 +4,7 @@ import {
   showAIR,
   showHighlights,
   showFixtures,
+  showResume,
   showResumePrint,
 } from './visibility.mjs';
 
@@ -72,6 +73,36 @@ describe('showFixtures', () => {
   // present, so real content is available and fixtures would only be clutter.
   it('is not implied by local dev', () => {
     expect(showFixtures({ DEV: true })).toBe(false);
+  });
+});
+
+describe('showResume', () => {
+  it('is off unless explicitly enabled', () => {
+    expect(showResume({})).toBe(false);
+    expect(showResume({ PUBLIC_SHOW_RESUME: 'false' })).toBe(false);
+  });
+
+  it('is on for the exact string "true"', () => {
+    expect(showResume({ PUBLIC_SHOW_RESUME: 'true' })).toBe(true);
+  });
+
+  // The whole reason this flag exists: the resume must be able to ship while
+  // A.I.R. stays hidden, so neither flag may imply the other.
+  it('is independent of the A.I.R. flag', () => {
+    // Each helper's JSDoc names only its own flag, so passing the *other* one is
+    // two different type errors: an excess property on a fresh literal, and
+    // ts2559 for an object sharing no property with an all-optional parameter.
+    // Declaring both on one bound type says what the test means and satisfies
+    // each signature — which is exactly the case worth asserting.
+    type Env = { PUBLIC_SHOW_AIR?: string; PUBLIC_SHOW_RESUME?: string };
+    const airOnly: Env = { PUBLIC_SHOW_AIR: 'true' };
+    const resumeOnly: Env = { PUBLIC_SHOW_RESUME: 'true' };
+    expect(showResume(airOnly)).toBe(false);
+    expect(showAIR(resumeOnly)).toBe(false);
+  });
+
+  it('is not implied by dev mode', () => {
+    expect(showResume({ DEV: true })).toBe(false);
   });
 });
 

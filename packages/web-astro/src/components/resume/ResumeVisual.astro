@@ -30,7 +30,7 @@ import {
 import { emphasize } from '@util/resume/markup';
 
 interface Props {
-  /** Where "ask A.I.R. about this" should point. */
+  /** Where "ask A.I.R. about this" should point, or undefined when A.I.R. is off. */
   airPath?: string;
   /** Where the complete machine-readable version lives. */
   botsPath?: string;
@@ -51,7 +51,7 @@ interface Props {
 }
 
 const {
-  airPath = '/air/',
+  airPath,
   botsPath = '/air/resume/for-bots',
   print = false,
 } = Astro.props;
@@ -94,7 +94,7 @@ const bulletsFor = (role: ResumeRole) =>
           <slot name="downloads" />
 
           <div class="resume-links">
-            <a href={airPath}>Ask A.I.R. about any of this &rarr;</a>
+            {airPath && <a href={airPath}>Ask A.I.R. about any of this &rarr;</a>}
             <a href={botsPath}>Complete version, for machines &rarr;</a>
           </div>
         </Fragment>
