@@ -50,15 +50,24 @@ export const SECTION_FLAGS = Object.freeze({
   blog: 'section-blog',
   highlights: 'section-highlights',
   unpublished: 'section-unpublished',
-  air: 'section-air',
-  resume: 'section-resume',
+});
+
+/**
+ * Kill switches, keyed separately rather than reusing the section flag.
+ *
+ * Activating a flag named `section-air` and watching A.I.R. disappear is a
+ * footgun; `section-air-kill` reads correctly in the PostHog UI, where the only
+ * thing a maintainer sees is a switch and a name. It also means the kill is
+ * expressed as `enabled: true` — the plain, positive case — rather than relying
+ * on a zero-percent rollout to produce a false.
+ */
+export const KILL_FLAGS = Object.freeze({
+  air: 'section-air-kill',
+  resume: 'section-resume-kill',
 });
 
 /** Runtime may set these either way. */
 const CONTENT_SECTIONS = ['blog', 'highlights', 'unpublished'];
-
-/** Runtime may only turn these off. */
-const KILLABLE_SECTIONS = ['air', 'resume'];
 
 /**
  * @param {Record<string, unknown>} [env]
@@ -97,8 +106,8 @@ export function applyOverrides(base, flags) {
       if (typeof value === 'boolean') resolved[section] = value;
     }
 
-    for (const section of KILLABLE_SECTIONS) {
-      if (flags[SECTION_FLAGS[section]] === false) resolved[section] = false;
+    for (const [section, key] of Object.entries(KILL_FLAGS)) {
+      if (flags[key] === true) resolved[section] = false;
     }
   }
 

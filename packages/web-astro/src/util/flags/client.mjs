@@ -90,10 +90,25 @@ export async function readRuntimeFlags(env, options = {}) {
       if (!response.ok) return cache.flags;
 
       const body = await response.json();
-      const flags = body?.featureFlags;
-      // A body without a flag map is a malformed answer, not an empty one —
-      // treating it as empty would silently disable every content section.
-      if (!flags || typeof flags !== 'object') return cache.flags;
+      /*
+       * `?v=2` answers with `flags`, a map of key to a rich object:
+       *
+       *   "flags": { "section-blog": { "enabled": true, "variant": null,
+       *              "reason": {...}, "metadata": { "payload": null } } }
+       *
+       * Not `featureFlags`. That is the v1 shape, and on a v2 response it is
+       * `null` — which reads as "no flags" rather than as an error, so a client
+       * that looks there silently never applies an override and never says why.
+       * Verified against the live endpoint; the tutorial still shows v1.
+       */
+      const entries = body?.flags;
+      // A body with no flag map is a malformed answer, not an empty one. An
+      // empty map is legitimate and means every flag is inactive.
+      if (!entries || typeof entries !== 'object') return cache.flags;
+
+      const flags = Object.fromEntries(
+        Object.entries(entries).map(([key, entry]) => [key, entry?.enabled]),
+      );
 
       cache = { at: now, flags };
       return flags;

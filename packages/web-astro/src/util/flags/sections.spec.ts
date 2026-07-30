@@ -4,17 +4,38 @@ import { readRuntimeFlags, resetFlagCache } from './client.mjs';
 import {
   applyOverrides,
   buildTimeSections,
+  KILL_FLAGS,
   resolveSections,
   SECTION_FLAGS,
 } from './sections.mjs';
 
 const KEY = { PUBLIC_POSTHOG_KEY: 'phc_test' };
 
-/** A `/flags?v=2` response body, trimmed to the field that matters. */
-function flagsResponse(featureFlags: Record<string, unknown>) {
+/**
+ * A `/flags?v=2` body in the shape the live endpoint actually returns.
+ *
+ * Kept faithful on purpose. An earlier version of this helper mirrored the v1
+ * `featureFlags` map from the docs, which made every test pass against a client
+ * that could never work in production.
+ */
+function flagsResponse(enabledByKey: Record<string, boolean>) {
   return {
     ok: true,
-    json: async () => ({ featureFlags, featureFlagPayloads: {} }),
+    json: async () => ({
+      errorsWhileComputingFlags: false,
+      flags: Object.fromEntries(
+        Object.entries(enabledByKey).map(([key, enabled]) => [
+          key,
+          {
+            key,
+            enabled,
+            variant: null,
+            reason: { code: enabled ? 'condition_match' : 'out_of_rollout_bound' },
+            metadata: { id: 1, payload: null },
+          },
+        ]),
+      ),
+    }),
   };
 }
 
@@ -59,13 +80,19 @@ describe('applyOverrides — gated features may only be killed', () => {
     const base = buildTimeSections({});
     expect(base.air).toBe(false);
 
-    const resolved = applyOverrides(base, { [SECTION_FLAGS.air]: true });
+    const resolved = applyOverrides(base, {
+      'section-air': true,
+      [KILL_FLAGS.air]: false,
+    });
     expect(resolved.air).toBe(false);
   });
 
   it('REFUSES to enable the resume that the build disabled', () => {
     const base = buildTimeSections({});
-    const resolved = applyOverrides(base, { [SECTION_FLAGS.resume]: true });
+    const resolved = applyOverrides(base, {
+      'section-resume': true,
+      [KILL_FLAGS.resume]: false,
+    });
     expect(resolved.resume).toBe(false);
   });
 
@@ -73,14 +100,22 @@ describe('applyOverrides — gated features may only be killed', () => {
     const base = buildTimeSections({ PUBLIC_SHOW_AIR: 'true' });
     expect(base.air).toBe(true);
 
-    const resolved = applyOverrides(base, { [SECTION_FLAGS.air]: false });
+    const resolved = applyOverrides(base, { [KILL_FLAGS.air]: true });
     expect(resolved.air).toBe(false);
   });
 
   it('allows the resume to be killed at runtime', () => {
     const base = buildTimeSections({ PUBLIC_SHOW_RESUME: 'true' });
-    const resolved = applyOverrides(base, { [SECTION_FLAGS.resume]: false });
+    const resolved = applyOverrides(base, { [KILL_FLAGS.resume]: true });
     expect(resolved.resume).toBe(false);
+  });
+
+  it('leaves a section alone when its kill switch is off', () => {
+    // An inactive kill switch is omitted by PostHog entirely; an active one at
+    // zero rollout arrives as `false`. Neither may take a section down.
+    const base = buildTimeSections({ PUBLIC_SHOW_AIR: 'true' });
+    expect(applyOverrides(base, { [KILL_FLAGS.air]: false }).air).toBe(true);
+    expect(applyOverrides(base, {}).air).toBe(true);
   });
 });
 
@@ -121,7 +156,7 @@ describe('collectsData — what gates the privacy policy', () => {
 
   it('follows a runtime kill — killing A.I.R. with no analytics stops collection', () => {
     const base = buildTimeSections({ PUBLIC_SHOW_AIR: 'true' });
-    const resolved = applyOverrides(base, { [SECTION_FLAGS.air]: false });
+    const resolved = applyOverrides(base, { [KILL_FLAGS.air]: true });
     expect(resolved.collectsData).toBe(false);
   });
 });
@@ -187,6 +222,42 @@ describe('readRuntimeFlags', () => {
       .fn()
       .mockResolvedValue({ ok: true, json: async () => ({ oops: true }) });
     expect(await readRuntimeFlags(KEY, { fetchImpl })).toBeNull();
+  });
+
+  it('does not read the legacy v1 `featureFlags` map', async () => {
+    /*
+     * The regression this guards is a silent one. `?v=2` returns `flags` and
+     * leaves `featureFlags` as null, so a client reading the v1 key gets null on
+     * every call, reports "no opinion", and applies no override ever — with no
+     * error, no warning, and flags that simply appear not to work.
+     */
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        featureFlags: { 'section-blog': true },
+        flags: null,
+      }),
+    });
+    expect(await readRuntimeFlags(KEY, { fetchImpl })).toBeNull();
+  });
+
+  it('reads `enabled` out of the v2 flag objects', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      flagsResponse({ 'section-blog': true, 'section-air-kill': false }),
+    );
+    expect(await readRuntimeFlags(KEY, { fetchImpl })).toEqual({
+      'section-blog': true,
+      'section-air-kill': false,
+    });
+  });
+
+  it('treats an empty flag map as empty, not as an error', async () => {
+    // Every flag inactive is the normal resting state, and PostHog expresses it
+    // as `flags: {}`. That must mean "no overrides", not "call failed".
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ flags: {} }) });
+    expect(await readRuntimeFlags(KEY, { fetchImpl })).toEqual({});
   });
 
   it('shares one fetch across concurrent callers', async () => {
