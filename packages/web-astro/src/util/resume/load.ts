@@ -1,5 +1,7 @@
 import { getCollection } from 'astro:content';
 
+import { showFixtures } from '../visibility.mjs';
+
 import type {
   ResumeEducation,
   ResumeRole,
@@ -85,9 +87,35 @@ const EARLIEST =
  *   means the seal key is absent, not that the resume is blank.
  */
 export async function loadResume(): Promise<Resume | null> {
-  const entries = await getCollection('resume');
-  if (entries.length === 0) return null;
+  const all = await getCollection('resume');
+  if (all.length === 0) return null;
 
+  /*
+   * Fixtures fill in only when there is nothing real — the rule
+   * `scripts/air-eval.mjs` already uses on its corpus. Without it, a build with
+   * both (seal key present *and* PUBLIC_SHOW_FIXTURES on) could pick the sample
+   * profile over the real one, because the singleton sections take the first
+   * match. A sample headline mixed into a real resume is worse than either alone,
+   * and invisible until someone reads the page.
+   *
+   * The flag is checked *here* rather than left to `CONTENT_GLOB`, which cannot do
+   * it for this collection: its negation pattern for `sample-` files excludes a fixture at a
+   * collection's root — star's does not reach the bundle — but not one a directory
+   * deep, and the resume uses a directory per section. Measured, not assumed. So
+   * the filename convention is not load-bearing here; this check is.
+   */
+  const real = all.filter((entry) => !entry.id.includes('sample-'));
+  if (real.length > 0) return assemble(real);
+
+  const fixtures = showFixtures(import.meta.env) ? all : [];
+  if (fixtures.length === 0) return null;
+  return assemble(fixtures);
+}
+
+/** @param entries Either the real resume or the fixtures, never a mix. */
+function assemble(
+  entries: Awaited<ReturnType<typeof getCollection<'resume'>>>,
+): Resume {
   const bySection = <T extends string>(section: T) =>
     entries
       .filter((entry) => entry.data.section === section)
