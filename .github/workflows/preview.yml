@@ -129,6 +129,11 @@ jobs:
           PUBLIC_SHOW_BLOG: 'true'
           PUBLIC_SHOW_PROJECTS: 'true'
           PUBLIC_SHOW_HIGHLIGHTS: 'true'
+          # Previews share the one PostHog project with staging and production;
+          # events carry the tier so they stay separable. Unset means the runtime
+          # flag layer has no opinion and the flags above stand alone — which is
+          # also what happens on a fork PR, where `vars` is not available.
+          PUBLIC_POSTHOG_KEY: ${{ vars.POSTHOG_PROJECT_KEY }}
         run: yarn nx build web-astro
 
       # Preview URLs cannot be served on a custom domain, so a preview that

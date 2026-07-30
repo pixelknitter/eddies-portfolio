@@ -61,6 +61,11 @@ jobs:
           PUBLIC_SHOW_BLOG: 'true'
           PUBLIC_SHOW_PROJECTS: 'true'
           PUBLIC_SHOW_HIGHLIGHTS: 'true'
+          # A variable, not a secret: the project token is write-only and is
+          # designed to ship in the client bundle, so masking it would only make
+          # these logs harder to read. Unset means the runtime flag layer has no
+          # opinion and the build-time flags above stand alone.
+          PUBLIC_POSTHOG_KEY: ${{ vars.POSTHOG_PROJECT_KEY }}
         run: |
           # Stamp the pages with the commit actually checked out, and hand it
           # to the readiness gate so it can confirm this exact build is what
@@ -161,7 +166,15 @@ jobs:
       # finished. A.I.R. included — an access code gates the answers, but the
       # page, the nav link and the endpoints were all reachable, and it is not
       # ready to be found. Staging has it on for review.
+      #
+      # PUBLIC_POSTHOG_KEY is not one of those flags and does not turn anything
+      # on. It is what lets the runtime layer be consulted at all, which here
+      # means the kill switches work and a content section can be launched from
+      # PostHog rather than from a deploy. It cannot enable A.I.R. or the resume
+      # — see util/flags/sections.mjs for why that direction is refused.
       - name: Build
+        env:
+          PUBLIC_POSTHOG_KEY: ${{ vars.POSTHOG_PROJECT_KEY }}
         run: |
           # Stamp the pages with the commit actually checked out, and hand it
           # to the readiness gate so it can confirm this exact build is what
