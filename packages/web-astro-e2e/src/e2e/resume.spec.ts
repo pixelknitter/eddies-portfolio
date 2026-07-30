@@ -103,6 +103,35 @@ test.describe('the resume pages', () => {
 });
 
 test.describe('the download gate', () => {
+  /*
+   * One project only. These are API assertions over `request` — no page, no
+   * viewport — so running them under both projects doubles the traffic and proves
+   * nothing extra. It doubled it into the rate limiter: the request endpoint allows
+   * 5 per 10 minutes per client IP, this suite makes 4 POSTs, and both projects
+   * share the runner's IP. CI failed with 429 while `--project=chromium` locally
+   * passed, which is the whole reason to say this out loud.
+   */
+  // `isMobile` rather than the project name: a describe-level skip condition is
+  // handed the fixtures, not testInfo, so `testInfo.project` is undefined there —
+  // which failed as "cannot read properties of undefined" on the first attempt.
+  test.skip(
+    ({ isMobile }) => Boolean(isMobile),
+    'API-level assertions; viewport is irrelevant and a second run only burns rate limit',
+  );
+
+  /*
+   * These four tests share one rate-limit bucket, and that cannot be worked around
+   * here: the endpoint reads `cf-connecting-ip` before `x-forwarded-for`, and
+   * `wrangler dev` supplies the former on every request — so a spoofed
+   * `x-forwarded-for` is never consulted. An earlier version of this file set one
+   * and appeared to isolate the tests while doing nothing.
+   *
+   * The endpoint allows 5 per 10 minutes. Four requests below, one slot spare. Adding
+   * a fifth means raising `limit` in the endpoint or splitting this file — not adding
+   * a header. The limiter itself is asserted deterministically against
+   * `createRateLimiter` in air.spec.ts, with an injected clock.
+   */
+
   /**
    * Guessing paths can only find files someone thought to name, so this pairs a
    * URL sweep with a walk of the built asset tree that reads magic bytes. The
@@ -227,6 +256,10 @@ test.describe('the download gate', () => {
         format: 'bot',
       },
     });
+    expect(
+      requested.status(),
+      'the request must succeed before the token can be tested',
+    ).toBe(200);
     const body = await requested.json();
     const token = new URL(
       body.downloads[0].url,
@@ -259,6 +292,7 @@ test.describe('the download gate', () => {
         format: 'human',
       },
     });
+    expect(requested.status()).toBe(200);
     const { downloads } = await requested.json();
 
     expect((await request.get(downloads[0].url)).status()).toBe(200);
