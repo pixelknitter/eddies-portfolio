@@ -4,3 +4,5 @@
 /.nx/cache
 /.nx/workspace-data
 .nx/self-healing
+# Generated: base64 blobs, reformatting them would break the recorded offsets.
+packages/web-astro/src/util/resume/pdfs.generated.mjs
