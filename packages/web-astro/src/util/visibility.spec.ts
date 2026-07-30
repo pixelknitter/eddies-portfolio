@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { showUnpublished, showAIR, showHighlights, showFixtures } from './visibility.mjs';
+import {
+  showUnpublished,
+  showAIR,
+  showHighlights,
+  showFixtures,
+  showResumePrint,
+} from './visibility.mjs';
 
 describe('showUnpublished', () => {
   it('is true in local dev', () => {
@@ -66,5 +72,29 @@ describe('showFixtures', () => {
   // present, so real content is available and fixtures would only be clutter.
   it('is not implied by local dev', () => {
     expect(showFixtures({ DEV: true })).toBe(false);
+  });
+});
+
+describe('showResumePrint', () => {
+  // This flag guards routes that render the resume *with* contact details, for
+  // the PDF generator to print. Reaching them any other way defeats the gate,
+  // so the closed cases matter more here than the open one.
+  it('is off unless explicitly enabled', () => {
+    expect(showResumePrint({})).toBe(false);
+    expect(showResumePrint({ PUBLIC_RESUME_PRINT: 'false' })).toBe(false);
+  });
+
+  it('is on for the exact string "true"', () => {
+    expect(showResumePrint({ PUBLIC_RESUME_PRINT: 'true' })).toBe(true);
+  });
+
+  it('is not implied by local dev', () => {
+    expect(showResumePrint({ DEV: true })).toBe(false);
+  });
+
+  it('rejects anything truthy-but-not-"true"', () => {
+    for (const value of ['1', 'yes', 'TRUE', 'True', ' true', '', undefined]) {
+      expect(showResumePrint({ PUBLIC_RESUME_PRINT: value }), String(value)).toBe(false);
+    }
   });
 });

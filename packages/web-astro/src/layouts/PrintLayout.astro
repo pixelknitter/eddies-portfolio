@@ -1,0 +1,90 @@
+---
+/**
+ * Layout for the PDF render routes.
+ *
+ * ## Why this does not wrap Layout.astro
+ *
+ * Four things in the site layout are actively wrong for a printed document, and
+ * one of them is a real defect rather than a cosmetic one:
+ *
+ *   - **The theme script.** Layout.astro applies `.dark` from `localStorage` or
+ *     `prefers-color-scheme`. Headless Chromium reporting a dark preference would
+ *     produce a dark resume PDF. That is the defect; it must not be possible.
+ *   - **Header, nav and footer** — chrome with no meaning on paper.
+ *   - **ClientRouter** — view transitions in a document that never navigates.
+ *   - **The site-wide `<meta name="description">`** and `max-w-screen-md` body.
+ *
+ * So this is a deliberately minimal shell. `data-print-doc` on <html> is what
+ * `print.css` keys its two opposite behaviours off; see that file.
+ *
+ * ## noindex
+ *
+ * These routes 404 on every deployed tier (they need `PUBLIC_RESUME_PRINT`, which
+ * no workflow sets), and `robots.txt` disallows the path on top of that. The
+ * meta tag is a third layer, for the case where one of the first two is ever
+ * relaxed — the pages carry contact details and must never be indexed.
+ */
+import '../styles/global.css';
+import '../styles/print.css';
+
+interface Props {
+  /** Document title. Becomes the PDF's metadata title. */
+  pageTitle: string;
+  /**
+   * Which document this is, which decides both typography and webfont loading.
+   *
+   * `organic` is the human-readable resume: the Caprasimo/Figtree design, loaded
+   * from the CDN.
+   *
+   * `plain` is the machine-readable one, and it loads **no** webfonts at all. A
+   * decorative display face is actively harmful in the variant whose purpose is
+   * text extraction — it complicates OCR and reads wrong on a resume — and a
+   * system stack additionally removes the only network dependency from that
+   * document's generation. `print.css` forces the stack for this variant.
+   */
+  variant?: 'organic' | 'plain';
+}
+
+const { pageTitle, variant = 'organic' } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" data-print-doc={variant}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="robots" content="noindex, nofollow, noarchive" />
+    <title>{pageTitle}</title>
+
+    {
+      variant === 'organic' && (
+        <Fragment>
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        </Fragment>
+      )
+    }
+    {
+      /*
+      Fonts come from the Google CDN, as everywhere else on the site, rather than
+      being self-hosted. The risk with a CDN at generation time is a silent
+      fallback to a system face — a visual regression nobody notices until the
+      file is opened. That risk is closed in the generator instead: it asserts
+      `document.fonts.check()` for every required family and fails the run loudly.
+      Self-hosting would additionally make generation work offline; worth doing if
+      the PDFs ever need building in a sandbox without network egress.
+    */
+    }
+    {
+      variant === 'organic' && (
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Caprasimo:wght@400&family=Figtree:wght@400;600;700&display=swap"
+        />
+      )
+    }
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
