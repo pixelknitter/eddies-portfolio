@@ -26,9 +26,7 @@ type Answer = {
  * Openers aimed at who the visitor probably is. People rarely know what to ask
  * an interactive resume, and a blank box gets a blank response.
  */
-// Shared with the decline message in api/air/ask.ts and asserted answerable by
-// offline.spec.ts. Three copies of this list drifted until the Client question
-// was one the corpus could not answer.
+// Shared with the decline message in api/air/ask.ts.
 import { SUGGESTED } from '../util/air/suggested.mjs';
 
 export function AIResume() {
@@ -207,9 +205,8 @@ export function AIResume() {
         titleId="air-request-title"
       >
         {requestState.status === 'sent' ? (
-          // Replaces the form rather than appearing beneath it. Leaving a live
-          // "Send request" button on screen after a successful send invites a
-          // second submission and reads as though the first had not landed.
+          // Replaces the form: a live "Send request" after a successful send
+          // invites a second submission.
           <div>
             <h2
               id="air-request-title"
@@ -299,10 +296,8 @@ export function AIResume() {
               up. The 503 from an unconfigured environment returns in well under
               a second, and the shift as "Sending…" swapped back while this
               paragraph mounted was the flicker. */}
-            {/* Only failures land here now — success swaps the whole panel above.
-              Height stays reserved so the message arriving does not shove the
-              buttons up: that shift, plus "Sending…" changing the button's
-              width, was the flicker on a fast rejection. */}
+            {/* Height reserved so an arriving message does not shift the buttons —
+              that shift was visible as a flicker on fast rejections. */}
             <div aria-live="polite" className="mt-4 min-h-6">
               {requestState.status === 'failed' && (
                 <p className="font-body">{requestState.message}</p>

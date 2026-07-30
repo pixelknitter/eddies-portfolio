@@ -204,7 +204,7 @@ function openBlob(file) {
 const blobs = () =>
   existsSync(VAULT) ? readdirSync(VAULT).filter((file) => file.endsWith('.sealed')) : [];
 
-/** Recursive file walk. Shared, so `seal` and `migrate-v1` agree on what exists. */
+/** Recursive file walk, used by `seal` and `audit`. */
 function* walk(dir) {
   if (!existsSync(dir)) return;
   for (const entry of readdirSync(dir)) {
@@ -547,56 +547,6 @@ try {
         process.exit(1);
       }
       console.log(`✓ ${files.length} sealed file(s); no plaintext committed.`);
-      break;
-    }
-
-    // One-shot upgrade from the first per-file format, whose blobs sat beside
-    // the content as `<name>.md.sealed` with a per-file salt — both the naming
-    // that leaked topics and the derivation that scaled linearly.
-    case 'migrate-v1': {
-      const { createDecipheriv: decipherV1, scryptSync: scryptV1 } = await import('node:crypto');
-      const { readdirSync: read, statSync } = await import('node:fs');
-
-      const walk = function* (dir) {
-        for (const entry of read(dir)) {
-          const path = join(dir, entry);
-          if (statSync(path).isDirectory()) yield* walk(path);
-          else yield path;
-        }
-      };
-
-      const legacy = [...walk(CONTENT_ROOT)].filter((file) => file.endsWith('.md.sealed'));
-      if (legacy.length === 0) {
-        console.log('No v1 blobs found. Nothing to migrate.');
-        break;
-      }
-
-      console.log(`Migrating ${legacy.length} v1 blob(s) into the vault…`);
-      for (const file of legacy) {
-        const envelope = JSON.parse(readFileSync(file, 'utf8'));
-        // v1 derived a key per file from its own salt.
-        const legacyKey = scryptV1(passphrase(), Buffer.from(envelope.salt, 'hex'), 32, SCRYPT);
-        const decipher = decipherV1('aes-256-gcm', legacyKey, Buffer.from(envelope.iv, 'hex'));
-        decipher.setAuthTag(Buffer.from(envelope.tag, 'hex'));
-
-        let content;
-        try {
-          content = Buffer.concat([
-            decipher.update(Buffer.from(envelope.data, 'base64')),
-            decipher.final(),
-          ]).toString('utf8');
-        } catch {
-          throw new Error(`could not decrypt ${file} — is CONTENT_SEAL_KEY the one it was sealed with?`);
-        }
-
-        const path = file.slice(0, -'.sealed'.length);
-        writeFileSync(path, content);
-        sealFile(path);
-        unlinkSync(path);
-        unlinkSync(file);
-        console.log(`✓ ${path} → ${VAULT}/${blobName(path)}`);
-      }
-      console.log(`\nMigrated ${legacy.length} file(s). Commit the vault and the removed blobs.`);
       break;
     }
 

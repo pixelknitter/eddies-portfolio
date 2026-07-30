@@ -1,21 +1,12 @@
 import React from 'react';
 
 /**
- * A real modal dialog.
+ * A modal dialog: contains focus, closes on Escape and backdrop, restores focus
+ * on close, and locks scrolling behind it.
  *
- * The A.I.R. request form previously carried `role="dialog"` and
- * `aria-modal="true"` on a div rendered inline in the document flow. That is
- * worse than no ARIA at all: `aria-modal` tells assistive technology that
- * everything outside the dialog is inert, while Tab, the scroll wheel and the
- * pointer all still reached the page behind it. It also meant the form stacked
- * below the panel that opened it, so on a phone the thing you just opened was
- * off screen.
- *
- * Implemented here rather than pulled from a library because the whole point of
- * this page is a small client bundle on a latency-sensitive runtime, and the
- * behaviour a dialog actually owes the user is short: contain focus, close on
- * Escape, close on backdrop, restore focus, and stop the page behind it from
- * scrolling.
+ * Hand-rolled rather than pulled from a library to keep this page's client
+ * bundle small — `aria-modal` is a promise about the rest of the page being
+ * inert, so the focus containment below is required, not decorative.
  */
 
 /** Elements that can hold focus, for containing Tab inside the dialog. */
@@ -60,7 +51,9 @@ export function Modal({ open, onClose, titleId, children }: Props) {
 
       if (event.key !== 'Tab' || !panel) return;
 
-      const focusable = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE));
+      const focusable = Array.from(
+        panel.querySelectorAll<HTMLElement>(FOCUSABLE),
+      );
       if (focusable.length === 0) return;
 
       const first = focusable[0];
@@ -92,7 +85,7 @@ export function Modal({ open, onClose, titleId, children }: Props) {
     <div
       // Fills the viewport and centres the panel; `items-end sm:items-center`
       // puts it within thumb reach on a phone and centres it on a desktop.
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4"
     >
       {/* Backdrop. A separate element so a click on it closes without the panel's
           own clicks bubbling out and dismissing what the user is filling in. */}
@@ -101,7 +94,7 @@ export function Modal({ open, onClose, titleId, children }: Props) {
         aria-label="Close"
         tabIndex={-1}
         onClick={onClose}
-        className="absolute inset-0 w-full h-full bg-dark/70 motion-safe:animate-[fade-in_150ms_ease-out] cursor-default"
+        className="absolute inset-0 h-full w-full cursor-default bg-dark/70 motion-safe:animate-[fade-in_150ms_ease-out]"
       />
 
       <div
@@ -112,7 +105,7 @@ export function Modal({ open, onClose, titleId, children }: Props) {
         // max-h with overflow so a long form stays reachable on a short
         // viewport — the failure mode of a centred fixed panel is a submit
         // button below the fold with no way to scroll to it.
-        className="relative surface w-full sm:max-w-xl max-h-[92dvh] overflow-y-auto p-4 sm:p-6 rounded-t-2xl sm:rounded-2xl motion-safe:animate-[fade-in_150ms_ease-out]"
+        className="surface relative max-h-[92dvh] w-full overflow-y-auto rounded-t-2xl p-4 motion-safe:animate-[fade-in_150ms_ease-out] sm:max-w-xl sm:rounded-2xl sm:p-6"
       >
         {children}
       </div>

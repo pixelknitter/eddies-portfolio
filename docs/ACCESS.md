@@ -104,22 +104,44 @@ for a typo in the domain, and that the record is proxied (orange cloud).
 
 ## What gating changes about A.I.R.
 
-Access gates the **whole hostname**, including `/api/air/*`. On a gated preview a
-visitor cannot reach the access-request flow at all, because they cannot reach the
-page.
+Access gates the whole hostname by default, `/api/air/*` included. Two things
+that follow, one reassuring and one to decide:
 
-That is correct for staging, but it means the request → Discord → approve → code
-walkthrough cannot be done as an outside visitor on a gated hostname. Options,
-in preference order:
+**Your own session covers the API.** After you authenticate, Access sets a
+`CF_Authorization` cookie on the hostname, and `fetch()` defaults to
+`credentials: 'same-origin'` — so the page's calls to `/api/air/ask` and
+`/api/air/request` carry it. Anyone who passes the gate gets the whole flow.
+Nothing extra is needed to test it as yourself.
 
-1. Walk it on **production**, which is public and is what visitors actually use.
-2. Walk it on a preview **before** adding the wildcard application.
-3. Drive it with the service token headers, which tests the endpoints but not the
-   visitor's experience of them.
+The Discord notification is unaffected either way: it is an outbound `fetch`
+from the Worker, and Access only inspects inbound requests. The webhook URL
+lives in a Worker secret and never reaches the browser.
 
-`scripts/smoke-test.mjs` already reports and skips when it sees an Access login
-page rather than passing silently, so a gated hostname will not produce a
-false green.
+**Strangers are a different question.** The point of the request flow is that
+someone with no code can ask for one, and a gated hostname stops them before the
+page loads. If you want that reachable on a gated hostname, scope a second
+application to the paths and give it a Bypass policy:
+
+```
+App A:  staging.eddie.engineering            Allow (you) + Service Auth (CI)
+App B:  staging.eddie.engineering/api/air/   Bypass (everyone)
+App C:  staging.eddie.engineering/air        Bypass (everyone)
+```
+
+Overlapping applications resolve by specificity — [the more specific path
+wins](https://developers.cloudflare.com/cloudflare-one/access-controls/policies/app-paths/).
+Note the trade Cloudflare states plainly: Bypass "disables Access enforcement"
+and those requests "are not logged". Those paths then rest on the endpoint's own
+controls — 3 requests per 10 minutes, input validation, and HMAC-signed
+approval tokens.
+
+Worth asking what the gate is for before adding all three. Access on a preview
+protects unpublished drafts and unfinished sections: `/`, `/blog/`, `/works/`.
+A.I.R. is public in production regardless, so gating it on staging protects
+nothing and costs you the ability to test it the way a visitor meets it.
+
+`scripts/smoke-test.mjs` reports and skips when it sees an Access login page
+rather than passing silently, so a gated hostname will not produce a false green.
 
 ---
 

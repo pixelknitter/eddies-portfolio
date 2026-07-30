@@ -17,11 +17,8 @@
 /**
  * Words carrying no retrieval signal. Kept small — over-stripping loses recall.
  *
- * The prepositions are not padding. "Would Eddie accept a role paying under
- * market rate?" retrieved two unrelated stories on the strength of `under`
- * alone, which appears in both titles inside a hyphenated compound. Title
- * weight is 4, so one preposition cleared the relevance floor by itself and a
- * question that must be unanswerable became one the model had to decline.
+ * Prepositions included: title weight is 4, so a single one matching a title
+ * cleared the relevance floor on its own.
  */
 const STOPWORDS = new Set([
   'a',
@@ -151,17 +148,9 @@ export function terms(text) {
 }
 
 /**
- * Derivational suffixes, longest first, stripped repeatedly.
- *
- * Without stemming, "a system nobody wants to own" did not match the story
- * titled "Migrating the Ecosystem to Owned Infrastructure" tagged `ownership` —
- * own/owned/ownership were three unrelated tokens, so recall depended on a
- * visitor guessing the inflection a story happens to use.
- *
- * Longest-first matters: `reliability` must lose `ability` and reach the same
- * stem as `reliable`, not lose `ity` and stop at `reliabil`. The -able/-ity pair
- * is why "keep releases reliable" now finds the story tagged `reliability` —
- * the visitor and the tag were describing one thing in two parts of speech.
+ * Derivational suffixes, stripped repeatedly. Longest first, so `reliability`
+ * loses `ability` and reaches `reliable`'s stem rather than stopping at
+ * `reliabil`.
  */
 const SUFFIXES = [
   'ibility',
@@ -186,13 +175,10 @@ const SUFFIXES = [
 const MIN_STEM = 3;
 
 /**
- * Strip a plural, at most once.
+ * Strip a plural, at most once, before the derivational loop.
  *
- * Separate from the loop below, and applied first, because folding plurals into
- * repeated stripping over-stems: `releases` became `releas` and then `relea`,
- * while `release` had no suffix to lose and stayed put — so the singular and the
- * plural of the same word landed on different stems and stopped matching. That
- * is worse than not stemming at all, because it breaks pairs that used to work.
+ * Folding plurals into that loop over-stems: `releases` → `releas` → `relea`,
+ * while `release` has nothing to strip, so the pair stops matching.
  *
  * @param {string} word
  * @returns {string}
@@ -212,11 +198,9 @@ function depluralize(word) {
 /**
  * Reduce a term to a comparable stem.
  *
- * Deliberately not a full Porter stemmer: this corpus is a few dozen curated
- * documents, and a dependency (plus its irregular-form tables) buys accuracy
- * that a relevance floor of 3 cannot perceive. The derivational pass repeats
- * because the words that matter here are doubly suffixed — ownership → owner →
- * own.
+ * Not a Porter stemmer: a dependency buys accuracy a relevance floor of 3
+ * cannot perceive. The loop repeats because the words here are doubly suffixed
+ * — ownership → owner → own.
  *
  * @param {string} term
  * @returns {string}
@@ -248,20 +232,11 @@ function stems(text) {
 }
 
 /**
- * Weight for a word that merely appears inside a compound tag.
+ * Weight for a word appearing inside a compound tag (`cost-engineering`).
  *
- * Tags are curated compound labels — `ci-cd`, `cost-engineering`,
- * `people-leadership` — and splitting them on the hyphen was letting a
- * fragment claim the full weight of the tag it came from. "How many years was
- * Eddie a VP of Engineering?" scored a topical hit on `cost-engineering` and
- * retrieved a story, which turned a question that should be structurally
- * unanswerable into one the model had to talk its way out of.
- *
- * Splitting also lost tags outright: `ci-cd` became `ci` and `cd`, both below
- * the 3-character floor, so no question about CI/CD could ever match the story
- * about CI/CD. Same for the bare tag `ai`.
- *
- * A fragment is a hint, not the topic, so it scores like a narrative word.
+ * A fragment is a hint, not the topic: at full tag weight, "VP of Engineering"
+ * scored a topical hit on `cost-engineering` and made an unanswerable question
+ * retrievable.
  */
 const TAG_FRAGMENT_WEIGHT = 1;
 
