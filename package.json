@@ -26,6 +26,7 @@
     "@astrojs/check": "latest",
     "@astrojs/react": "6.0.1",
     "@astrojs/ts-plugin": "latest",
+    "@axe-core/playwright": "^4.10.2",
     "@babel/preset-react": "^7.14.5",
     "@eslint/eslintrc": "^3.0.0",
     "@eslint/js": "^9.8.0",
