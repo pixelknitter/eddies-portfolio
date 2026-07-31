@@ -171,8 +171,8 @@ as enabled):
 |------|-------|
 | `PUBLIC_SHOW_BLOG` | `/blog/` and every post route |
 | `PUBLIC_SHOW_PROJECTS` | `/works/` and the prerendered `/projects/*` pages |
-| `PUBLIC_SHOW_AIR` | `/air/` |
-| `PUBLIC_SHOW_RESUME` | `/air/resume/`, `/air/resume/for-bots` and the download endpoints |
+| `PUBLIC_SHOW_AIR` | `/cv/air/` |
+| `PUBLIC_SHOW_RESUME` | `/cv/`, `/cv/for-bots` and the download endpoints |
 | `PUBLIC_RESUME_PRINT` | the print-only render routes the PDF generator prints |
 | `PUBLIC_SHOW_HIGHLIGHTS` | the STAR spotlight on the home page |
 | `PUBLIC_SHOW_UNPUBLISHED` | drafts and not-yet-due posts within an enabled section |

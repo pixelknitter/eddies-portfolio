@@ -177,33 +177,33 @@ describe('isResumeRoute', () => {
   // one page whose premise is that it does not, so the boundaries matter.
   it('matches every resume surface', () => {
     for (const path of [
-      '/air/resume',
-      '/air/resume/',
-      '/air/resume/for-bots',
-      '/air/resume/print/human',
-      '/air/resume/print/bot',
+      '/cv',
+      '/cv/',
+      '/cv/for-bots',
+      '/cv/print/human',
+      '/cv/print/bot',
+      // A.I.R. is inside the prefix now, and gated with everything else.
+      // Under the old `/air/resume` layout the chat sat *outside* it and the
+      // footer published a mailto there — on the surface whose whole premise
+      // is that it does not. Nesting it under /cv fixes that by construction
+      // rather than by remembering to add it to a list.
+      '/cv/air',
+      '/cv/air/',
     ]) {
       expect(isResumeRoute(path), path).toBe(true);
     }
   });
 
   it('does not match other routes', () => {
-    for (const path of [
-      '/',
-      '/air/',
-      '/air',
-      '/blog/',
-      '/works/',
-      '/air/resumes',
-    ]) {
+    for (const path of ['/', '/blog/', '/works/', '/cvs']) {
       expect(isResumeRoute(path), path).toBe(false);
     }
   });
 
-  // `/air/resumes` above is the case a naive `startsWith('/air/resume')` gets
-  // wrong: it would gate contact on an unrelated route that merely shares a
-  // prefix. Harmless here, but the same bug in the other direction is not.
+  // `/cvs` above is the case a naive `startsWith('/cv')` gets wrong: it would
+  // gate contact on an unrelated route that merely shares a prefix. Harmless
+  // in that direction; the same bug the other way republishes the address.
   it('requires a segment boundary, not just a prefix', () => {
-    expect(isResumeRoute('/air/resume-archive')).toBe(false);
+    expect(isResumeRoute('/cv-archive')).toBe(false);
   });
 });

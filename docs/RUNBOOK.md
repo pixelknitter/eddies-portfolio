@@ -132,10 +132,10 @@ in the gate's own output:
 
 ```
 Deployed eddies-portfolio triggers
-ready after 1 attempt(s): /:200 /blog/:200 /works/:200 /air/:200
+ready after 1 attempt(s): /:200 /blog/:200 /works/:200 /cv/air/:200
 ```
 
-`/air/:200` — only the pre-gating build ever returned that; the new one 404s.
+`/cv/air/:200` — only the pre-gating build ever returned that; the new one 404s.
 
 **Fix.** Already handled: every page carries
 `<meta name="build-sha" content="...">`, and the deploy passes

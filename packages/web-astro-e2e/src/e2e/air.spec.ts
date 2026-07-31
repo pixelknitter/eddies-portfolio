@@ -24,7 +24,7 @@ import { test, expect } from '@playwright/test';
  * means the flow is wired correctly, not that Eddie received the message.
  */
 
-const AIR = '/air/';
+const AIR = '/cv/air/';
 
 /** The dialog panel, not the overlay wrapper. */
 const dialog = '[role="dialog"]';

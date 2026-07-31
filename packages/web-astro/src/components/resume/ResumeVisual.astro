@@ -19,7 +19,7 @@
  *
  * On the web, selected roles show their `featured` bullet subset. With `print`
  * set, every bullet on every role renders — see the prop's own note. Nothing is
- * ever hidden outright: the complete set is also on `/air/resume/for-bots`.
+ * ever hidden outright: the complete set is also on `/cv/for-bots`.
  */
 import ResumeSection from './ResumeSection.astro';
 import { rolesByRecency, type ResumeRole } from '@util/resume/resume.data';
@@ -56,7 +56,7 @@ interface Props {
 const {
   resume: RESUME,
   airPath,
-  botsPath = '/air/resume/for-bots',
+  botsPath = '/cv/for-bots',
   print = false,
 } = Astro.props;
 

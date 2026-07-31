@@ -53,8 +53,8 @@ export const FINGERPRINTED_FILES = [
   'layouts/PrintLayout.astro',
   'styles/print.css',
   'styles/resume-organic.css',
-  'pages/air/resume/print/human.astro',
-  'pages/air/resume/print/bot.astro',
+  'pages/cv/print/human.astro',
+  'pages/cv/print/bot.astro',
 ];
 
 /**

@@ -69,7 +69,7 @@ const MAX_TOTAL_BYTES = 1_200_000;
 const VARIANTS = [
   {
     key: 'human',
-    path: '/air/resume/print/human',
+    path: '/cv/print/human',
     filename: 'Eddie-Freeman-Resume.pdf',
     printBackground: true,
     // The organic document; these are the families PrintLayout loads for it.
@@ -77,7 +77,7 @@ const VARIANTS = [
   },
   {
     key: 'bot',
-    path: '/air/resume/print/bot',
+    path: '/cv/print/bot',
     filename: 'Eddie-Freeman-Resume-ATS.pdf',
     // Light on white: smaller, and what an ATS expects to be handed.
     printBackground: false,
@@ -256,7 +256,7 @@ async function main() {
         ],
         { cwd: APP, stdio: 'ignore', detached: false },
       );
-      await waitForServer(`${baseUrl}/air/resume/`);
+      await waitForServer(`${baseUrl}/cv/`);
     }
 
     const browser = await chromium.launch();

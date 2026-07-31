@@ -1,6 +1,6 @@
 ---
 import Layout from "@layouts/Layout.astro"
-import { AIResume } from '../../react/AIResume'
+import { AIResume } from '../../../react/AIResume'
 import { resolveSections } from '@util/flags/sections.mjs'
 
 // Gate the route, not just the nav link — an unlisted page is still a public
@@ -25,7 +25,7 @@ const pageTitle = "AIR: AI-Powered Resume for Eddie Freeman"
   {
     sections.resume && (
       <p class="mt-8 text-center font-body">
-        <a href="/air/resume/">Read the resume instead &rarr;</a>
+        <a href="/cv/">Read the resume instead &rarr;</a>
       </p>
     )
   }

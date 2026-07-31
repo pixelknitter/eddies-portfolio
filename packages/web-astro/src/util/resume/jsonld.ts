@@ -7,7 +7,7 @@ import { plainText } from './markup';
  *
  * This is the machine-facing half of the feature: it is what lets a search
  * crawler or a generative engine state facts about this person without parsing
- * prose. It renders on `/air/resume/for-bots`, which the visible resume points at
+ * prose. It renders on `/cv/for-bots`, which the visible resume points at
  * with `<link rel="alternate">`.
  *
  * ## No email, no telephone
@@ -45,7 +45,7 @@ interface JsonLdOptions {
   resume: Resume;
   /** Absolute origin, e.g. "https://eddie.engineering". No trailing slash. */
   siteUrl: string;
-  /** Path of the page carrying the graph, e.g. "/air/resume/for-bots". */
+  /** Path of the page carrying the graph, e.g. "/cv/for-bots". */
   pagePath: string;
 }
 
