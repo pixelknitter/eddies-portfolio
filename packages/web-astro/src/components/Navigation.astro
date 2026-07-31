@@ -4,9 +4,21 @@ import { resolveSections } from '@util/flags/sections.mjs';
 
 // Unfinished sections stay unlinked in production; review tiers turn them on.
 const sections = await resolveSections(import.meta.env);
-const airEnabled = sections.air;
 const blogEnabled = sections.blog;
 const projectsEnabled = sections.projects;
+
+/*
+ * Resume-forward: the nav advertises the readable resume, not the chat.
+ *
+ * A.I.R. is reached from the resume's own action bar instead, which is the
+ * order a visitor actually wants — read the thing, then ask about it. It also
+ * decouples the two: the AI surface can stay gated, be rebuilt, or be switched
+ * off entirely without ever taking the resume out of the navigation.
+ *
+ * Gated on `resume`, not `air`. The two have had separate flags since the
+ * resume shipped, precisely so the resume could be found while A.I.R. was not.
+ */
+const resumeEnabled = sections.resume;
 ---
 <div class="grid grid-cols-1 md:grid-cols-2 gap-y-2 mt-4 mb-2">
     <div class="text-lg font-header text-center md:text-justify self-center">
@@ -15,7 +27,7 @@ const projectsEnabled = sections.projects;
     <div class="font-body text-lg flex flex-wrap items-center gap-x-1 gap-y-1 text-center justify-center md:justify-end">
         {projectsEnabled && <a class="nav-link" href="/works/">Works</a>}
         {blogEnabled && <a class="nav-link" href="/blog/">Blog</a>}
-        {airEnabled && <a class="nav-link" href="/air/">A.I.R.</a>}
+        {resumeEnabled && <a class="nav-link" href="/air/resume/">Resume / CV</a>}
         <a class="nav-link" href="https://github.com/pixelknitter/eddies-portfolio" target="_blank" rel="noopener noreferrer">GitHub</a>
         <ThemeIcon />
     </div>
