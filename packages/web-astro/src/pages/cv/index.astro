@@ -1,6 +1,7 @@
 ---
 import Layout from '@layouts/Layout.astro';
 import ResumeVisual from '@components/resume/ResumeVisual.astro';
+import ResumeActions from '@components/resume/ResumeActions.astro';
 import { ResumeDownload } from '../../react/ResumeDownload';
 import { loadResume } from '@util/resume/load';
 import { resolveSections } from '@util/flags/sections.mjs';
@@ -120,14 +121,15 @@ const airPath = sections.air ? '/cv/air/' : undefined;
   </div>
 
   <div class="resume-no-print">
-    <ResumeVisual {resume} {botsPath} {airPath}>
+    <ResumeVisual {resume}>
       {
         /*
-        `client:visible` rather than `client:load`: the buttons sit above the fold
-        but nobody presses them before reading, and the resume itself is static —
-        this is the only JavaScript the page needs.
+        The web-only chrome, passed in rather than rendered inside ResumeVisual:
+        that file is fingerprinted, and slot content lives here, so restyling
+        these never touches the PDF hash.
       */
       }
+      <ResumeActions slot="actions" {airPath} {botsPath} />
     </ResumeVisual>
   </div>
 </Layout>
