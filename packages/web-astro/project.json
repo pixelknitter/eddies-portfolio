@@ -22,6 +22,12 @@
           "env": "PUBLIC_BUILD_SHA"
         },
         {
+          "env": "PUBLIC_POSTHOG_KEY"
+        },
+        {
+          "env": "PUBLIC_POSTHOG_HOST"
+        },
+        {
           "env": "PUBLIC_SHOW_UNPUBLISHED"
         },
         {

@@ -31,6 +31,22 @@ interface ImportMetaEnv {
   readonly PUBLIC_RESUME_PRINT?: string;
   /** Git SHA of the build, stamped into every page by Layout.astro. */
   readonly PUBLIC_BUILD_SHA?: string;
+  /**
+   * PostHog project token. PUBLIC_ on purpose and correct: the project token is
+   * write-only, is designed to ship to browsers, and is what the public /flags
+   * endpoint authenticates with. Its presence is also what `buildTimeSections`
+   * reads as "analytics is on", which is what makes the privacy policy reachable.
+   *
+   * A *personal* PostHog API key is the opposite of this and must never appear
+   * here — it would be inlined into the server bundle, and
+   * check-bundle-secrets.mjs has no pattern for it yet.
+   */
+  readonly PUBLIC_POSTHOG_KEY?: string;
+  /**
+   * PostHog ingest host. Defaults to https://us.i.posthog.com when unset; set it
+   * to a reverse-proxy subdomain to keep requests first-party.
+   */
+  readonly PUBLIC_POSTHOG_HOST?: string;
 }
 
 interface ImportMeta {

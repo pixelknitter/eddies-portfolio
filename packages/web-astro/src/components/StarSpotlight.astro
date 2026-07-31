@@ -1,11 +1,14 @@
 ---
 import { getCollection } from 'astro:content';
-import { showHighlights, showUnpublished } from '@util/visibility.mjs';
+import { resolveSections } from '@util/flags/sections.mjs';
+
+const sections = await resolveSections(import.meta.env);
 
 // Drafts are hidden in production, matching the blog's behaviour.
-const entries = showHighlights(import.meta.env)
-  ? await getCollection('star', ({ data }) =>
-      showUnpublished(import.meta.env) || data.draft !== true
+const entries = sections.highlights
+  ? await getCollection(
+      'star',
+      ({ data }) => sections.unpublished || data.draft !== true,
     )
   : [];
 

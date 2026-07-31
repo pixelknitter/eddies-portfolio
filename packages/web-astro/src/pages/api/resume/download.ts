@@ -1,6 +1,6 @@
 import type { APIContext } from 'astro';
 
-import { showResume } from '@util/visibility.mjs';
+import { resolveSections } from '@util/flags/sections.mjs';
 import { createRateLimiter } from '@util/air/access.mjs';
 import { readSecret } from '@util/air/runtime.mjs';
 import { verifyPurposeToken } from '@util/air/requests.mjs';
@@ -95,7 +95,8 @@ function fail(
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  if (!showResume(import.meta.env)) {
+  const sections = await resolveSections(import.meta.env);
+  if (!sections.resume) {
     return new Response(null, { status: 404, statusText: 'Not found' });
   }
 

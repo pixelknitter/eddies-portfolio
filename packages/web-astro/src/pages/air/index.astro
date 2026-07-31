@@ -1,11 +1,13 @@
 ---
 import Layout from "@layouts/Layout.astro"
 import { AIResume } from '../../react/AIResume'
-import { showAIR, showResume } from '@util/visibility.mjs'
+import { resolveSections } from '@util/flags/sections.mjs'
 
 // Gate the route, not just the nav link — an unlisted page is still a public
 // page if it responds.
-if (!showAIR(import.meta.env)) {
+const sections = await resolveSections(import.meta.env);
+
+if (!sections.air) {
   return new Response(null, { status: 404, statusText: 'Not found' });
 }
 
@@ -21,7 +23,7 @@ const pageTitle = "AIR: AI-Powered Resume for Eddie Freeman"
     page still opens on A.I.R. itself.
   */}
   {
-    showResume(import.meta.env) && (
+    sections.resume && (
       <p class="mt-8 text-center font-body">
         <a href="/air/resume/">Read the resume instead &rarr;</a>
       </p>

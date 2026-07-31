@@ -4,7 +4,7 @@ import ResumeFull from '@components/resume/ResumeFull.astro';
 import { loadResume } from '@util/resume/load';
 import { buildResumeJsonLd } from '@util/resume/jsonld';
 import { plainText } from '@util/resume/markup';
-import { showResume, showAIR } from '@util/visibility.mjs';
+import { resolveSections } from '@util/flags/sections.mjs';
 
 /**
  * The complete resume, plus the JSON-LD graph.
@@ -24,7 +24,9 @@ import { showResume, showAIR } from '@util/visibility.mjs';
  * index by `robots.txt`, which is derived per tier from the request host rather
  * than from a build flag — see `src/pages/robots.txt.ts`.
  */
-if (!showResume(import.meta.env)) {
+const sections = await resolveSections(import.meta.env);
+
+if (!sections.resume) {
   return new Response(null, { status: 404, statusText: 'Not found' });
 }
 
@@ -75,6 +77,6 @@ const description = plainText(resume.longSummary).slice(0, 300);
   <ResumeFull
     {resume}
     visualPath="/air/resume/"
-    airPath={showAIR(import.meta.env) ? '/air/' : undefined}
+    airPath={sections.air ? '/air/' : undefined}
   />
 </Layout>

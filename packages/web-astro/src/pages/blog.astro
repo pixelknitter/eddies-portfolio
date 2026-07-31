@@ -3,11 +3,13 @@ import Layout from '@layouts/Layout.astro';
 import Card from '@components/Card.astro';
 import { getCollection } from "astro:content";
 import { publishedPosts } from "@util/posts.mjs";
-import { showBlog, showUnpublished } from "@util/visibility.mjs";
+import { resolveSections } from "@util/flags/sections.mjs";
 import Hero from "@components/Hero.astro";
 
+const sections = await resolveSections(import.meta.env);
+
 // Same reasoning as works.astro — the flag has to gate the page itself.
-if (!showBlog(import.meta.env)) {
+if (!sections.blog) {
     return new Response(null, { status: 404, statusText: 'Not found' });
 }
 
@@ -15,7 +17,7 @@ const pageTitle = "Posts";
 // Production shows only published posts. Dev and the dev/staging deploys
 // reveal drafts and scheduled work so those tiers aren't empty to review.
 const allEntries = await getCollection('blog');
-const blogEntries = showUnpublished(import.meta.env)
+const blogEntries = sections.unpublished
     ? allEntries
     : publishedPosts(allEntries);
 ---
