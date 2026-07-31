@@ -62,9 +62,11 @@ jobs:
             echo "→ documentation-only change; skipping the preview."
           fi
 
-  preview:
-    # Ruleset contract name — see .github/workflows/ci.yml.
-    name: preview
+  # The deployment itself, which genuinely should not run for a docs-only
+  # change. The required status check is the `preview` gate at the bottom of
+  # this file, NOT this job — see the comment there for why the two are split.
+  deploy:
+    name: deploy
     needs: changes
     if: needs.changes.outputs.deployable == 'true'
     runs-on: ubuntu-latest
@@ -343,3 +345,54 @@ jobs:
           status: failure
           title: '❌ Preview failed — PR #${{ github.event.pull_request.number }}'
           description: 'Verification, deployment, or the post-deploy smoke test failed. See the pipeline for logs.'
+
+  # The required status check, deliberately separate from the job that deploys.
+  #
+  # `preview` is listed in the branch's required_status_checks.contexts, and
+  # GitHub does not treat a *skipped* required check as satisfied. The checks
+  # summary disagrees — it renders "All checks have passed" — but protection
+  # evaluates the context on its own and sees no successful conclusion, so the
+  # merge box reads "Cannot merge at this time". Putting the deployable
+  # condition directly on the deploying job is therefore what made every
+  # docs-only pull request unmergeable, with a green tick next to it.
+  #
+  # This job always runs and always reports a real conclusion. A skipped
+  # deployment is a pass, because "there was nothing to deploy" is a correct
+  # outcome for a docs change, not a missing one.
+  preview:
+    # Ruleset contract name — see .github/workflows/ci.yml. Renaming this
+    # silently unprotects master.
+    name: preview
+    needs: [changes, deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report the deployment outcome
+        env:
+          # Indirected through env rather than interpolated into the script
+          # body. These two are controlled values, but the habit is what stops
+          # an attacker-supplied field ever reaching a shell here.
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          DEPLOY_RESULT: ${{ needs.deploy.result }}
+          DEPLOYABLE: ${{ needs.changes.outputs.deployable }}
+        run: |
+          set -euo pipefail
+          echo "changes=$CHANGES_RESULT  deployable=$DEPLOYABLE  deploy=$DEPLOY_RESULT"
+
+          # Guarded explicitly: if classification failed, `deploy` is skipped
+          # for the wrong reason, and reporting that as a pass would be exactly
+          # the false green this job exists to prevent.
+          if [ "$CHANGES_RESULT" != "success" ]; then
+            echo "✖ could not classify the changed paths ($CHANGES_RESULT)" >&2
+            exit 1
+          fi
+
+          case "$DEPLOY_RESULT" in
+            success)
+              echo "✓ preview deployed" ;;
+            skipped)
+              echo "✓ documentation-only change; nothing to deploy" ;;
+            *)
+              echo "✖ the preview deployment did not succeed ($DEPLOY_RESULT)" >&2
+              exit 1 ;;
+          esac
