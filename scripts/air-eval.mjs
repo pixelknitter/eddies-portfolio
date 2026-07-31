@@ -31,11 +31,11 @@
  *   node scripts/air-eval.mjs --compare baseline.json    # drift check
  */
 
-import { readdirSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 
-import { parseFrontmatter } from '../packages/obsidian-publish-core/src/index.mjs';
+import { loadEvalCorpus } from '../packages/web-astro/src/util/air/evals/corpus.mjs';
 import { selectContext } from '../packages/web-astro/src/util/air/retrieval.mjs';
 import {
   ANSWER_SCHEMA,
@@ -78,34 +78,16 @@ const PRICING = {
 
 const CONTENT = join(process.cwd(), 'packages/web-astro/src/content');
 
-/**
- * @param {string} name Collection directory under src/content.
- * @param {'constraints' | 'content'} bodyAs How this collection's body should be
- *   labelled for the prompt — see the note in ask.ts. Mirroring that mapping
- *   matters: this harness previously dropped the body, so it graded a prompt the
- *   site does not build, and a change to how bodies are used would have shown up
- *   here as "no difference".
+/*
+ * One loader, shared with the offline suite, mirroring what ask.ts reads.
+ *
+ * This file used to carry its own — flat, and over `star` and `projects` only.
+ * The comment it carried was right about why that matters and still missed the
+ * regression it was warning about: when the resume landed it was added to the
+ * endpoint and to neither eval layer, so this harness graded a corpus missing
+ * the one collection recruiters ask about. See the header of corpus.mjs.
  */
-function loadCollection(name, bodyAs) {
-  const dir = join(CONTENT, name);
-  const entries = readdirSync(dir)
-    .filter((file) => file.endsWith('.md') && !file.startsWith('_'))
-    .map((file) => {
-      const parsed = parseFrontmatter(readFileSync(join(dir, file), 'utf8'));
-      return {
-        id: file.replace(/\.md$/, ''),
-        data: parsed.frontmatter,
-        [bodyAs]: parsed.body?.trim() || undefined,
-      };
-    });
-
-  // Same rule as the site and the offline suite: fixtures are not served, so
-  // spending model budget grading against them measures the wrong corpus.
-  const real = entries.filter((entry) => !entry.id.startsWith('sample-'));
-  return real.length > 0 ? real : entries;
-}
-
-const corpus = [...loadCollection('star', 'constraints'), ...loadCollection('projects', 'content')];
+const corpus = loadEvalCorpus(CONTENT);
 
 const apiKey = process.env.ANTHROPIC_API_KEY;
 if (!apiKey) {

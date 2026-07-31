@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { parseFrontmatter } from '@eddie/obsidian-publish-core';
 
+import { loadEvalCorpus } from './corpus.mjs';
 import { selectContext } from '../retrieval.mjs';
 import { CASES, casesIn } from './cases.mjs';
 import { SUGGESTED, suggestionSentence } from '../suggested.mjs';
@@ -42,33 +42,14 @@ function contentRoot(): string {
 
 const CONTENT_ROOT = contentRoot();
 
-function loadCollection(name: string) {
-  const dir = join(CONTENT_ROOT, name);
-  const entries = readdirSync(dir)
-    .filter((file) => file.endsWith('.md') && !file.startsWith('_'))
-    .map((file) => {
-      const raw = readFileSync(join(dir, file), 'utf8');
-      const { frontmatter } = parseFrontmatter(raw);
-      return {
-        id: file.replace(/\.md$/, ''),
-        data: frontmatter as Record<string, unknown>,
-      };
-    });
-
-  // sample-*.md loads only behind PUBLIC_SHOW_FIXTURES, so grading against it
-  // measures a corpus no visitor is served. There is deliberately no fallback:
-  // an earlier version fell back to fixtures when no real story was on disk,
-  // and `sample-team-growth` then matched a boundary case the real stories
-  // correctly decline — failing a deploy over content production does not have.
-  //
-  // With no real corpus there is nothing meaningful to grade, so the suite
-  // skips and says so rather than inventing a subject.
-  return entries.filter((entry) => !entry.id.startsWith('sample-'));
-}
-
 // Drafts are included deliberately: review tiers retrieve them, so they are
 // part of what the guardrails have to hold against.
-const corpus = [...loadCollection('star'), ...loadCollection('projects')];
+//
+// The loader is shared with scripts/air-eval.mjs and mirrors what ask.ts reads.
+// This file used to build its own corpus from a flat readdirSync over `star` and
+// `projects`, which silently excluded the entire resume collection — see the
+// header of corpus.mjs.
+const corpus = loadEvalCorpus(CONTENT_ROOT);
 
 /**
  * Whether there is a real corpus to grade. False on a build with no seal key —
@@ -126,8 +107,9 @@ describe('grounding cases have something to answer from', () => {
     // version of this — every eval skipping unnoticed — is how a broken
     // guardrail reaches a deploy.
     console.warn(
-      '[air] no real STAR stories on disk — every A.I.R. eval was skipped. ' +
-        'If this is CI or a deploy, the job is running tests before `seal-content.mjs unseal-all`.',
+      '[air] no real content on disk in star, projects or resume — every A.I.R. ' +
+        'eval was skipped. If this is CI or a deploy, the job is running tests ' +
+        'before `seal-content.mjs unseal-all`.',
     );
   });
 });
