@@ -15,6 +15,8 @@ import {
 import { createRateLimiter, isAuthorised } from '@util/air/access.mjs';
 import { readSecret } from '@util/air/runtime.mjs';
 import { verifyAccessCode } from '@util/air/requests.mjs';
+import { tierFromRequest } from '@util/air/tier.mjs';
+import { createTelemetry } from '@util/telemetry/index.mjs';
 
 /**
  * A.I.R. question endpoint.
@@ -53,6 +55,50 @@ export async function POST(context: APIContext): Promise<Response> {
     return new Response(null, { status: 404, statusText: 'Not found' });
   }
 
+  /*
+   * Telemetry is set up before the first classified exit so that every one of
+   * them can be recorded. Dispatched through `waitUntil` where the runtime
+   * provides it, so the visitor's answer is never waiting on PostHog; awaited
+   * otherwise, so local runs and tests do not exit before the send is made.
+   */
+  const runtime = (
+    context.locals as { runtime?: { ctx?: { waitUntil?: (p: Promise<unknown>) => void } } }
+  )?.runtime;
+  const telemetry = createTelemetry(import.meta.env, {
+    waitUntil: runtime?.ctx?.waitUntil?.bind(runtime.ctx),
+  });
+
+  const traceId = crypto.randomUUID();
+  const tier = tierFromRequest(context.request);
+  const buildSha = import.meta.env.PUBLIC_BUILD_SHA;
+
+  /**
+   * Every exit from here down goes through this, which is what keeps the
+   * `outcome` enum closed. A path that returns without calling it is a blind
+   * spot, and a stray value in PostHog is how you find one.
+   */
+  async function finish(
+    response: Response,
+    trace: {
+      outcome: string;
+      grounded?: boolean;
+      questionLength?: number;
+      grantType?: 'shared' | 'personal';
+      model?: string;
+    },
+    parts: {
+      retrieval?: Parameters<typeof telemetry.captureTrace>[0]['retrieval'];
+      generation?: Parameters<typeof telemetry.captureTrace>[0]['generation'];
+    } = {},
+  ): Promise<Response> {
+    telemetry.captureTrace({
+      trace: { traceId, tier, buildSha, ...trace },
+      ...parts,
+    });
+    await telemetry.flush();
+    return response;
+  }
+
   const supplied = context.request.headers.get('x-air-access') ?? undefined;
   const sharedCode = await readSecret('AIR_ACCESS_CODE');
   const signingSecret = await readSecret('AIR_SIGNING_SECRET');
@@ -67,9 +113,19 @@ export async function POST(context: APIContext): Promise<Response> {
 
   if (!personal.ok && !isAuthorised(supplied, sharedCode)) {
     // Deliberately identical whether the code is wrong or unconfigured — the
-    // difference is operator information, not visitor information.
-    return json({ error: 'This resume is available by invitation.' }, 401);
+    // difference is operator information, not visitor information. The trace
+    // carries no span: retrieval never ran.
+    return finish(
+      json({ error: 'This resume is available by invitation.' }, 401),
+      { outcome: 'unauthorised' },
+    );
   }
+
+  // Which kind of grant was used, never whose. This is the activation signal:
+  // a personally-issued code being used to ask a real question is the only
+  // step in request → approve → deliver → ask that means anything went right,
+  // and the only one a link-preview crawler cannot pollute.
+  const grantType: 'shared' | 'personal' = personal.ok ? 'personal' : 'shared';
 
   const clientId =
     context.request.headers.get('cf-connecting-ip') ??
@@ -78,10 +134,13 @@ export async function POST(context: APIContext): Promise<Response> {
 
   const rate = limiter.check(clientId);
   if (!rate.allowed) {
-    return json(
-      { error: 'Too many questions in a short window. Try again shortly.' },
-      429,
-      { 'retry-after': String(rate.retryAfterSeconds) },
+    return finish(
+      json(
+        { error: 'Too many questions in a short window. Try again shortly.' },
+        429,
+        { 'retry-after': String(rate.retryAfterSeconds) },
+      ),
+      { outcome: 'rate_limited', grantType },
     );
   }
 
@@ -163,7 +222,8 @@ export async function POST(context: APIContext): Promise<Response> {
   // answer from an empty context. This is the boundary guarantee — it holds
   // even if the prompt is ignored entirely, because no request is made.
   if (selected.length === 0) {
-    return json({
+    return finish(
+      json({
       grounded: false,
       // Suggestions come from the same array the buttons render, because this
       // sentence used to be hand-written and drifted into naming a question the
@@ -173,19 +233,42 @@ export async function POST(context: APIContext): Promise<Response> {
         // No closing full stop: the sentence ends on a quoted question, and
         // "…MVP?”." puts two terminators side by side.
         ` as an answer. You could try ${suggestionSentence()}`,
-      citations: [],
-    });
+        citations: [],
+      }),
+      {
+        outcome: 'no_context',
+        grounded: false,
+        questionLength: validated.question.length,
+        grantType,
+      },
+      // The span exists even though no generation will. Without it every
+      // unanswerable question would be invisible, and "% answered" — computed
+      // as generations over traces — would silently exclude its denominator.
+      { retrieval: { traceId, retrievedIds: [], floorCleared: false } },
+    );
   }
+
+  const retrieval = {
+    traceId,
+    retrievedIds: selected.map((entry) => entry.id),
+    floorCleared: true,
+  };
+  const questionLength = validated.question.length;
 
   const apiKey = await readSecret('ANTHROPIC_API_KEY');
   if (!apiKey) {
     console.error('[air] ANTHROPIC_API_KEY is not configured');
-    return json({ error: 'A.I.R. is not configured right now.' }, 503);
+    return finish(
+      json({ error: 'A.I.R. is not configured right now.' }, 503),
+      { outcome: 'misconfigured', questionLength, grantType },
+      { retrieval },
+    );
   }
 
   const client = new Anthropic({ apiKey });
 
   let response;
+  const startedAt = Date.now();
   try {
     response = await client.messages.create({
       model: MODEL,
@@ -206,18 +289,45 @@ export async function POST(context: APIContext): Promise<Response> {
     });
   } catch (error) {
     console.error('[air] model request failed', error);
-    return json({ error: 'A.I.R. could not answer that just now.' }, 502);
+    // Recorded as an exception as well as an outcome: the trace says what
+    // happened, the exception says what threw. An Anthropic 429, a 529, a
+    // timeout and a network failure are one indistinguishable 502 today.
+    telemetry.recordError(error, { outcome: 'upstream_error', model: MODEL });
+    return finish(
+      json({ error: 'A.I.R. could not answer that just now.' }, 502),
+      { outcome: 'upstream_error', questionLength, grantType, model: MODEL },
+      { retrieval },
+    );
   }
+
+  const ms = Date.now() - startedAt;
+  const usage = response.usage ?? {};
+  /** Shared by every exit below, so a generation is never lost to an early return. */
+  const generation = {
+    traceId,
+    model: MODEL,
+    ms,
+    usage,
+    stopReason: response.stop_reason,
+    // Capturing question and answer is a deliberate decision, and privacy mode
+    // stays off because it exists to exclude exactly these two. They live only
+    // in the ai_events table and expire after 30 days; the metadata persists.
+    input: [{ role: 'user', content: validated.question }],
+  };
 
   // Safety classifiers can decline a request outright; that arrives as a
   // successful response with no content, so check before reading it.
   if (response.stop_reason === 'refusal') {
-    return json({
-      grounded: false,
-      answer:
-        "I can't answer that one. Ask me about Eddie's work and I'll do better.",
-      citations: [],
-    });
+    return finish(
+      json({
+        grounded: false,
+        answer:
+          "I can't answer that one. Ask me about Eddie's work and I'll do better.",
+        citations: [],
+      }),
+      { outcome: 'refusal', grounded: false, questionLength, grantType, model: MODEL },
+      { retrieval, generation },
+    );
   }
 
   const text =
@@ -228,7 +338,18 @@ export async function POST(context: APIContext): Promise<Response> {
     answer = JSON.parse(text);
   } catch {
     console.error('[air] model returned unparseable output');
-    return json({ error: 'A.I.R. could not answer that just now.' }, 502);
+    // stop_reason on the generation is what separates this from truncation.
+    // Until now the two were one 502 and the difference was unknowable.
+    return finish(
+      json({ error: 'A.I.R. could not answer that just now.' }, 502),
+      {
+        outcome: response.stop_reason === 'max_tokens' ? 'truncated' : 'unparseable',
+        questionLength,
+        grantType,
+        model: MODEL,
+      },
+      { retrieval, generation: { ...generation, output: text } },
+    );
   }
 
   // The layer that does not depend on the model cooperating. A cited story
@@ -237,22 +358,56 @@ export async function POST(context: APIContext): Promise<Response> {
   const verdict = verifyAnswer(answer, selected);
   if (!verdict.ok) {
     console.error(`[air] answer failed verification: ${verdict.reason}`);
-    return json({
-      grounded: false,
-      answer:
-        "I couldn't ground that answer in Eddie's written work, so I'd rather not guess. Try asking it a different way.",
-      citations: [],
-    });
+    return finish(
+      json({
+        grounded: false,
+        answer:
+          "I couldn't ground that answer in Eddie's written work, so I'd rather not guess. Try asking it a different way.",
+        citations: [],
+      }),
+      {
+        outcome: 'verification_failed',
+        grounded: false,
+        questionLength,
+        grantType,
+        model: MODEL,
+      },
+      {
+        retrieval,
+        generation: { ...generation, verificationReason: verdict.reason },
+      },
+    );
   }
 
-  return json({
-    grounded: answer.grounded,
-    answer: answer.answer,
-    citations: answer.citations,
-    // Titles let the UI show what an answer was drawn from without a second
-    // round trip to look the ids up.
-    sources: selected
-      .filter((entry) => answer.citations.includes(entry.id))
-      .map((entry) => ({ id: entry.id, title: entry.data.title })),
-  });
+  return finish(
+    json({
+      grounded: answer.grounded,
+      answer: answer.answer,
+      citations: answer.citations,
+      // Titles let the UI show what an answer was drawn from without a second
+      // round trip to look the ids up.
+      sources: selected
+        .filter((entry) => answer.citations.includes(entry.id))
+        .map((entry) => ({ id: entry.id, title: entry.data.title })),
+      // Returned so a rating can be joined to the generation that produced it.
+      // Nothing consumes it until Wave 3 (#67); it is one field, and shipping
+      // it now means that wave needs no second edit to this file.
+      traceId,
+    }),
+    {
+      outcome: 'answered',
+      grounded: answer.grounded,
+      questionLength,
+      grantType,
+      model: MODEL,
+    },
+    {
+      retrieval,
+      generation: {
+        ...generation,
+        output: answer.answer,
+        citationCount: answer.citations?.length ?? 0,
+      },
+    },
+  );
 }
