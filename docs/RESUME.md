@@ -4,10 +4,10 @@ Four surfaces, one source of truth, and a download gate that captures leads.
 
 | Route | What it is | Flag |
 |---|---|---|
-| `/air/resume/` | Visual resume, sections collapsed, no contact details | `PUBLIC_SHOW_RESUME` |
-| `/air/resume/for-bots` | Complete resume + JSON-LD `ProfilePage` graph | `PUBLIC_SHOW_RESUME` |
-| `/air/resume/print/human` | Print source for the human-readable PDF | `PUBLIC_RESUME_PRINT` |
-| `/air/resume/print/bot` | Print source for the ATS/LLM PDF | `PUBLIC_RESUME_PRINT` |
+| `/cv/` | Visual resume, sections collapsed, no contact details | `PUBLIC_SHOW_RESUME` |
+| `/cv/for-bots` | Complete resume + JSON-LD `ProfilePage` graph | `PUBLIC_SHOW_RESUME` |
+| `/cv/print/human` | Print source for the human-readable PDF | `PUBLIC_RESUME_PRINT` |
+| `/cv/print/bot` | Print source for the ATS/LLM PDF | `PUBLIC_RESUME_PRINT` |
 | `POST /api/resume/request` | Lead capture; returns signed download links | `PUBLIC_SHOW_RESUME` |
 | `GET /api/resume/download` | Serves a watermarked PDF against a token | `PUBLIC_SHOW_RESUME` |
 

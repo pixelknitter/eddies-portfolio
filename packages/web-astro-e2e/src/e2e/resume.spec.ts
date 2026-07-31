@@ -42,7 +42,7 @@ test.describe('the resume pages', () => {
   test('renders collapsed, with every section present but closed', async ({
     page,
   }) => {
-    await page.goto('/air/resume/');
+    await page.goto('/cv/');
 
     await expect(
       page.getByRole('heading', { level: 1, name: 'Eddie Freeman' }),
@@ -57,7 +57,7 @@ test.describe('the resume pages', () => {
   test('expands and collapses every section from one control', async ({
     page,
   }) => {
-    await page.goto('/air/resume/');
+    await page.goto('/cv/');
 
     const toggle = page.locator('[data-resume-expand]');
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
@@ -73,7 +73,7 @@ test.describe('the resume pages', () => {
   // The premise of the whole feature: the page publishes no way to contact him
   // except the request form.
   test('publishes no contact details', async ({ page }) => {
-    await page.goto('/air/resume/');
+    await page.goto('/cv/');
     const html = await page.content();
 
     expect(html).not.toMatch(/mailto:/);
@@ -84,7 +84,7 @@ test.describe('the resume pages', () => {
   test('serves a machine-readable version with a contact-free JSON-LD graph', async ({
     page,
   }) => {
-    await page.goto('/air/resume/for-bots');
+    await page.goto('/cv/for-bots');
 
     const raw = await page
       .locator('script[type="application/ld+json"]')
@@ -143,7 +143,7 @@ test.describe('the download gate', () => {
       '/Eddie-Freeman-Resume.pdf',
       '/Eddie-Freeman-Resume-ATS.pdf',
       '/resume/human.pdf',
-      '/air/resume/resume.pdf',
+      '/cv/resume.pdf',
       '/_astro/resume.pdf',
       '/assets/resume.pdf',
     ]) {
@@ -180,7 +180,7 @@ test.describe('the download gate', () => {
   test('keeps the print render routes unreachable in a normal build', async ({
     request,
   }) => {
-    for (const path of ['/air/resume/print/human', '/air/resume/print/bot']) {
+    for (const path of ['/cv/print/human', '/cv/print/bot']) {
       expect((await request.get(path)).status(), path).toBe(404);
     }
   });

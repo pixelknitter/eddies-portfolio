@@ -74,7 +74,7 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const tier = TIER_STYLE[tierFromRequest(context.request, context.url)].label;
   const code = await mintAccessCode(signingSecret, verified.email);
-  const airUrl = new URL('/air/', context.url).toString();
+  const airUrl = new URL('/cv/air/', context.url).toString();
   const message = accessGrantedEmail({ code, airUrl });
 
   const email = (await readBinding('EMAIL')) as EmailBinding | undefined;

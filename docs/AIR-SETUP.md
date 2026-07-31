@@ -74,7 +74,7 @@ change.
 ## 4. Verify
 
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' https://eddie.engineering/air/
+curl -s -o /dev/null -w '%{http_code}\n' https://eddie.engineering/cv/air/
 curl -s -X POST https://eddie.engineering/api/air/ask \
   -H 'content-type: application/json' -H 'x-air-access: YOUR_CODE' \
   -d '{"question":"Why should I work with Eddie Freeman?"}'

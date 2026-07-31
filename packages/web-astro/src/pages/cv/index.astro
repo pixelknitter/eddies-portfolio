@@ -1,13 +1,13 @@
 ---
 import Layout from '@layouts/Layout.astro';
 import ResumeVisual from '@components/resume/ResumeVisual.astro';
-import { ResumeDownload } from '../../../react/ResumeDownload';
+import { ResumeDownload } from '../../react/ResumeDownload';
 import { loadResume } from '@util/resume/load';
 import { resolveSections } from '@util/flags/sections.mjs';
-import '../../../styles/resume-organic.css';
+import '../../styles/resume-organic.css';
 // Carries the rules that swap this page for a notice when printed. The other
 // half of that file styles the print routes; see the note at its top.
-import '../../../styles/print.css';
+import '../../styles/print.css';
 
 /**
  * The visual resume.
@@ -37,10 +37,10 @@ if (!resume) {
 
 const pageTitle = `${resume.name} — ${resume.headline}`;
 const description = `${resume.name}: ${resume.summary}`;
-const botsPath = '/air/resume/for-bots';
+const botsPath = '/cv/for-bots';
 // Offer the chat only where it exists: the two features ship independently, and a
 // prominent link to a 404 is worse than no link.
-const airPath = sections.air ? '/air/' : undefined;
+const airPath = sections.air ? '/cv/air/' : undefined;
 ---
 
 <Layout pageTitle={pageTitle} {description}>
@@ -91,7 +91,7 @@ const airPath = sections.air ? '/air/' : undefined;
     <p>
       This resume is available as a PDF — human-readable or ATS-friendly.
       Request a copy at
-      <strong>eddie.engineering/air/resume</strong>.
+      <strong>eddie.engineering/cv</strong>.
     </p>
   </div>
 
