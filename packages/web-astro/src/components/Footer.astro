@@ -1,7 +1,16 @@
 ---
 import { isResumeRoute, REQUEST_PATH } from '@util/resume/resume.data';
+import { resolveSections } from '@util/flags/sections.mjs';
 
 const year = new Date().getFullYear();
+
+/**
+ * The privacy link tracks the same `collectsData` gate as `/privacy` itself, so
+ * the footer can never advertise a route that 404s. Read here rather than passed
+ * in, because the footer renders on every page and no caller should have to
+ * remember to supply it.
+ */
+const { collectsData } = await resolveSections(import.meta.env);
 
 /**
  * On resume routes the mail icon becomes a link to the request form.
@@ -40,6 +49,7 @@ const gateContact = isResumeRoute(Astro.url.pathname);
           </li>
         </ul>
         <small class="block mt-6">&copy; {year} Eddie Engineering by <a class="text-link no-underline" href="https://github.com/pixelknitter">pixelknitter</a>. All Rights Reserved.</small>
+        {collectsData && <small class="block mt-2"><a class="text-link no-underline" href="/privacy">Privacy</a></small>}
       </div>
 </footer>
 
