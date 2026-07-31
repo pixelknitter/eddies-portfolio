@@ -25,7 +25,9 @@ afterEach(() => {
 describe('AIResume', () => {
   it('renders the welcome heading and prompt input', () => {
     render(<AIResume />);
-    expect(screen.getByRole('heading', { name: /Welcome to A\.I\.R\.!/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /Ask A\.I\.R\. about Eddie/i }),
+    ).toBeInTheDocument();
     expect(
       screen.getByPlaceholderText(/something you want to know about Eddie/i)
     ).toBeInTheDocument();

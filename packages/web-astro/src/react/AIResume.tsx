@@ -125,10 +125,18 @@ export function AIResume() {
 
   return (
     <section>
-      <h1>Hello there, Welcome to A.I.R.! 👋</h1>
+      {/*
+        Says what the page does rather than greeting the visitor. A.I.R. is a
+        way to read the résumé now, not a product with its own front door — the
+        route says so too, at /cv/air. The second line stays: naming the limit
+        up front is the most useful thing this page can tell someone, and it is
+        the claim the whole grounding apparatus exists to keep.
+      */}
+      <h1>Ask A.I.R. about Eddie&rsquo;s work</h1>
       <p className="font-body text-lg">
-        The AI-powered Resume. It answers from Eddie&rsquo;s written work
-        &mdash; and tells you when it can&rsquo;t.
+        It answers from Eddie&rsquo;s written work &mdash; the résumé, the
+        project write-ups, the stories behind them &mdash; and tells you when it
+        can&rsquo;t.
       </p>
 
       <div className="surface mt-6 p-4 sm:p-6">
