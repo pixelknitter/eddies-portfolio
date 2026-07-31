@@ -57,10 +57,9 @@ const gatedRoutes = [
   // with PUBLIC_SHOW_AIR=true and leaned on the access code alone — but the
   // page and its nav link were still reachable by anyone.
   { path: '/air/' },
-  // The resume rides its own flag, deliberately independent of A.I.R. — the two
-  // ship separately, so they are gated separately.
-  { path: '/air/resume/', contains: 'Eddie Freeman' },
-  { path: '/air/resume/for-bots', contains: 'Eddie Freeman' },
+  // The resume is no longer here: it ships on every tier, so it is asserted
+  // live in `checks` below rather than asserted absent in strict mode. It rode
+  // its own flag precisely so it could go live without A.I.R., and it has.
 ];
 
 /** Routes asserted on every deploy. `contains` is checked case-sensitively. */
@@ -77,6 +76,11 @@ const checks = [
   { path: '/air/resume/print/bot', status: 404 },
   { path: '/Eddie-Freeman-Resume.pdf', status: 404 },
   { path: '/resume.pdf', status: 404 },
+  // Live on every tier, production included — the resume is what the site is
+  // for. Asserted positively here rather than as a gated route, so a deploy
+  // that quietly stops serving it fails instead of passing by omission.
+  { path: '/air/resume/', status: 200, contains: 'Eddie Freeman' },
+  { path: '/air/resume/for-bots', status: 200, contains: 'Eddie Freeman' },
   ...gatedRoutes.map(({ path, contains }) =>
     strictFlags ? { path, status: 404 } : { path, status: 200, contains }
   ),
