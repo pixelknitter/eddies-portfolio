@@ -111,6 +111,12 @@ often shipped without a header row:
 The remaining levels exist so the outline check has something to descend
 through without skipping.
 
+### Third level
+
+Content under a third-level heading. This one is load-bearing: without it the
+post jumped from h2 straight to h4, which the widened heading test caught —
+in the fixture that is supposed to be the baseline of "good".
+
 #### Fourth level
 
 Content under a fourth-level heading.

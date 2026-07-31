@@ -22,9 +22,11 @@ const { url, image, title, body, alt } = Astro.props;
     <div class="flex flex-1 flex-col p-4">
       <!-- Section headings own the underline motif; on a card it becomes a
            hover state instead, so a grid of cards stays scannable. -->
-      <h3 class="card-title font-body text-xl font-semibold leading-snug no-underline decoration-0 m-0">
+      <!-- h2, not h3: Card is used only by the blog and works indexes, whose
+           page title is the h1. At h3 the outline skipped a level. -->
+      <h2 class="card-title font-body text-xl font-semibold leading-snug no-underline decoration-0 m-0">
         {title}
-      </h3>
+      </h2>
       <p class="mt-2 text-base leading-relaxed text-left">
         {body}
       </p>

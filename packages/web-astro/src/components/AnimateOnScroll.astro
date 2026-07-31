@@ -38,4 +38,23 @@
     opacity: 1;
     transform: translateY(0);
   }
+
+  /* Honour the user's motion preference, which this component previously
+     ignored — it hardcoded its own opacity and transition rather than reading
+     the --animate-* variables motion.css defines for exactly this.
+     Two consequences, both real. A visitor asking for reduced motion still got
+     a half-second fade on every section. And because the element starts at
+     opacity 0 and is revealed only by an IntersectionObserver, anything that
+     stops that script leaves the content permanently invisible.
+     It also made the site unmeasurable: mid-fade the element is partly
+     transparent, so the accessibility audit resolved blended backgrounds like
+     #534f5d — a colour in no palette — and reported contrast failures against
+     them on links that are 8.81:1 against the real background. */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-on-scroll {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+  }
 </style>

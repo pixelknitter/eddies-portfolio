@@ -69,7 +69,20 @@ const ROUTES = [
     name: 'blog post (kitchen sink)',
   },
   { path: '/works/', name: 'works index' },
-  { path: '/projects/sample-project-1/', name: 'project detail' },
+  {
+    // Discovered by following the index rather than hardcoded. A fixed slug
+    // silently rots when fixtures are renamed, and this route in particular
+    // answers 404 without an error status — so the audit scanned the error
+    // page and reported it clean. Following the index cannot drift.
+    name: 'project detail',
+    discover: async (page) => {
+      await page.goto(`${baseUrl}/works/`, { waitUntil: 'load' });
+      return page
+        .locator('main a[href^="/projects/"]:not([href="/projects/"])')
+        .first()
+        .getAttribute('href');
+    },
+  },
   { path: '/air/', name: 'A.I.R.' },
   {
     path: '/air/resume/',
@@ -102,30 +115,57 @@ const THEMES = ['light', 'dark'];
  * reproduces what a returning visitor actually sees. Clicking after load would
  * scan a page that painted in the other theme first.
  */
-async function scan(context, { path, name, prepare }, theme) {
+async function scan(context, { path, name, prepare, discover }, theme) {
   const page = await context.newPage();
 
   await page.addInitScript((value) => {
     window.localStorage.setItem('theme', value);
   }, theme);
 
-  const response = await page.goto(`${baseUrl}${path}`, {
-    waitUntil: 'load',
-    timeout: 30_000,
-  });
+  const target = discover ? await discover(page) : path;
 
-  const status = response?.status() ?? 0;
-
-  // A 404 is expected on the /404 route and a bug anywhere else. Scanning an
-  // error page by accident is how an audit comes back clean on nothing.
-  const expected404 = path === '/404';
-  if (!expected404 && status >= 400) {
+  if (!target) {
     await page.close();
     return {
       route: name,
       path,
       theme,
-      error: `HTTP ${status} — route did not render`,
+      error: 'could not discover a URL for this route',
+      violations: [],
+      incomplete: [],
+    };
+  }
+
+  const response = await page.goto(`${baseUrl}${target}`, {
+    waitUntil: 'load',
+    timeout: 30_000,
+  });
+
+  const status = response?.status() ?? 0;
+  const expected404 = path === '/404';
+
+  // Two separate ways to land on the error page, and the audit has to refuse
+  // both. A 4xx status is the obvious one. The other is a route that answers
+  // 200 while *rendering* the 404 body — which happened here, and meant the
+  // audit scanned the error page and reported "clean". A clean result on a
+  // page that was never under test is worse than a failure.
+  const looksLike404 = await page
+    .locator('h1')
+    .first()
+    .textContent()
+    .then((text) => (text ?? '').trim() === '404')
+    .catch(() => false);
+
+  if (!expected404 && (status >= 400 || looksLike404)) {
+    await page.close();
+    return {
+      route: name,
+      path: target,
+      theme,
+      error:
+        status >= 400
+          ? `HTTP ${status} — route did not render`
+          : `rendered the 404 page (HTTP ${status}) — route does not exist`,
       violations: [],
       incomplete: [],
     };
@@ -135,6 +175,28 @@ async function scan(context, { path, name, prepare }, theme) {
     .locator('html')
     .evaluate((el) => (el.classList.contains('dark') ? 'dark' : 'light'));
 
+  // Wait for the page background to stop changing before measuring.
+  //
+  // @layer base puts `transition-colors duration-300` on <html>, so the theme
+  // cross-fade is still running just after load. Scanning during it makes axe
+  // resolve a *blend* of the two backgrounds — #514d5b, #534f5d, colours in
+  // neither palette — and report contrast failures against them for links
+  // that sit at 8.81:1 against the settled background. It also made results
+  // flip between runs, which is the signature of a race rather than a defect.
+  //
+  // Polling until two consecutive reads agree is deterministic; a fixed sleep
+  // would only make the race less likely.
+  await page.waitForFunction(
+    () => {
+      const now = getComputedStyle(document.documentElement).backgroundColor;
+      const settled = window.__a11yLastBg === now;
+      window.__a11yLastBg = now;
+      return settled;
+    },
+    undefined,
+    { polling: 100, timeout: 10_000 },
+  );
+
   if (prepare) await prepare(page);
 
   const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
@@ -143,7 +205,7 @@ async function scan(context, { path, name, prepare }, theme) {
 
   return {
     route: name,
-    path,
+    path: target,
     theme,
     // Surfaced, not asserted: if the requested theme never applied, every
     // contrast number below describes the wrong page.
