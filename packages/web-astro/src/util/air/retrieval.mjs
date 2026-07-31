@@ -1,3 +1,5 @@
+import MiniSearch from 'minisearch';
+
 /**
  * Retrieval for A.I.R. — selects which STAR stories and projects an answer may
  * draw on.
@@ -449,25 +451,188 @@ function overviewSelection(entries, limit) {
  *   Ordered most-relevant first. Empty when nothing clears the floor — the
  *   caller must treat that as "decline", not as "answer with no context".
  */
-export function selectContext(question, entries, options = {}) {
-  const { floor = RELEVANCE_FLOOR, limit = MAX_ENTRIES } = options;
+/**
+ * Fields offered to the index, and how heavily a hit in each counts.
+ *
+ * These are relative boosts on top of BM25, not the absolute weights the old
+ * scorer used. BM25 already accounts for how rare a term is and how long the
+ * field is; a boost only says "a hit here means more than a hit there".
+ */
+const FIELD_BOOST = {
+  title: 3,
+  org: 3,
+  role: 3,
+  tags: 2,
+  result: 1.5,
+  summary: 1,
+  situation: 1,
+  task: 1,
+  action: 1,
+};
 
-  const matched = entries
-    .map((entry) => ({
-      id: entry.id,
-      score: scoreEntry(question, entry.data),
-      data: entry.data,
-    }))
-    .filter((entry) => entry.score >= floor)
-    // Tie-break on id so identical scores produce a stable order. Without
-    // this the same question can retrieve a different set between requests,
-    // which makes drift evals report noise as regression.
-    .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
+const FIELDS = Object.keys(FIELD_BOOST);
+
+/**
+ * Flatten an entry into the shape the index reads. Arrays become space-joined
+ * text so a tag list is searchable as words.
+ *
+ * @param {{id: string, data: Record<string, unknown>}} entry
+ */
+function toDocument(entry) {
+  /** @type {Record<string, string>} */
+  const doc = { id: entry.id };
+  for (const field of FIELDS) {
+    const value = entry.data?.[field];
+    doc[field] = Array.isArray(value) ? value.join(' ') : String(value ?? '');
+  }
+  return doc;
+}
+
+/** All searchable text of an entry, for document-frequency counting. */
+function entryText(entry) {
+  return FIELDS.map((field) => {
+    const value = entry.data?.[field];
+    return Array.isArray(value) ? value.join(' ') : String(value ?? '');
+  }).join(' ');
+}
+
+/**
+ * Below this share of the corpus, a term is treated as distinctive.
+ *
+ * A term in most documents discriminates nothing — which is exactly what
+ * "Eddie" is in a corpus entirely about Eddie. This is IDF expressed as a gate
+ * rather than as a weight, and it is why his name never needed adding to
+ * STOPWORDS by hand.
+ */
+const DISTINCTIVE_MAX_SHARE = 0.5;
+
+/** Below this many documents the share test is meaningless, so skip it. */
+const MIN_CORPUS_FOR_SHARE = 3;
+
+/**
+ * The words of a question that could make it answerable.
+ *
+ * A term absent from the corpus is maximally distinctive, and absence is
+ * precisely what makes a question unanswerable — so the gate runs on this.
+ *
+ * @param {string} question
+ * @param {Array<{id: string, data: Record<string, unknown>}>} entries
+ * @returns {string[]}
+ */
+/**
+ * Tokenise for the coverage gate.
+ *
+ * Deliberately *not* `terms()`, which drops anything two characters or shorter.
+ * That filter is what made `ci-cd` unreachable in the first place, and the gate
+ * would reintroduce the bug in a new location: a question about CI/CD would
+ * carry no distinctive term and be declined however well it scored.
+ *
+ * Short tokens need no length filter here, because distinctiveness is decided
+ * by document frequency. A noisy two-letter token is either everywhere (and so
+ * not distinctive) or matches nothing (and so admits nothing).
+ *
+ * @param {string} text
+ * @returns {string[]}
+ */
+function gateTerms(text) {
+  return String(text ?? '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((term) => term.length > 1 && !STOPWORDS.has(term));
+}
+
+export function distinctiveTerms(question, entries) {
+  const asked = new Set(gateTerms(question));
+  if (asked.size === 0) return [];
+
+  const corpus = entries.map((entry) => new Set(gateTerms(entryText(entry))));
+  const total = corpus.length;
+
+  return [...asked].filter((term) => {
+    const documentFrequency = corpus.filter((doc) => doc.has(term)).length;
+    if (documentFrequency === 0) return true;
+    if (total < MIN_CORPUS_FOR_SHARE) return true;
+    return documentFrequency / total < DISTINCTIVE_MAX_SHARE;
+  });
+}
+
+/**
+ * Select the entries an answer may cite.
+ *
+ * ## BM25, and the gate that is not a threshold
+ *
+ * Scoring is BM25 with field boosts, fuzzy and prefix matching — established
+ * ranking rather than the hand-tuned weights this used to carry. BM25 brings
+ * the idea the old scorer was missing: inverse document frequency. A term in
+ * every document contributes almost nothing, which is why the subject's own
+ * name can no longer carry a question on its own.
+ *
+ * Admission is **coverage**, not a score threshold. BM25 scores are unbounded
+ * and their scale shifts as content is added, so a fixed floor stops meaning
+ * anything; and "did something score highly" was never the question worth
+ * asking. The question is whether the *distinctive* words of the question have
+ * any support in the corpus. A result is admitted only if the query terms it
+ * matched include at least one distinctive term.
+ *
+ * That keeps the decline structural: when this returns `[]` the model is never
+ * called, so the guarantee holds even if the prompt is ignored entirely.
+ *
+ * @param {string} question
+ * @param {Array<{id: string, data: Record<string, unknown>}>} entries
+ * @param {{limit?: number}} [options]
+ * @returns {Array<{id: string, score: number, data: Record<string, unknown>}>}
+ *   Ordered most-relevant first. Empty when nothing is admitted — the caller
+ *   must treat that as "decline", not as "answer with no context".
+ */
+export function selectContext(question, entries, options = {}) {
+  const { limit = MAX_ENTRIES } = options;
+  if (!entries || entries.length === 0) return [];
+
+  const distinctive = new Set(distinctiveTerms(question, entries));
+
+  /** @type {Array<{id: string, score: number, data: Record<string, unknown>}>} */
+  let matched = [];
+
+  if (distinctive.size > 0) {
+    const index = new MiniSearch({
+      fields: FIELDS,
+      storeFields: [],
+      idField: 'id',
+    });
+    index.addAll(entries.map(toDocument));
+
+    const byId = new Map(entries.map((entry) => [entry.id, entry]));
+
+    matched = index
+      .search(question, {
+        boost: FIELD_BOOST,
+        // Light inference: a near-miss spelling still finds the story, without
+        // an embedding model or a vector store.
+        fuzzy: 0.2,
+        prefix: (term) => term.length > 3,
+      })
+      // The gate. A result riding entirely on words the whole corpus shares is
+      // not a match, however high BM25 scored it.
+      .filter((result) =>
+        result.queryTerms.some((term) => distinctive.has(stem(term)) || distinctive.has(term)),
+      )
+      .map((result) => ({
+        id: String(result.id),
+        score: result.score,
+        data: byId.get(String(result.id))?.data ?? {},
+      }))
+      // Tie-break on id so identical scores produce a stable order. Without
+      // this the same question can retrieve a different set between requests,
+      // which makes drift evals report noise as regression.
+      .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
+  }
 
   if (matched.length > 0) return matched.slice(0, limit);
 
-  // Nothing matched lexically. Only now consider whether the question was
-  // asking about the work as a whole — checked last, so it can never widen
-  // what a question that *did* match is allowed to see.
+  // Nothing matched. Only now consider whether the question was asking about
+  // the work as a whole — checked last, so it can never widen what a question
+  // that *did* match is allowed to see. An overview question names nothing
+  // specific and so has no distinctive terms to cover; this is the path that
+  // keeps "Why should I work with Eddie Freeman?" answerable.
   return isOverviewQuestion(question) ? overviewSelection(entries, limit) : [];
 }

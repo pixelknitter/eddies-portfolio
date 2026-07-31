@@ -75,6 +75,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
     "@astrojs/cloudflare": "14.1.4",
+    "minisearch": "^7.2.0",
     "react": "19.2.0",
     "react-dom": "19.2.0"
   }
