@@ -167,6 +167,19 @@ does not resize the dialog under the reader's cursor. Sized to the three
 suggestions that exist today; see [Open questions](#open-questions) for the
 fourth.
 
+It also carries a ceiling. A long answer with sources grows the container until
+it reaches the available screen height, and then the container **scrolls
+internally** rather than growing further. Floor and ceiling on the same box:
+`min-height` fits the suggestions, `max-height` is bounded by the viewport, and
+`overflow-y: auto` covers the span between.
+
+**The input does not scroll away.** Only the lower container scrolls, which is
+the reason the dialog is two regions rather than one scrolling column: someone
+reading a long answer can ask the next question without scrolling back up to
+find the field. Background scroll is already locked while the dialog is open, so
+there is exactly one scrollable region on screen and no ambiguity about which
+one a wheel gesture drives.
+
 Suggested questions render from `SUGGESTED`, as today.
 
 The code persists to `localStorage`. **This is per-device convenience, not a
@@ -204,6 +217,7 @@ surfaces render the same island, so there is one implementation.
 | The quick-ask row is absent when A.I.R. is off | build with `PUBLIC_SHOW_AIR` unset; the top zone renders two download buttons and nothing else |
 | Expand/Collapse do not reach paper | neither control appears in the generated PDFs |
 | The dialog does not resize on first answer | measure the container before and after an answer replaces the suggestions |
+| A long answer scrolls rather than overflowing | on a Pixel 7 viewport, render a long answer; the dialog stays within the screen, the container scrolls, and the input stays visible |
 | `/cv/for-bots` stays discoverable | `<link rel="alternate">` present in `<head>`; route still 200s |
 | The modal is operable by keyboard | tab into the input, `Enter`, tab through the dialog, `Escape`, focus lands back on the input |
 | The code survives a reload | set a code, reload, confirm the placeholder is the question form and the request link is hidden |
@@ -227,9 +241,8 @@ into `ResumeVisual.astro` and should stop rather than regenerate.
    the third thing today to queue behind it — the A.I.R. content layer is the
    bottleneck, not the interface.
 
-2. **Whether the modal needs its own scroll on a small phone** once an answer
-   with sources renders. The min-height stops it shrinking; nothing yet caps how
-   tall it grows.
+*(Resolved: the answer container grows to the available screen height and then
+scrolls internally — see [Shape and motion](#shape-and-motion).)*
 
 ## Out of scope
 
