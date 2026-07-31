@@ -55,6 +55,20 @@ unconditionally, so the first thing anyone sees is a password box.
 Feedback from the event: the code is too long to hand out comfortably. That is
 addressed separately; see [Out of scope](#out-of-scope).
 
+### 4. The access code does not gate the PDF download
+
+Worth stating because it is easy to assume otherwise, and the assumption would
+put an access-code field in front of a flow that does not read one.
+
+| surface | gate | issued by |
+|---|---|---|
+| `/api/air/ask` | `AIR_ACCESS_CODE`, sent as `x-air-access` | handed out by Eddie |
+| `/api/resume/download` | a signed token, `verifyPurposeToken` | `/api/resume/request`, which takes an **email and a reason** |
+
+`ResumeDownload.tsx` never sends an access code. The download path is *address →
+signed links → watermarked bytes*, and the watermark comes from the token rather
+than the query. The two gates are independent and stay that way.
+
 ## Design
 
 ### `/cv/` layout
@@ -62,18 +76,29 @@ addressed separately; see [Out of scope](#out-of-scope).
 ```
 [⤓ Human readable]  [⤓ Bot readable]
 [ Ask A.I.R. about Eddie's work…             ]   ← a trigger, not a text field
-────────────────────────────────────────────────
+────────────────────────────────────────────────   ← A.I.R. off: this row absent
 ┌ Eddie Freeman · Senior Product Engineer …
 │ summary · [Portland, OR] [Open to senior / staff roles]
 │ [15+ years] [2 tiles]
 │ [ Expand all ]
 │ ● What I'm good at                        ⌄
+│ …
+│ [ Collapse all ]
 ```
+
+The quick-ask row renders **only when A.I.R. is on**. With it off — production,
+today — the top zone is the two download buttons and nothing else. The download
+island keeps its own address flow untouched; nothing about downloading moves
+into this input, because the two gates are independent (finding 4).
 
 Three moves:
 
 - **`Expand all` drops** to below the metric cards and above the first section
-  header, beside what it expands.
+  header, beside what it expands — and a matching **`Collapse all` appears at
+  the foot** of the sections, for someone who has read to the bottom and wants
+  to fold it back up without scrolling to the top. Both are excluded from print:
+  they toggle `<details>` elements that print open regardless, so on paper they
+  are two dead buttons.
 - **The A.I.R. quick-ask control takes the top slot**, where `Expand all` was.
   It is the feature's front door rather than a line buried mid-card.
 
@@ -116,7 +141,33 @@ needed, and because "hides when one is stored" only reads correctly next to the
 field whose mode it describes. Putting it in both places would state the same
 condition twice and let the two drift.
 
-Suggested questions render inside the modal, from `SUGGESTED` as today.
+### Shape and motion
+
+```
+┌─ overlay: shadowed backdrop ──────────────┐
+│  ┌─────────────────────────────────────┐  │
+│  │ input                               │  │
+│  ├─────────────────────────────────────┤  │
+│  │ suggestions  ⇄  answer              │  │
+│  │ (one container, min-height fixed)   │  │
+│  └─────────────────────────────────────┘  │
+└───────────────────────────────────────────┘
+```
+
+The dialog **lifts** into place — rising a short distance while fading, over a
+shadowed backdrop, so it reads as coming forward from the page rather than
+appearing on top of it.
+
+Two regions, not three. The input sits above **one** container that holds either
+the suggestions or the answer: picking a suggestion or submitting a question
+swaps the contents of that same box. There is no separate answer panel.
+
+That container carries a **min-height sized to the suggestions**, so the swap
+does not resize the dialog under the reader's cursor. Sized to the three
+suggestions that exist today; see [Open questions](#open-questions) for the
+fourth.
+
+Suggested questions render from `SUGGESTED`, as today.
 
 The code persists to `localStorage`. **This is per-device convenience, not a
 credential store**: it is a shared code, already sent from the browser on every
@@ -150,6 +201,9 @@ surfaces render the same island, so there is one implementation.
 |---|---|
 | Controls sit beside what they act on | re-measure `Expand all` and the first section on a Pixel 7 viewport; the gap closes from 628px |
 | The résumé card carries no action links | no `.resume-actions` in the rendered card |
+| The quick-ask row is absent when A.I.R. is off | build with `PUBLIC_SHOW_AIR` unset; the top zone renders two download buttons and nothing else |
+| Expand/Collapse do not reach paper | neither control appears in the generated PDFs |
+| The dialog does not resize on first answer | measure the container before and after an answer replaces the suggestions |
 | `/cv/for-bots` stays discoverable | `<link rel="alternate">` present in `<head>`; route still 200s |
 | The modal is operable by keyboard | tab into the input, `Enter`, tab through the dialog, `Escape`, focus lands back on the input |
 | The code survives a reload | set a code, reload, confirm the placeholder is the question form and the request link is hidden |
@@ -161,14 +215,21 @@ into `ResumeVisual.astro` and should stop rather than regenerate.
 
 ## Open questions
 
-1. Whether the quick-ask input should be visible when `PUBLIC_SHOW_AIR` is off.
-   The résumé is live in production and A.I.R. is not, so today the top slot
-   would be empty. Rendering nothing is correct; the question is whether the
-   downloads then look unbalanced on their own.
-2. How many suggested questions the modal shows before it needs a scroll on a
-   phone. There are three today, and the modal is smaller than the page.
-3. Whether `Expand all` should also appear at the foot of the sections for
-   someone who has read to the bottom. Cheap to add, easy to make noisy.
+1. **The fourth suggestion.** The intent is one per audience with at least four
+   audiences; there are three seeds today — Hiring manager, Client, Partner. A
+   fourth is blocked, not merely unwritten: `suggested.mjs` records that every
+   entry is a promise `offline.spec.ts` asserts retrieves context, and the live
+   eval currently scores grounding 0/2. Adding one now would either fail the
+   build or publish a promise the corpus cannot keep.
+
+   Shipping at three, sized to three. The container grows when a fourth is
+   earned. Worth revisiting the moment the retrieval work lands, because this is
+   the third thing today to queue behind it — the A.I.R. content layer is the
+   bottleneck, not the interface.
+
+2. **Whether the modal needs its own scroll on a small phone** once an answer
+   with sources renders. The min-height stops it shrinking; nothing yet caps how
+   tall it grows.
 
 ## Out of scope
 
