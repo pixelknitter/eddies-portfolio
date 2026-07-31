@@ -172,7 +172,14 @@ function summarise(result) {
 
 async function main() {
   const browser = await chromium.launch();
-  const context = await browser.newContext();
+  // Scan with motion reduced, which the site already honours.
+  //
+  // Not a convenience: mid-animation an element is partly transparent, so axe
+  // resolves a *composited* background and reports a ratio against a colour
+  // that exists in no palette and at no other moment. Settling the page first
+  // is the difference between measuring the design and measuring a frame of an
+  // animation — and it audits what a motion-sensitive visitor actually gets.
+  const context = await browser.newContext({ reducedMotion: 'reduce' });
   const reports = [];
 
   for (const route of ROUTES) {

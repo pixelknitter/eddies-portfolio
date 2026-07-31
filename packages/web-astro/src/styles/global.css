@@ -9,8 +9,29 @@
 @theme {
   --color-dark: #1e1e2e;
   --color-light: #fdebf3;
+  /* Stays mint: `--color-button` is a *background* (`.btn` pairs
+     `hover:bg-button` with `hover:text-dark`), and mint behind dark text
+     reads well on either ground. Darkening it to fix a foreground usage
+     elsewhere would have broken the button's own hover contrast. */
   --color-button: #5dd39e;
-  --color-link: #5dd39e;
+
+  /* Link accent, paired per ground.
+     One value cannot serve both. Measured against the page backgrounds, mint
+     scores 8.81:1 on #1e1e2e and 1.63:1 on #fdebf3 — so `text-link` was
+     failing AA on every page in light mode (Footer.astro). No lightness of
+     this hue clears 4.5:1 on both grounds, so this has to be a pair rather
+     than a better single colour.
+
+     Note the asymmetry with --color-surface / --color-hairline below, where
+     the bare token is the light-ground value. Here the bare token stays mint,
+     because in practice every other usage is already inside a `dark:` variant
+     (Card, AIResume, ResumeDownload, .icon-btn) where mint is correct and
+     measured. Redefining it would have silently restyled all of them — and
+     one, components/resume/ResumeFull.astro, is fingerprinted, so it cannot
+     be updated to compensate without forcing a PDF regeneration (#49).
+     Only foregrounds sitting on the *page* background need the other value. */
+  --color-link: #5dd39e; /* on #1e1e2e — 8.81:1, AA */
+  --color-link-on-light: #206f4a; /* on #fdebf3 — 5.34:1, AA */
   --color-underline: #348aa7;
   --color-emphasis: #525174;
   --color-tag: #584966;
@@ -25,7 +46,6 @@
   --color-surface-dark: #3b3458;
   --color-hairline: #e9c5da;
   --color-hairline-dark: #574f85;
-  --color-disabled: #5c5b77;
 
   --font-header: "Pacifico", cursive;
   --font-body: "Josefin Sans", sans-serif;
@@ -53,6 +73,16 @@
   }
   .hero-gif {
     @apply mt-5 flex mx-auto justify-center;
+  }
+  /* The page's own <h1>.
+     Four route families rendered their title as an <h2> with no <h1> above
+     it, which breaks the document outline. Promoting them is the semantic
+     fix, but bare `h1` in @layer base is unadorned and sized for the home
+     page, so a straight swap would also restyle every title.
+     This carries the h2 treatment onto the h1 so the structure changes and
+     the design does not. */
+  .page-title {
+    @apply text-3xl mb-4 underline decoration-underline decoration-4 underline-offset-[6px];
   }
   /* Raised panel used by cards and any boxed content. */
   .surface {
@@ -147,395 +177,3 @@
   }
 }
 
-/* Global styles */
-/* :root {
-  --dark: #1e1e2e;
-  --light: #fdebf3;
-}
-
-html {
-  background-color: var(--light);
-  color: var(--dark);
-}
-
-html.dark {
-  background-color: var(--dark);
-  color: var(--light);
-} */
-
-/* .dark .git-icon {
-  content: url('/github-mark-white.svg');
-}
-
-.dark .mail-icon {
-  content: url('/mail-white.svg');
-}
-
-.dark .linked-in {
-  content: url('/li-in-white.png');
-}
-
-.git-icon {
-  content: url('/github-mark.svg');
-}
-
-.mail-icon {
-  content: url('/mail.svg');
-}
-
-.linked-in {
-  content: url('/li-in.png');
-} */
-
-/* body {
-  max-width: 720px;
-  margin: 0 auto;
-  text-align: justify;
-} */
-
-/* h1,
-h2,
-h3,
-h4 {
-  font-family: var(--header);
-  font-weight: normal;
-} */
-
-/* h1 {
-  font-size: 2.6rem;
-  margin: 0;
-  margin-bottom: 5px;
-}
-
-h2 {
-  text-decoration: underline var(--underline);
-  text-decoration-thickness: 4px;
-  text-underline-offset: 6px;
-  font-size: 2.1rem;
-  margin-bottom: 0;
-}
-
-h3 {
-  text-decoration: underline var(--emphasis);
-  text-decoration-thickness: 4px;
-  text-underline-offset: 6px;
-  font-size: 1.7rem;
-  margin-bottom: 0;
-}
-
-h4 {
-  text-decoration: underline var(--underline);
-  text-decoration-thickness: 4px;
-  text-underline-offset: 6px;
-  font-size: 1.3rem;
-  margin-bottom: 0;
-}
-
-p {
-  font-family: var(--body);
-  font-size: 1.1rem;
-  hyphens: auto;
-  line-height: 1.5;
-  text-indent: 1rem;
-} */
-
-/* small,
-li {
-  font-family: var(--body);
-} */
-
-/* Navigation Bar */
-/* .navbar {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  margin-top: 0.8rem;
-}
-
-.navbar__title {
-  font-family: var(--header);
-  font-size: 1.3rem;
-}
-
-.navbar__menu {
-  font-family: var(--body);
-  font-size: 1.1rem;
-  text-align: right;
-}
-
-.navbar__title > a,
-.navbar__menu > a {
-  color: var(--text);
-  text-decoration: none;
-}
-
-.navbar__menu > a {
-  margin: 0 10px;
-}
-
-.navbar__title > a:hover,
-.navbar__menu > a:hover,
-.navbar__menu > a:focus {
-  text-decoration: underline var(--underline);
-  text-decoration-thickness: 2px;
-  text-underline-offset: 6px;
-} */
-
-/* Gifs */
-
-/* Badge */
-/* .badge {
-  background-color: var(--tag);
-  color: var(--text);
-  border-radius: 6px;
-  font-family: var(--body);
-  font-weight: 600;
-  font-size: 0.85rem;
-  padding: 0.3em 0.6em 0.2em;
-}
-
-.badge__list {
-  text-indent: 1rem;
-  list-style: none;
-  padding: 0;
-}
-
-.badge__list > li {
-  margin-top: 10px;
-}
-
-.badge--item {
-  border-radius: 4px;
-  font-size: 0.7rem;
-  margin-right: 5px;
-  padding: 0.5em 0.3em 0.3em 0.3em;
-}
-
-.badge__link {
-  color: var(--text-link);
-  text-decoration: none;
-}
-
-.badge__link:hover {
-  text-decoration: underline;
-} */
-
-/* Cards */
-/* .card {
-  list-style: none;
-  display: flex;
-  background-size: 400%;
-  padding: 20px;
-}
-
-.card__link {
-  width: 100%;
-  text-decoration: none;
-  line-height: 1.4;
-  border-radius: 8px;
-  color: var(--text);
-}
-
-.card__img {
-  border-radius: 16px;
-}
-
-.card__title {
-  margin: 0;
-  font-family: var(--body);
-  font-size: 1.5rem;
-  font-weight: normal;
-  text-align: center;
-}
-
-.card__txt {
-  font-size: 1rem;
-  line-height: 1.5;
-  text-indent: 0;
-  text-align: center;
-  margin: 0.5rem 0 0;
-} */
-
-/* .card__link:hover {
-  transform: scale(1.05);
-} */
-
-/* .link-card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(24ch, 1fr));
-  gap: 1rem;
-  padding: 0;
-} */
-
-/* Button */
-/* .btn {
-  text-align: center;
-  background: rgba(0, 0, 0, 0);
-  border: 2px solid var(--button);
-  border-radius: 8px;
-  color: var(--text);
-  font: 600 16px var(--body);
-  padding: 8px 16px;
-  transition: background-color 0.4s, color 0.4s;
-}
-
-.btn:hover {
-  background-color: var(--button);
-  color: var(--text-light);
-  cursor: pointer;
-} */
-
-/* Skills */
-/* .skills {
-  display: flex;
-  margin-top: 8px;
-  flex-direction: row;
-  flex-wrap: wrap;
-}
-
-.skills__img {
-  margin: 8px 4px;
-  background-color: var(--tag);
-  color: var(--text);
-  border-radius: 6px;
-  padding: 6px;
-} */
-
-/* Items */
-/* .center {
-  text-align: center;
-}
-
-.pro-img {
-  border-radius: 16px;
-  margin-top: 10px;
-} */
-
-/* Footer */
-/* footer {
-  margin: 4rem 0;
-} */
-
-/* .footer__link {
-  color: var(--text-link);
-  text-decoration: none;
-}
-
-.footer {
-  cursor: default;
-  list-style: none;
-  padding: 0;
-} */
-
-/* .icon__btn {
-  display: inline-block;
-  padding: 0 0.5rem;
-}
-
-.icon__link {
-  display: flex;
-  padding: 10px;
-  height: 20px;
-  width: 20px;
-  border-radius: 50%;
-  border: 2px solid var(--border-light);
-}
-
-.icon__link:hover {
-  border-color: var(--text-link);
-} */
-
-/* 404 */
-/* .lost {
-  margin-top: 30%;
-  text-align: center;
-}
-
-.lost__header {
-  margin: 0 auto;
-  text-align: center;
-  border: 0;
-  font-size: 7.5rem;
-  letter-spacing: 10px;
-}
-
-.lost__body {
-  color: var(--disabled);
-}
-
-.lost__link {
-  color: var(--text-link);
-  text-decoration: none;
-} */
-
-/* Theme Icon */
-/*
-.light .navbar__title > a {
-  color: var(--text-light);
-}
-
-.light .navbar__menu > a {
-  color: var(--text-light);
-}
-
-.light .card__title {
-  color: var(--text-light);
-}
-
-.light .card__txt {
-  color: var(--text-light);
-} */
-
-/* .light .btn {
-  color: var(--text-light);
-}
-
-.light .btn:hover {
-  color: var(--text);
-}
-
-.light .icon__link {
-  border: 2px solid var(--text-light);
-}
-
-.light .icon__link:hover {
-  border-color: var(--text-link);
-}*/
-
-/* Media Query */
-/* @media only screen and (max-width: 640px) {
-  body {
-    width: 350px;
-  }
-
-  .navbar {
-    display: initial;
-  }
-
-  .navbar__title {
-    text-align: center;
-  }
-
-  .navbar__menu {
-    text-align: center;
-  }
-
-  .navbar__menu > a {
-    margin: 0 11px;
-  }
-
-  .skills__img {
-    height: 30px;
-    width: 30px;
-    margin: 8px 1px;
-  }
-
-  .badge__list {
-    font-size: 0.9rem;
-    text-indent: 0;
-  }
-
-  .pro-img {
-    height: auto;
-    width: 350px;
-  }
-} */
