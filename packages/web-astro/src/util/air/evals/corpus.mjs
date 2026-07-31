@@ -53,6 +53,12 @@ const COLLECTIONS = Object.freeze([
   { name: 'star', bodyAs: 'constraints' },
   { name: 'projects', bodyAs: 'content' },
   { name: 'resume', bodyAs: 'content', idPrefix: 'resume/' },
+  // Challenges are namespaced for the same reason the resume is: a citation
+  // should name the collection it came from. These carry a different weight
+  // from a highlight — an answer drawing a pattern from one is making a claim
+  // about a shortcoming, and it must stay traceable to the story that supports
+  // it. Nothing renders this collection; only A.I.R. reads it.
+  { name: 'challenges', bodyAs: 'content', idPrefix: 'challenges/' },
 ]);
 
 /**

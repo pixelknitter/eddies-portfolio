@@ -45,6 +45,11 @@ beforeAll(() => {
     '---\ntitle: Curlfriend\n---\nA project write-up.\n',
   );
 
+  write(
+    'challenges/underestimated-migration.md',
+    '---\ntitle: A migration I sized wrong\n---\nThe estimate was the mistake, not the migration.\n',
+  );
+
   // Nested, the way the resume collection actually is on disk.
   write(
     'resume/experience/frontdoor-streem.md',
@@ -89,6 +94,19 @@ describe('loadEvalCorpus', () => {
       'Never claim it guaranteed compliance.',
     );
     expect(project?.content).toBe('A project write-up.');
+  });
+
+  it('includes the challenges collection, which only A.I.R. reads', () => {
+    const entry = loadEvalCorpus(root).find(
+      (item) => item.id === 'challenges/underestimated-migration',
+    );
+
+    // Namespaced like the resume so a citation names the collection it came
+    // from — these carry a different weight from a highlight, and an answer
+    // that cites one should be traceable to it.
+    expect(entry).toBeDefined();
+    // A challenge body is narrative, not an honesty guardrail.
+    expect(entry?.content).toBe('The estimate was the mistake, not the migration.');
   });
 
   it('labels a resume body as content, not constraints', () => {
