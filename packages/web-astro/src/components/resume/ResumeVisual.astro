@@ -33,10 +33,6 @@ interface Props {
    * a sealed content collection, and this file did not have to care either time.
    */
   resume: Resume;
-  /** Where "ask A.I.R. about this" should point, or undefined when A.I.R. is off. */
-  airPath?: string;
-  /** Where the complete machine-readable version lives. */
-  botsPath?: string;
   /**
    * Render for the PDF generator instead of the web.
    *
@@ -53,12 +49,7 @@ interface Props {
   print?: boolean;
 }
 
-const {
-  resume: RESUME,
-  airPath,
-  botsPath = '/cv/for-bots',
-  print = false,
-} = Astro.props;
+const { resume: RESUME, print = false } = Astro.props;
 
 // In print, everything is "selected" and there is no compact grid.
 const selected = print
@@ -92,19 +83,16 @@ const bulletsFor = (role: ResumeRole) =>
     <slot name="contact" />
 
     {
-      !print && (
-        <Fragment>
-          {/* Task 8 replaces this slot with the gated download island. */}
-          <slot name="downloads" />
-
-          <div class="resume-links">
-            {airPath && (
-              <a href={airPath}>Ask A.I.R. about any of this &rarr;</a>
-            )}
-            <a href={botsPath}>Complete version, for machines &rarr;</a>
-          </div>
-        </Fragment>
-      )
+      /*
+       * Everything the web page adds and paper does not: the gated download
+       * island and the action bar.
+       *
+       * Filled from the page rather than rendered here on purpose. This file is
+       * fingerprinted, and the hash covers file *text*, so editing markup that
+       * `!print` already excludes from every PDF still forced a regeneration.
+       * Slot content lives in the caller, so it does not.
+       */
+      !print && <slot name="actions" />
     }
   </header>
 
@@ -413,13 +401,6 @@ const bulletsFor = (role: ResumeRole) =>
     font-size: 14px;
     font-weight: 500;
     line-height: 1.3;
-  }
-
-  .resume-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px 20px;
-    font-size: 14.5px;
   }
 
   /* ── Stats ──────────────────────────────────────────────────────────────── */

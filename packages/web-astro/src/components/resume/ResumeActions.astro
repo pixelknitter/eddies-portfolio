@@ -1,0 +1,73 @@
+---
+/**
+ * The resume's on-page action bar.
+ *
+ * ## Why this is not part of ResumeVisual
+ *
+ * These links are web-only — they mean nothing on paper, and ResumeVisual
+ * already hid them behind `!print`. But ResumeVisual is in FINGERPRINTED_FILES,
+ * and the fingerprint hashes *file text*, not rendered output. So every tweak to
+ * a link that can never appear in a PDF invalidated the PDF hash and demanded a
+ * regeneration, which needs CONTENT_SEAL_KEY.
+ *
+ * Living here, the action bar can be restyled freely. ResumeVisual keeps only
+ * what the document itself contains, which is what the fingerprint is actually
+ * trying to protect.
+ *
+ * ## Why `.resume-cta` rather than something new
+ *
+ * The organic system already has a button: a pill with hover, active and
+ * focus-visible states, sized to sit beside body text. These were plain inline
+ * links, so they read as prose in the middle of a header rather than as things
+ * to press. Reusing the existing class fixes that without adding a second
+ * button vocabulary to keep in step.
+ *
+ * Both are the *secondary* (outlined) variant, deliberately. `resume-cta-primary`
+ * fills with --color-accent-600 under --color-bg text, which axe measures at
+ * 3.77:1 — below the 4.5:1 needed for text this size. That is a pre-existing
+ * fault in the resume palette (#46) and out of scope here; propagating it to two
+ * more elements is not. Neither of these is the page's main call to action
+ * anyway — the download island is.
+ */
+interface Props {
+  /** A.I.R. is flag-gated; omitted when the chat is off, and the link is dropped. */
+  airPath?: string;
+  /** The complete, machine-oriented rendering. Always available. */
+  botsPath: string;
+}
+
+const { airPath, botsPath } = Astro.props;
+---
+
+<nav class="resume-actions" aria-label="More ways to read this resume">
+  {
+    airPath && (
+      <a class="resume-cta resume-cta-secondary" href={airPath}>
+        Ask A.I.R. about any of this
+        <span aria-hidden="true">&rarr;</span>
+      </a>
+    )
+  }
+  <a class="resume-cta resume-cta-secondary" href={botsPath}>
+    Complete version, for machines
+    <span aria-hidden="true">&rarr;</span>
+  </a>
+</nav>
+
+<style>
+  /* Matches the gap the meta badges above use, so the header reads as one
+     rhythm rather than three unrelated rows. */
+  .resume-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 4px;
+  }
+
+  /* The arrows are decoration, not content — a screen reader announcing
+     "right arrow" after every link is noise. Hidden above; nudged here so they
+     read as part of the label rather than a stray glyph. */
+  .resume-actions span {
+    line-height: 1;
+  }
+</style>
