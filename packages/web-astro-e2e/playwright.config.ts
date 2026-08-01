@@ -74,10 +74,16 @@ export default defineConfig({
           'PUBLIC_SHOW_BLOG=true PUBLIC_SHOW_PROJECTS=true PUBLIC_SHOW_AIR=true ' +
           'PUBLIC_SHOW_FIXTURES=true PUBLIC_SHOW_RESUME=true ' +
           'yarn astro build && ' +
+          // Supervised rather than run directly: `wrangler dev` exits mid-run
+          // intermittently, and Playwright's webServer never restarts a command
+          // it started. serve-worker.mjs brings it back so one upstream hiccup
+          // costs a retry or two instead of the rest of the suite. Its header
+          // and docs/RUNBOOK.md carry the diagnosis.
+          'node ../web-astro-e2e/scripts/serve-worker.mjs ' +
           // Test-only secrets, so the download flow is exercisable end to end. The
           // webhook points at a local sink the resume spec starts; without a value
           // the request endpoint would still succeed but report notified: false.
-          'npx wrangler dev -c dist/server/wrangler.json --port 4321 --local ' +
+          '-c dist/server/wrangler.json --port 4321 --local ' +
           '--var AIR_SIGNING_SECRET:e2e-not-a-secret ' +
           '--var DISCORD_ACCESS_WEBHOOK_URL:http://127.0.0.1:4399/sink',
         url: baseURL,
