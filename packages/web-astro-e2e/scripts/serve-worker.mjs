@@ -29,6 +29,7 @@
  */
 import { spawn } from 'node:child_process';
 import { connect } from 'node:net';
+import { request as httpRequest } from 'node:http';
 
 /**
  * Restarts allowed before giving up. A healthy run needs none. More than a
@@ -37,18 +38,25 @@ import { connect } from 'node:net';
  */
 const MAX_RESTARTS = Number(process.env.E2E_SERVER_MAX_RESTARTS ?? 5);
 
-/**
- * Wrangler exiting this fast *on the very first attempt* means it never came
- * up — a bad config or a port already taken, which restarting cannot fix.
- *
- * The check is deliberately limited to the first attempt. A restart racing the
- * dying server for the port also exits within a second or two, and treating
- * that as unrecoverable would defeat the entire point of this script.
- */
-const HEALTHY_AFTER_MS = 10_000;
-
 /** How long to wait for the port to come free before respawning anyway. */
 const PORT_RELEASE_TIMEOUT_MS = 20_000;
+
+/** Interval between liveness probes once wrangler has been spawned. */
+const PROBE_INTERVAL_MS = 1_000;
+
+/** How long a single liveness probe may take before it counts as no reply. */
+const PROBE_TIMEOUT_MS = 3_000;
+
+/**
+ * Consecutive failed probes before a server that *was* listening is treated as
+ * gone. More than one so a momentary refusal under load is not enough.
+ *
+ * This exists because exiting is not the only way wrangler stops serving. The
+ * ProxyController error is fatal to the command, but the process does not
+ * reliably leave — the port simply stops accepting, which from a test's point
+ * of view is identical. Watching only for `exit` misses that entirely.
+ */
+const PROBES_BEFORE_DEAD = 3;
 
 const args = process.argv.slice(2);
 
@@ -59,6 +67,8 @@ let child;
 let restarts = 0;
 let everServed = false;
 let stopping = false;
+/** Bumped per spawn, so a stale probe loop cannot act on a newer wrangler. */
+let currentGeneration = 0;
 
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 
@@ -75,6 +85,37 @@ function portBusy() {
       socket.destroy();
       resolve(false);
     });
+  });
+}
+
+/**
+ * Resolves true while the server still answers HTTP.
+ *
+ * An HTTP request rather than a TCP connect, because the port being bound does
+ * not mean the server works: wrangler's own process owns the listener and
+ * proxies to workerd, so when the runtime behind it dies the port still accepts
+ * connections and then answers nothing. A connect-only probe reads that as
+ * healthy. CI has shown the other shape too, where the listener disappears
+ * outright — this catches both.
+ *
+ * Any status counts as alive, including 5xx. A failing request is the
+ * application's business; only the absence of a reply is this script's.
+ */
+function serving() {
+  return new Promise((resolve) => {
+    const probe = httpRequest(
+      { host: '127.0.0.1', port, path: '/', method: 'GET', timeout: PROBE_TIMEOUT_MS },
+      (response) => {
+        response.resume();
+        resolve(true);
+      },
+    );
+    probe.on('error', () => resolve(false));
+    probe.on('timeout', () => {
+      probe.destroy();
+      resolve(false);
+    });
+    probe.end();
   });
 }
 
@@ -102,9 +143,59 @@ async function waitForPort() {
   return false;
 }
 
+/**
+ * Watch the port for as long as this wrangler is meant to be up.
+ *
+ * `everServed` is set by an actual successful connection rather than by how
+ * long the process has been alive. Elapsed time looked like a reasonable proxy
+ * and is not: the ProxyWorker fault has been observed under seven seconds after
+ * startup, so any "it survived long enough to count as healthy" threshold big
+ * enough to catch a genuine boot failure also swallows the very fault this
+ * script exists to recover from.
+ */
+function monitor(pid, generation) {
+  let misses = 0;
+  // Per-generation, not the module-level `everServed`. A restart's own boot
+  // window looks exactly like "was serving, now silent" to a global flag, so
+  // the monitor would shoot down the instance it just started.
+  let servedThisGeneration = false;
+
+  const timer = setInterval(async () => {
+    if (stopping || generation !== currentGeneration) {
+      clearInterval(timer);
+      return;
+    }
+
+    if (await serving()) {
+      everServed = true;
+      servedThisGeneration = true;
+      misses = 0;
+      return;
+    }
+
+    // No reply. Before *this* wrangler has answered once, that is just boot.
+    if (!servedThisGeneration) return;
+
+    misses += 1;
+    if (misses < PROBES_BEFORE_DEAD) return;
+
+    clearInterval(timer);
+    if (stopping || generation !== currentGeneration) return;
+
+    console.error(
+      `[serve-worker] port ${port} stopped answering while wrangler was still running — ` +
+        `treating it as dead.`,
+    );
+    // Killing the tree turns this into the exit path, so restart policy and
+    // orphan reaping stay in one place instead of being duplicated here.
+    reap(pid);
+  }, PROBE_INTERVAL_MS);
+
+  timer.unref();
+}
+
 function start() {
   const startedAt = Date.now();
-  const attempt = restarts;
 
   // `npx` rather than a resolved path: it is what the config used before this
   // script existed, and it keeps working under Yarn's node-modules linker.
@@ -117,6 +208,8 @@ function start() {
   });
 
   const pid = child.pid;
+  currentGeneration += 1;
+  monitor(pid, currentGeneration);
 
   child.on('error', (error) => {
     console.error(`[serve-worker] could not spawn wrangler: ${error.message}`);
@@ -127,14 +220,14 @@ function start() {
     if (stopping) return;
 
     const alive = Date.now() - startedAt;
-    if (alive >= HEALTHY_AFTER_MS) everServed = true;
     const how = signal ? `signal ${signal}` : `code ${code}`;
     const fail = () => process.exit(code === 0 ? 1 : (code ?? 1));
 
-    if (attempt === 0 && !everServed) {
+    if (!everServed) {
       console.error(
-        `[serve-worker] wrangler exited after ${alive}ms (${how}) without ever serving — ` +
-          `a startup failure, not the ProxyWorker flake. Not restarting.`,
+        `[serve-worker] wrangler exited after ${alive}ms (${how}) without ever accepting a ` +
+          `connection on port ${port} — a startup failure, not the ProxyWorker fault. ` +
+          `Not restarting.`,
       );
       return fail();
     }
