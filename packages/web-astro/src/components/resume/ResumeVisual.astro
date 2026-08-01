@@ -350,9 +350,15 @@ const bulletsFor = (role: ResumeRole) =>
    * The source design sat the document on a 68px inset at a fixed 816px. Here it
    * is fluid, so the inset scales — enough to read as a document rather than a
    * slab of colour butted against the nav, without eating the measure on a
-   * phone. The radius matters only in light mode, where the organic cream sits
-   * against the site's pink page; in dark mode the two backgrounds match and the
-   * corners are invisible, which is the intended effect in both cases.
+   * phone.
+   *
+   * The radius is now inert in both themes: the document and the page hold the
+   * same background value in each, so there are no corners to see. That was
+   * already true in dark mode and is the intended effect; light mode joining it
+   * is the point of aligning the two grounds. It is kept rather than deleted
+   * because it is what shows if they ever diverge again — and the inner cards,
+   * which do sit on a distinct `--color-surface`, are what carry the document's
+   * structure now.
    */
   .resume {
     padding: clamp(28px, 5vw, 56px) clamp(20px, 4vw, 48px)
