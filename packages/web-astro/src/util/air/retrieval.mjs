@@ -506,6 +506,41 @@ function entryText(entry) {
  */
 const DISTINCTIVE_MAX_SHARE = 0.5;
 
+/**
+ * Tokens naming the subject of the corpus, which carry no retrieval signal.
+ *
+ * **This cannot be derived, and the attempt to derive it is what failed.** The
+ * assumption was that IDF would handle it: a name in every document
+ * discriminates nothing. In this corpus the opposite is true — stories are
+ * titled after the *work* and rarely name him, so "eddie" is *rare*, and
+ * therefore scores as maximally distinctive.
+ *
+ * Frequency cannot express "this token names the subject of everything here".
+ * That is a fact about what the corpus is, not about how its words are
+ * distributed, so it has to be declared. Every document is about Eddie; naming
+ * him narrows nothing.
+ *
+ * Add a token here only if it identifies the subject. This is not a stopword
+ * list — STOPWORDS handles grammatical glue, and the two are not the same idea.
+ */
+const SUBJECT_TOKENS = new Set(['eddie', 'freeman', 'eddies']);
+
+/**
+ * The share of a question's distinctive terms a result must support.
+ *
+ * One matched term is not coverage. "How many years did Eddie spend as a VP of
+ * Engineering?" has four distinctive terms, and an entry matching only
+ * "engineering" supports a quarter of what makes the question specific — which
+ * is how a fabricated job title stayed retrievable. The old scorer guarded this
+ * with TAG_FRAGMENT_WEIGHT, whose comment named the same leak; the BM25 rework
+ * dropped that guard and needed one back.
+ *
+ * A half means most of what distinguishes the question has to be supported.
+ * "how do you handle ci cd" clears it on ci and cd; a lone generic word does
+ * not.
+ */
+const MIN_COVERAGE_SHARE = 0.5;
+
 /** Below this many documents the share test is meaningless, so skip it. */
 const MIN_CORPUS_FOR_SHARE = 3;
 
@@ -542,7 +577,9 @@ function gateTerms(text) {
 }
 
 export function distinctiveTerms(question, entries) {
-  const asked = new Set(gateTerms(question));
+  const asked = new Set(
+    gateTerms(question).filter((term) => !SUBJECT_TOKENS.has(term)),
+  );
   if (asked.size === 0) return [];
 
   const corpus = entries.map((entry) => new Set(gateTerms(entryText(entry))));
@@ -611,11 +648,18 @@ export function selectContext(question, entries, options = {}) {
         fuzzy: 0.2,
         prefix: (term) => term.length > 3,
       })
-      // The gate. A result riding entirely on words the whole corpus shares is
-      // not a match, however high BM25 scored it.
-      .filter((result) =>
-        result.queryTerms.some((term) => distinctive.has(stem(term)) || distinctive.has(term)),
-      )
+      /*
+       * The gate. A result must support at least half of what makes the
+       * question specific — not merely one word of it, and never a word the
+       * corpus shares with everything or a word that just names the subject.
+       * BM25 decides ranking; this decides admission.
+       */
+      .filter((result) => {
+        const covered = result.queryTerms.filter(
+          (term) => distinctive.has(term) || distinctive.has(stem(term)),
+        ).length;
+        return covered / distinctive.size >= MIN_COVERAGE_SHARE;
+      })
       .map((result) => ({
         id: String(result.id),
         score: result.score,

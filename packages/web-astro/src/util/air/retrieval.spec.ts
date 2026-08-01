@@ -30,14 +30,24 @@ import { selectContext, distinctiveTerms } from './retrieval.mjs';
  * stated directly.
  */
 
-/** A corpus shaped like the real one: work-titled stories, a person-titled profile. */
+/**
+ * A corpus shaped like the real one.
+ *
+ * Critically, the subject's name appears in **one** entry, not all of them.
+ * An earlier version of this fixture had "Eddie" in every document, which
+ * encoded the assumption under test — that IDF would drive the name to zero —
+ * and so passed while the real corpus failed. In the real corpus stories are
+ * titled after the *work* and rarely name him, which makes his name rare, and
+ * therefore maximally distinctive. A fixture that assumes the hypothesis cannot
+ * test it.
+ */
 const CORPUS = [
   {
     id: 'platform-migration',
     data: {
       title: 'Migrating a payments platform without downtime',
       tags: ['ci-cd', 'migration', 'payments'],
-      situation: 'Eddie inherited a platform nobody wanted to own.',
+      situation: 'Inherited a payments platform nobody wanted to own.',
       result: 'Shipped incrementally over two quarters.',
     },
   },
@@ -46,7 +56,7 @@ const CORPUS = [
     data: {
       title: 'Choosing to buy the scheduler',
       tags: ['build-vs-buy', 'procurement'],
-      situation: 'Eddie was asked whether to build a scheduler.',
+      situation: 'Asked whether to build or buy a scheduler.',
       result: 'Bought it, and wrote up why.',
     },
   },
@@ -54,6 +64,7 @@ const CORPUS = [
     id: 'resume/profile/profile',
     data: {
       title: 'Eddie Freeman — Senior Product Engineer · AI-Native',
+      role: 'Senior Product Engineer, engineering leadership',
       tags: ['summary', 'overview', 'about', 'who-is-eddie', 'experience'],
       summary: 'Eddie Freeman is a senior product engineer.',
     },
@@ -98,6 +109,48 @@ describe('the boundary guarantee', () => {
 
     expect(named).toEqual([]);
     expect(unnamed).toEqual([]);
+  });
+});
+
+describe('the subject’s name is not a retrieval signal', () => {
+  it('declines even though the name is rare, and therefore high-IDF', () => {
+    // The correction that mattered. Frequency cannot express "this token names
+    // the subject of the whole corpus"; a rare name is *more* distinctive, not
+    // less. It has to be declared.
+    expect(
+      selectContext('What is Eddie Freeman’s favourite restaurant?', CORPUS),
+    ).toEqual([]);
+  });
+
+  it('excludes the subject from the distinctive terms of a question', () => {
+    expect(distinctiveTerms('what did eddie freeman do', CORPUS)).not.toContain(
+      'eddie',
+    );
+    expect(distinctiveTerms('what did eddie freeman do', CORPUS)).not.toContain(
+      'freeman',
+    );
+  });
+});
+
+describe('one generic term is not enough coverage', () => {
+  it('declines a fabricated job title supported only by a common word', () => {
+    /*
+     * `boundary/invented-tenure`. "engineering" is uncommon enough to look
+     * distinctive, so admitting on a single matched term let a made-up title
+     * retrieve. The old scorer had a guard for exactly this leak
+     * (TAG_FRAGMENT_WEIGHT, "the leak that made a made-up job title
+     * retrievable"); the rework dropped it and had to put one back.
+     */
+    expect(
+      selectContext('How many years did Eddie spend as a VP of Engineering?', CORPUS),
+    ).toEqual([]);
+  });
+
+  it('still admits when most of what makes the question specific is supported', () => {
+    // The counterweight: two of three distinctive terms is real support.
+    const hits = selectContext('how do you handle ci cd', CORPUS);
+
+    expect(hits.map((entry) => entry.id)).toContain('platform-migration');
   });
 });
 
