@@ -84,6 +84,23 @@ export default defineConfig({
         cwd: '../web-astro',
         reuseExistingServer: !process.env.CI,
         timeout: 180_000,
+        /*
+         * Keep wrangler's own output. This is not a convenience — it is the
+         * only record of why the server went away.
+         *
+         * The suite fails intermittently with every remaining test reporting
+         * ERR_CONNECTION_REFUSED, because `wrangler dev` exits partway through
+         * the run. It has happened on master as well as on feature branches,
+         * and the point it dies moves between runs.
+         *
+         * Playwright defaults `stdout` to "ignore" and only pipes `stderr`.
+         * Wrangler writes its diagnostics — the `✘ [ERROR]` block and the path
+         * to its own logfile — to stdout, so the useful half was being dropped
+         * on the floor while the empty error line on stderr was kept. That is
+         * why a failure has never once said what happened.
+         */
+        stdout: 'pipe',
+        stderr: 'pipe',
       }
     : undefined,
 });

@@ -125,12 +125,25 @@ jobs:
       # exits mid-run the console line is an empty `✘ [ERROR]` and this file
       # holds the actual error — but it lives on the runner and dies with it.
       # Collected into the report so it is uploaded with everything else.
+      #
+      # Also echoed into this job's log, deliberately. The artifact is served
+      # from a blob host that a restrictive egress policy can refuse, and the
+      # logs API only returns the tail of a job — which on a failing run is all
+      # Playwright's own summary, long past the point wrangler said anything.
+      # Printing it here is the copy that can always be read.
       - name: Collect wrangler logs
         if: failure()
         run: |
           mkdir -p dist/playwright-report/wrangler-logs
           cp -R ~/.config/.wrangler/logs/. dist/playwright-report/wrangler-logs/ \
             || echo 'no wrangler logs to collect'
+
+          for log in dist/playwright-report/wrangler-logs/*; do
+            [ -f "$log" ] || continue
+            echo "::group::wrangler log $(basename "$log")"
+            cat "$log"
+            echo "::endgroup::"
+          done
 
       - name: Upload report on failure
         if: failure()
