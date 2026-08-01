@@ -143,7 +143,7 @@ export function AIResume() {
           type="password"
           value={accessCode}
           onChange={(event) => setAccessCode(event.target.value)}
-          className="w-full rounded-lg border border-hairline bg-light p-3 text-dark focus:outline-2 focus:outline-offset-2 focus:outline-underline dark:border-hairline-dark dark:bg-dark dark:text-light dark:focus:outline-link"
+          className="w-full rounded-lg border border-hairline bg-surface p-3 text-dark focus:outline-2 focus:outline-offset-2 focus:outline-underline dark:border-hairline-dark dark:bg-surface-dark dark:text-light dark:focus:outline-link"
           placeholder="The code from the card"
           autoComplete="off"
         />
@@ -165,7 +165,7 @@ export function AIResume() {
         <input
           id="air-question"
           ref={inputRef}
-          className="w-full rounded-lg border border-hairline bg-light p-3 text-dark focus:outline-2 focus:outline-offset-2 focus:outline-underline dark:border-hairline-dark dark:bg-dark dark:text-light dark:focus:outline-link"
+          className="w-full rounded-lg border border-hairline bg-surface p-3 text-dark focus:outline-2 focus:outline-offset-2 focus:outline-underline dark:border-hairline-dark dark:bg-surface-dark dark:text-light dark:focus:outline-link"
           placeholder="What's something you want to know about Eddie?"
           onKeyDown={(event) => {
             if (event.key === 'Enter') ask(event.currentTarget.value);
@@ -252,7 +252,7 @@ export function AIResume() {
                 required
                 value={requestEmail}
                 onChange={(event) => setRequestEmail(event.target.value)}
-                className="w-full rounded-lg border border-hairline bg-light p-3 text-dark focus:outline-2 focus:outline-offset-2 focus:outline-underline dark:border-hairline-dark dark:bg-dark dark:text-light dark:focus:outline-link"
+                className="w-full rounded-lg border border-hairline bg-surface p-3 text-dark focus:outline-2 focus:outline-offset-2 focus:outline-underline dark:border-hairline-dark dark:bg-surface-dark dark:text-light dark:focus:outline-link"
                 placeholder="you@company.com"
               />
 
@@ -268,7 +268,7 @@ export function AIResume() {
                 rows={4}
                 value={requestReason}
                 onChange={(event) => setRequestReason(event.target.value)}
-                className="w-full rounded-lg border border-hairline bg-light p-3 text-dark focus:outline-2 focus:outline-offset-2 focus:outline-underline dark:border-hairline-dark dark:bg-dark dark:text-light dark:focus:outline-link"
+                className="w-full rounded-lg border border-hairline bg-surface p-3 text-dark focus:outline-2 focus:outline-offset-2 focus:outline-underline dark:border-hairline-dark dark:bg-surface-dark dark:text-light dark:focus:outline-link"
                 placeholder="Hiring for a platform role and wanted to understand how you work."
               />
 
