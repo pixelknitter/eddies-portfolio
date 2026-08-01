@@ -532,9 +532,22 @@
   background: color-mix(in srgb, var(--color-text) 4%, transparent);
 }
 
-/* The system's own late overrides: pill geometry wins over the base radii. */
+/*
+ * The system's own late overrides: pill geometry wins over the base radii.
+ *
+ * The source multiplier was 1.15, a 32px radius. The cards that use this rule
+ * set 18–22px of padding, so the corner arc was half again wider than the space
+ * meant to clear it and the first and last words on every line sat inside the
+ * curve — worst on `.resume-stat`, where a 34px figure meets a corner on an
+ * element only ~80px tall.
+ *
+ * A radius at or just under the padding is what keeps a corner from crowding
+ * text, so this lands at 0.8 — 22px against 18–22px of padding. Still emphatically
+ * round, because that roundness is the system's character; just no longer
+ * competing with the words.
+ */
 .organic .card {
-  border-radius: calc(var(--radius-lg) * 1.15);
+  border-radius: calc(var(--radius-lg) * 0.8);
 }
 .organic .btn,
 .organic .tag,
