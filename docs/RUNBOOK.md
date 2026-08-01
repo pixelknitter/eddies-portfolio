@@ -212,6 +212,53 @@ ruby -ryaml -e 'Dir.glob(".github/workflows/*.yml").each { |f| YAML.load_file(f)
 
 ---
 
+### E2E fails with a wall of `ERR_CONNECTION_REFUSED`
+
+**Symptom.** The `e2e` job reports a large number of failures, all of them
+`page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:4321/…`, across
+specs that have nothing to do with the change. The count and the point it
+starts move between runs — one run passed 12 tests before dying, another 50.
+
+**This is not a signal about the change under test.** It has happened on
+`master` on a docs-only commit, and the same commit has both passed and failed.
+Confirmed by re-running a failed job with no code change: it went green.
+
+**Cause.** `wrangler dev` exits partway through the run, so every test queued
+after that moment fails against a server that is no longer listening. In its own
+log the exit looks like this:
+
+```
+debug  Error in ProxyController: Error inside ProxyWorker
+         at castErrorCause
+         at ProxyController2.emitErrorEvent
+         at ProxyController2.onProxyWorkerMessage
+         at PROXY_CONTROLLER
+         at async #handleLoopbackCustomFetchService (miniflare)
+debug  => Error contextual data: { config: { …the whole bundle… } }
+error  ✘ [ERROR]
+```
+
+Wrangler's internal ProxyWorker — the proxy that fronts the real Worker in dev —
+raises an error carrying no message, and `ProxyController` escalates any such
+error to fatal and ends the process. The empty message is why the console line
+is a bare `✘ [ERROR]`. Wrangler's own advice in the same log is to check whether
+a newer version fixes it; this was seen on **4.114.0**, with 4.118.0 available.
+
+Nothing in the application or the specs is involved.
+
+**Fix.** Re-run the job — it is a genuine flake, not a masked failure. If it
+becomes frequent, upgrade wrangler first, since that is what its own error text
+recommends.
+
+**Reading the evidence.** The reason is in wrangler's logfile, which the `e2e`
+job both uploads and echoes into its own output under a `wrangler log …` group.
+Read the job log rather than the artifact: the logs API returns only a job's
+tail — on a failing run that is entirely Playwright's summary — so search the
+job log for `ProxyWorker`, and note the artifact is served from a blob host that
+a restrictive egress policy may refuse.
+
+---
+
 ### Working on sealed content
 
 The markdown is the source you edit; the blob is what gets committed. `seal`
