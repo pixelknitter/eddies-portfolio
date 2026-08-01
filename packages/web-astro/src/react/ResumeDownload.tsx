@@ -38,7 +38,7 @@ type State =
 type Wanted = 'human' | 'bot' | 'both';
 
 const INPUT_CLASS =
-  'w-full p-3 rounded-lg bg-light dark:bg-dark text-dark dark:text-light border border-hairline dark:border-hairline-dark focus:outline-2 focus:outline-offset-2 focus:outline-underline dark:focus:outline-link';
+  'w-full p-3 rounded-lg bg-surface dark:bg-surface-dark text-dark dark:text-light border border-hairline dark:border-hairline-dark focus:outline-2 focus:outline-offset-2 focus:outline-underline dark:focus:outline-link';
 
 /**
  * Start a download without leaving the page.
