@@ -118,8 +118,22 @@ jobs:
       # The webServer in playwright.config.ts builds the site and serves the
       # real Worker via `wrangler dev --local`, so this exercises the same
       # runtime that production uses rather than a dev server.
+      #
+      # Retried once, deliberately. serve-worker.mjs restarts wrangler when the
+      # upstream ProxyWorker fault kills it, but recovery takes around ten
+      # seconds, and a connection refusal fails fast enough that all three of a
+      # test's attempts can land inside that window. The supervisor narrows the
+      # blast radius; this is what stops the fault reaching the branch ruleset.
+      #
+      # A second full pass is ~35s, against a fault seen in roughly one run in
+      # four. Nx does not cache a failed target, so the retry genuinely re-runs.
+      # Masking a real regression needs it to fail twice, which is what the
+      # warning below is for — a run that needed the retry is not a clean run.
       - name: Run E2E suite
-        run: yarn nx e2e web-astro-e2e
+        run: |
+          yarn nx e2e web-astro-e2e && exit 0
+          echo "::warning::E2E suite failed and is being retried once. If this run ends green, check the wrangler log group for 'Error inside ProxyWorker' before treating it as clean — see docs/RUNBOOK.md."
+          yarn nx e2e web-astro-e2e
 
       # wrangler writes its own log and prints the path on the way down. When it
       # exits mid-run the console line is an empty `✘ [ERROR]` and this file
