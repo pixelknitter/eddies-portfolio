@@ -882,6 +882,65 @@ Edit `src/styles/global.css`:
 }
 ```
 
+### Editing the resume, or anything the PDFs are built from
+
+The two downloadable PDFs are build artifacts committed into the repo, and a
+spec (`src/util/resume/pdfs.spec.ts`) hashes the files they are generated from.
+Touch any file on that list and the spec fails until the PDFs are rebuilt —
+**including a pure styling change**, because the hash covers the print layout and
+the stylesheets, not just the resume data.
+
+The list lives in `src/util/resume/fingerprint.mjs` (`FINGERPRINTED_FILES`). As of
+this writing: `resume.data.ts`, `markup.ts`, `watermark.mjs`, `ResumeVisual.astro`,
+`ResumeFull.astro`, `ResumeSection.astro`, `PrintContact.astro`,
+`PrintLayout.astro`, `print.css`, **`resume-organic.css`**, and both
+`pages/air/resume/print/*.astro`. Read the list rather than trusting this copy.
+
+`global.css` is **not** on it — site-wide theme changes do not force a rebuild.
+Worth splitting a resume change from a site change into separate commits for
+exactly this reason.
+
+Regenerating needs the real resume, which is sealed:
+
+```bash
+# 1. Materialise the real content. Requires the key — see below.
+CONTENT_SEAL_KEY=… node scripts/seal-content.mjs unseal-all
+
+# 2. Rebuild both PDFs and pdfs.generated.mjs
+yarn resume:pdf
+
+# 3. Commit the regenerated module
+git add packages/web-astro/src/util/resume/pdfs.generated.mjs
+```
+
+**The key is the gate, not the procedure.** `CONTENT_SEAL_KEY` is a secret; without
+it `unseal-all` cannot run, the collection loads zero entries, and every resume
+route 404s — so `yarn resume:pdf` fails with a 404 on the print route rather than
+anything that names the real cause. Plaintext otherwise lives in gitignored
+`.local-<section>/` directories; if those are present locally, step 1 is unnecessary.
+
+For a **remote/Cloud session** (claude.ai/code) the key is absent by default, so a
+styling change to the resume can be authored and verified there but the PDFs cannot
+be rebuilt. Add `CONTENT_SEAL_KEY` to the environment's variables to make it
+possible; otherwise regenerate on a local machine before merging. CI unseals but
+never runs `resume:pdf`, so a stale hash does not self-heal — it just fails.
+
+Verifying resume rendering without the key is still possible via the fixtures:
+
+```bash
+PUBLIC_SHOW_RESUME=true PUBLIC_SHOW_AIR=true PUBLIC_SHOW_FIXTURES=true \
+  npx astro dev          # /air/resume/ renders sample-*.md content
+```
+
+Full detail — sealing model, watermarking, why the hash covers inputs not output —
+is in `docs/RESUME.md`. That file is the source of truth; this section exists so the
+constraint is discoverable before a change is made rather than after CI rejects it.
+
+> **Sandbox note:** `yarn resume:pdf` drives Playwright. If it reports a missing
+> `chrome-headless-shell`, the image's browser build predates the pinned Playwright
+> version; point it at the installed binary (`/opt/pw-browsers/chromium`) rather
+> than running `playwright install`.
+
 ---
 
 ## Important Guidelines
@@ -1021,6 +1080,22 @@ See `docs/WORKFLOW.md` for the full convention.
 **Issue:** Nx cache causing stale builds
 - **Solution:** Run `nx reset` to clear cache
 - **Solution:** Use `--skip-nx-cache` flag
+
+**Issue:** `pdfs.spec.ts` fails — "Resume data or print layout changed since the
+PDFs were generated"
+- **Cause:** A fingerprinted file was edited. Styling counts; `resume-organic.css`
+  and the print layout are on the list.
+- **Solution:** `yarn resume:pdf` and commit `pdfs.generated.mjs` — see
+  [Editing the resume](#editing-the-resume-or-anything-the-pdfs-are-built-from).
+- **Blocked without `CONTENT_SEAL_KEY`:** the run fails with a 404 on
+  `/air/resume/print/human` instead of naming the missing key. That 404 means the
+  content could not be unsealed, not that the route is broken.
+
+**Issue:** `yarn resume:pdf` fails with a missing `chrome-headless-shell`
+- **Cause:** The sandbox image's Playwright browser build is older than the pinned
+  `@playwright/test`.
+- **Solution:** Launch with `executablePath: '/opt/pw-browsers/chromium'`. Do **not**
+  run `playwright install` — see the remote-environment notes.
 
 ---
 
