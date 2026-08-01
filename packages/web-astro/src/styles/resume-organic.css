@@ -34,16 +34,44 @@
  * rule in this system reads through `var(--color-…)`, that remap re-skins the
  * whole resume with no structural change. Ramp steps the site has no equivalent
  * for are filled from the companion "Nocturne" system.
+ *
+ * ## Palette roles
+ *
+ * Both themes assign the same meaning to the same slot, so a rule never has to
+ * know which theme it is in:
+ *
+ *   --color-accent    warm primary voice   light: terracotta   dark: coral
+ *   --color-accent-2  green structural     light: deep mint    dark: mint
+ *
+ * The hues are drawn from the site's own artwork (`public/space.webp`) — the
+ * asteroid's terracotta, the raccoon's coral, the planets' teal — with mint,
+ * the site accent, as the green. The olive this system originally shipped as
+ * its secondary was the one hue in neither the artwork nor the site, and is
+ * gone.
+ *
+ * Contrast: every foreground/background pair a rule below can actually produce
+ * was measured against WCAG 2.1 AA before the values were chosen. Where a value
+ * departs from the source design it is because the source failed that check;
+ * those carry a note at the declaration.
  */
 
 @import url('https://fonts.googleapis.com/css2?family=Caprasimo:wght@400&family=Figtree:wght@400;600;700&display=swap');
 
 .organic {
-  --color-bg: #f5ead8;
-  --color-surface: #ebddc5;
+  /* Sunlit paper — the same value as the site's own page ground, so the
+     document and the page are one surface rather than a card floating on a
+     contrasting one. See the `.resume` radius note further down. */
+  --color-bg: #fdf6ec;
+  --color-surface: #f6e9d8;
   --color-text: #201e1d;
   --color-accent: #c67139;
-  --color-accent-2: #7a8a5e;
+  /* Mint, not the olive #7a8a5e this system shipped with. Olive was the one hue
+     present in neither the site palette nor the source artwork; mint is the
+     site's own accent and sits 42° from the artwork's teal (analogous) and 129°
+     from the terracotta above (split-complementary). Terracotta carries the
+     primary voice, mint the structural one — the same pairing, in the same
+     roles, in both themes. */
+  --color-accent-2: #2f9d6c;
   --color-divider: color-mix(in srgb, #201e1d 16%, transparent);
 
   --color-neutral-100: #f9f4ed;
@@ -51,7 +79,10 @@
   --color-neutral-300: #dcd3c4;
   --color-neutral-400: #c0b6a5;
   --color-neutral-500: #a19786;
-  --color-neutral-600: #82796a;
+  /* Darkened from #82796a, which measured 4.00:1 on this ground and 3.59:1 on
+     the card — under AA for the 13.5px labels that use it, on the old cream as
+     well as this one. Now 5.27:1 and 4.73:1. */
+  --color-neutral-600: #6f6656;
   --color-neutral-700: #645c50;
   --color-neutral-800: #474238;
   --color-neutral-900: #2e2b25;
@@ -61,20 +92,24 @@
   --color-accent-300: #ffc6a5;
   --color-accent-400: #f6a06b;
   --color-accent-500: #d67f48;
-  --color-accent-600: #b2622d;
+  /* Darkened from #b2622d: this is the `.resume-cta-primary` fill, and the
+     14.5px button label on it measured 4.18:1. Now 5.10:1. */
+  --color-accent-600: #a15521;
   --color-accent-700: #8c491a;
   --color-accent-800: #643312;
   --color-accent-900: #402310;
 
-  --color-accent-2-100: #f0fae1;
-  --color-accent-2-200: #e1eecc;
-  --color-accent-2-300: #ccdbb2;
-  --color-accent-2-400: #aebf92;
-  --color-accent-2-500: #8fa073;
-  --color-accent-2-600: #728157;
-  --color-accent-2-700: #56633f;
-  --color-accent-2-800: #3d472b;
-  --color-accent-2-900: #272e1b;
+  /* Mint ramp, replacing the olive one. Section titles take 700 (6.02:1) and
+     the tag pairs 800-on-100 (9.17:1). */
+  --color-accent-2-100: #e6f6ee;
+  --color-accent-2-200: #c9ebda;
+  --color-accent-2-300: #a3dcc1;
+  --color-accent-2-400: #6fc79f;
+  --color-accent-2-500: #3fae7f;
+  --color-accent-2-600: #2f9d6c;
+  --color-accent-2-700: #1d6b48;
+  --color-accent-2-800: #124a30;
+  --color-accent-2-900: #0c3020;
 
   --font-heading: 'Caprasimo', system-ui, sans-serif;
   --font-heading-weight: 400;
@@ -113,8 +148,17 @@
   --color-bg: #1e1e2e;
   --color-surface: #3b3458;
   --color-text: #fdebf3;
-  --color-accent: #5dd39e;
-  --color-accent-2: #348aa7;
+  /* The accent roles hold their meaning across themes: `--color-accent` is the
+     warm primary voice (links, headline, stat figures), `--color-accent-2` the
+     green structural one (section titles and their dots).
+     Light mode reads terracotta + mint. Terracotta itself is far too dark to
+     sit on this ground, so the warm slot takes coral — the artwork's own pink,
+     which is terracotta's light-on-dark sibling — and mint moves from the
+     primary slot it used to hold into the structural one it now holds in both.
+     Net effect: mint still carries every section heading here, and the site's
+     buttons and links (--color-link) are untouched. */
+  --color-accent: #ef8ba1;
+  --color-accent-2: #5dd39e;
   --color-divider: #574f85;
 
   /* Inverted: 100 darkest → 900 lightest, so "900" stays the emphatic end. */
@@ -123,32 +167,39 @@
   --color-neutral-300: #332f49;
   --color-neutral-400: #453f63;
   --color-neutral-500: #6b6490;
-  --color-neutral-600: #9d96bd;
+  /* Lightened from #9d96bd, which measured 4.14:1 against the card fill — under
+     AA for the 13.5px labels that use it. Pre-existing; caught when the light
+     ramp's equivalent step was re-measured. Now 4.83:1. */
+  --color-neutral-600: #aaa3c8;
   --color-neutral-700: #c3bcdb;
   --color-neutral-800: #e2dcef;
   --color-neutral-900: #fdebf3;
 
-  /* Mint, the site's accent. Dark end low so tag fills sit under light text. */
-  --color-accent-100: #0d2b1f;
-  --color-accent-200: #12402d;
-  --color-accent-300: #1c5c42;
-  --color-accent-400: #2a7d5b;
-  --color-accent-500: #3ea076;
-  --color-accent-600: #5dd39e;
-  --color-accent-700: #7fdfb3;
-  --color-accent-800: #a6ebc9;
-  --color-accent-900: #cdf5e0;
+  /* Coral — the artwork's own pink, standing in for light mode's terracotta.
+     Dark end low so tag fills sit under light text. Links take 700 (7.81:1);
+     600 is the CTA fill, with the page colour on it at 6.33:1. */
+  --color-accent-100: #3a1a24;
+  --color-accent-200: #4d2230;
+  --color-accent-300: #6b2f42;
+  --color-accent-400: #8e4058;
+  --color-accent-500: #c06078;
+  --color-accent-600: #ef8ba1;
+  --color-accent-700: #f29aad;
+  --color-accent-800: #f7bcc8;
+  --color-accent-900: #fbd9e0;
 
-  /* Teal, the site's underline colour, as the secondary accent. */
-  --color-accent-2-100: #0a2530;
-  --color-accent-2-200: #0e3543;
-  --color-accent-2-300: #144a5e;
-  --color-accent-2-400: #1c657f;
-  --color-accent-2-500: #2a7f9c;
-  --color-accent-2-600: #348aa7;
-  --color-accent-2-700: #5aa9c2;
-  --color-accent-2-800: #8ac7d9;
-  --color-accent-2-900: #b9e0eb;
+  /* Mint, unchanged in value — this is the ramp that used to be `--color-accent`
+     above, moved wholesale into the structural slot. Section titles take 700
+     (10.24:1). Teal is not retired: it remains the site's heading underline. */
+  --color-accent-2-100: #0d2b1f;
+  --color-accent-2-200: #12402d;
+  --color-accent-2-300: #1c5c42;
+  --color-accent-2-400: #2a7d5b;
+  --color-accent-2-500: #3ea076;
+  --color-accent-2-600: #5dd39e;
+  --color-accent-2-700: #7fdfb3;
+  --color-accent-2-800: #a6ebc9;
+  --color-accent-2-900: #cdf5e0;
 
   /* Flat shadows read as grime on a dark surface; a hairline reads as an edge. */
   --shadow-sm: 0 0 0 1px #574f85;
