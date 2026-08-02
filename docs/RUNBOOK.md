@@ -312,10 +312,15 @@ The ceilings stay, in two layers:
   which is exactly why the Playwright-level ceiling is the lower of the two.
 
 A run that ends at either ceiling has hit something new, not a slow suite — a
-clean pass is under four minutes. Check `Cleaning up orphan processes` at the
-foot of the job log first: anything still listed there means something below the
-supervisor outlived it again. Record it on
+clean pass is well under a minute. Record it on
 [#73](https://github.com/pixelknitter/eddies-portfolio/issues/73).
+
+**`Cleaning up orphan processes` is not the tell, and this is worth knowing.**
+The first green run after the fix still listed all seven — `npm exec wrangler`,
+two `workerd`, the rest — and finished in 38 seconds. Reaping is still
+incomplete; it simply stopped mattering, because the survivors no longer hold
+anything Playwright waits on. That is the clearest confirmation of the cause
+available: the orphans were never what hung the job, the inherited fds were.
 
 ---
 
