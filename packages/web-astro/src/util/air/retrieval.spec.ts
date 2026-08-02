@@ -69,6 +69,15 @@ const CORPUS = [
       summary: 'Eddie Freeman is a senior product engineer.',
     },
   },
+  {
+    id: 'mvp-in-a-fortnight',
+    data: {
+      title: 'Proving an MVP in a fortnight',
+      tags: ['mvp', 'prototyping'],
+      situation: 'A client needed to know whether an idea was worth funding.',
+      result: 'Shipped a working MVP in two weeks and killed the bad half.',
+    },
+  },
 ];
 
 describe('the boundary guarantee', () => {
@@ -132,25 +141,80 @@ describe('the subject’s name is not a retrieval signal', () => {
   });
 });
 
-describe('one generic term is not enough coverage', () => {
-  it('declines a fabricated job title supported only by a common word', () => {
-    /*
-     * `boundary/invented-tenure`. "engineering" is uncommon enough to look
-     * distinctive, so admitting on a single matched term let a made-up title
-     * retrieve. The old scorer had a guard for exactly this leak
-     * (TAG_FRAGMENT_WEIGHT, "the leak that made a made-up job title
-     * retrievable"); the rework dropped it and had to put one back.
-     */
+describe('support, not coverage', () => {
+  /*
+   * ## Why this is one matched term and not a share
+   *
+   * A share was tried, at a half, and it is what this replaced. It could not
+   * separate the two cases it had to:
+   *
+   *   "How quickly can Eddie prove out an MVP?"   mvp        1 of 3 = 0.33
+   *   "How many years as a VP of Engineering?"    engineering 1 of 4 = 0.25
+   *
+   * Eight hundredths apart, on opposite sides of the decision. Weighting by IDF
+   * instead of counting makes it *worse*, not better: a term the corpus has
+   * never seen carries the highest IDF of all, so "quickly" and "prove" —
+   * absent, and the reason the question looks thin — swamp "mvp" and drive the
+   * matched share down to 0.26.
+   *
+   * The reason no scalar worked is that the gate was being asked two different
+   * questions. Retrieval can prove a *topic* is absent. It cannot tell that a
+   * title is fabricated when the corpus is full of real titles, because the
+   * evidence for "VP of Engineering" and for "MVP" looks identical from here:
+   * one distinctive term, present in the corpus.
+   *
+   * So the jobs are split. This gate answers only the question retrieval can
+   * answer — is there *any* support for what makes this question specific — and
+   * a false premise about a topic the corpus does cover is declined by the
+   * answer, with the real facts in hand to contradict it. See the `declineBy`
+   * field in evals/cases.mjs, which records which guarantee each case rests on.
+   */
+
+  it('declines when nothing distinctive about the question is supported', () => {
+    // Unchanged, and the half of the guarantee that stays structural: no
+    // request is made, so it holds even if the prompt is ignored entirely.
     expect(
-      selectContext('How many years did Eddie spend as a VP of Engineering?', CORPUS),
+      selectContext('What is Eddie’s favourite restaurant in Lisbon?', CORPUS),
     ).toEqual([]);
   });
 
-  it('still admits when most of what makes the question specific is supported', () => {
-    // The counterweight: two of three distinctive terms is real support.
-    const hits = selectContext('how do you handle ci cd', CORPUS);
+  it('admits on a single rare term that the corpus genuinely covers', () => {
+    // `suggested` (client). "mvp" is one of three distinctive terms and the
+    // share gate rejected it, so a question the corpus answers well got a
+    // decline — on the page, under a button inviting the visitor to ask it.
+    const hits = selectContext('How quickly can Eddie prove out an MVP?', CORPUS);
+
+    expect(hits.map((entry) => entry.id)).toContain('mvp-in-a-fortnight');
+  });
+
+  it('admits a question whose phrasing shares little with the story', () => {
+    // `grounding/covered-question`, and the suggested hiring-manager question.
+    // The story says "Inherited a payments platform nobody wanted to own"; the
+    // question says "a system nobody wants to own". Real support, thin overlap.
+    const hits = selectContext(
+      'How does Eddie approach a system nobody wants to own?',
+      CORPUS,
+    );
 
     expect(hits.map((entry) => entry.id)).toContain('platform-migration');
+  });
+
+  it('lets a fabricated title through to the answer layer, deliberately', () => {
+    /*
+     * `boundary/invented-tenure`, and the case that moved. "engineering" is
+     * real support — it is genuinely in the corpus — so retrieval admits, and
+     * the resume goes to the model *stating the actual titles*. Declining here
+     * instead would cost every question above.
+     *
+     * This is a weaker guarantee than the structural one and is written down as
+     * such: prompt.mjs carries the rule, and the live harness grades it.
+     */
+    const hits = selectContext(
+      'How many years did Eddie spend as a VP of Engineering?',
+      CORPUS,
+    );
+
+    expect(hits.map((entry) => entry.id)).toContain('resume/profile/profile');
   });
 });
 

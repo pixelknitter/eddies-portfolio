@@ -526,20 +526,34 @@ const DISTINCTIVE_MAX_SHARE = 0.5;
 const SUBJECT_TOKENS = new Set(['eddie', 'freeman', 'eddies']);
 
 /**
- * The share of a question's distinctive terms a result must support.
+ * How much of a question's distinctive vocabulary a result must support.
  *
- * One matched term is not coverage. "How many years did Eddie spend as a VP of
- * Engineering?" has four distinctive terms, and an entry matching only
- * "engineering" supports a quarter of what makes the question specific — which
- * is how a fabricated job title stayed retrievable. The old scorer guarded this
- * with TAG_FRAGMENT_WEIGHT, whose comment named the same leak; the BM25 rework
- * dropped that guard and needed one back.
+ * **One term. Not a share — a share was tried, and the arithmetic is why it
+ * went.** At a half, these two land eight hundredths apart on opposite sides of
+ * the decision:
  *
- * A half means most of what distinguishes the question has to be supported.
- * "how do you handle ci cd" clears it on ci and cd; a lone generic word does
- * not.
+ *     "How quickly can Eddie prove out an MVP?"    mvp          1 of 3 = 0.33
+ *     "How many years as a VP of Engineering?"     engineering  1 of 4 = 0.25
+ *
+ * Weighting by IDF rather than counting makes it worse. A term the corpus has
+ * never seen carries the highest IDF there is, so "quickly" and "prove" — absent,
+ * and precisely what makes the question look thin — swamp "mvp" and push the
+ * matched share down to 0.26. Rarity is the wrong axis: it measures how unusual
+ * a word is, not whether anything here answers it.
+ *
+ * No scalar worked because the gate was answering two questions at once.
+ * Retrieval can establish that a *topic* is absent — that is what declines
+ * "favourite restaurant in Lisbon", and it does it structurally, without a
+ * model call. It cannot establish that a *title is fabricated* when the corpus
+ * is full of real titles: from here, "VP of Engineering" and "MVP" are the same
+ * shape, one distinctive term with genuine support behind it.
+ *
+ * So the two jobs are split, and this constant only does the first one. A false
+ * premise about a topic the corpus does cover is declined by the answer, which
+ * gets the real record and can contradict it — see `declineBy` in
+ * evals/cases.mjs, and the premise rule in prompt.mjs.
  */
-const MIN_COVERAGE_SHARE = 0.5;
+const MIN_COVERED_TERMS = 1;
 
 /** Below this many documents the share test is meaningless, so skip it. */
 const MIN_CORPUS_FOR_SHARE = 3;
@@ -649,16 +663,16 @@ export function selectContext(question, entries, options = {}) {
         prefix: (term) => term.length > 3,
       })
       /*
-       * The gate. A result must support at least half of what makes the
-       * question specific — not merely one word of it, and never a word the
-       * corpus shares with everything or a word that just names the subject.
-       * BM25 decides ranking; this decides admission.
+       * The gate. A result must support something that makes this question
+       * specific — never a word the corpus shares with everything, and never a
+       * word that merely names the subject, both of which `distinctive` has
+       * already removed. BM25 decides ranking; this decides admission.
        */
       .filter((result) => {
         const covered = result.queryTerms.filter(
           (term) => distinctive.has(term) || distinctive.has(stem(term)),
         ).length;
-        return covered / distinctive.size >= MIN_COVERAGE_SHARE;
+        return covered >= MIN_COVERED_TERMS;
       })
       .map((result) => ({
         id: String(result.id),

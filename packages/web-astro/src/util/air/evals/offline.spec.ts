@@ -64,17 +64,36 @@ describe('A.I.R. corpus', () => {
 });
 
 describe('boundary cases decline without a model call', () => {
-  // Every boundary case that expects a decline must reach that decline through
-  // retrieval returning nothing. If one of these starts retrieving context, the
-  // guarantee quietly downgrades from "structurally impossible to answer" to
-  // "the prompt asked it not to" — which is a much weaker promise.
+  // These must reach their decline through retrieval returning nothing. If one
+  // starts retrieving context, the guarantee quietly downgrades from
+  // "structurally impossible to answer" to "the prompt asked it not to" — a
+  // much weaker promise, and one that does not survive the prompt being
+  // ignored.
+  //
+  // `declineBy: 'answer'` cases are excluded, and that exclusion is the point
+  // of the field rather than a way around a failing test: retrieval cannot tell
+  // a fabricated title from a real one when both are one supported term, and
+  // the share that could also declined three questions the corpus answers. See
+  // the `declineBy` note in cases.mjs. Those cases are graded by the live
+  // harness against the answer.
   for (const testCase of casesIn('boundary').filter(
-    (c) => c.expectGrounded === false,
+    (c) => c.expectGrounded === false && c.declineBy !== 'answer',
   )) {
     it.skipIf(!hasRealStories)(`${testCase.id} — ${testCase.why}`, () => {
       expect(selectContext(testCase.question, corpus)).toEqual([]);
     });
   }
+
+  it('keeps the structural decline as the default, not the exception', () => {
+    // A guard on the guard. `declineBy: 'answer'` weakens a case's guarantee,
+    // so it must stay something a reader notices — if most of the boundary set
+    // drifts into the weak column, the suite still passes while the promise it
+    // documents has quietly gone.
+    const boundary = casesIn('boundary');
+    const structural = boundary.filter((c) => c.declineBy !== 'answer');
+
+    expect(structural.length).toBeGreaterThan(boundary.length / 2);
+  });
 });
 
 describe('grounding cases have something to answer from', () => {
