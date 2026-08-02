@@ -17,6 +17,22 @@ export default defineConfig({
   // Fail the build if a `test.only` is committed.
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
+  /*
+   * A ceiling on the whole run, not on any one test.
+   *
+   * Per-test timeouts do not bound the suite: the run has wedged with the
+   * process tree alive and completely silent — Playwright's own reporter and
+   * wrangler's request log stopping in the same millisecond — which no test
+   * timeout notices, because no test was running.
+   *
+   * The job also has a `timeout-minutes`, but a job timeout kills the step and
+   * skips everything after it, including the wrangler-log collection that is
+   * the only record of why the server went away. Failing here instead keeps
+   * that evidence, which is the whole reason it was wired up.
+   *
+   * A clean pass is under four minutes; the job budget allows this twice.
+   */
+  globalTimeout: process.env.CI ? 10 * 60_000 : undefined,
   // Serial locally keeps the shared dev server predictable; CI has the cores.
   workers: process.env.CI ? 2 : 1,
   reporter: process.env.CI

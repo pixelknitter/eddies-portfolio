@@ -259,6 +259,41 @@ a restrictive egress policy may refuse.
 
 ---
 
+### The `e2e` job hangs, producing no output at all
+
+**Symptom.** `Run E2E suite` stays in progress with nothing written after some
+ordinary-looking page load. No failure, no summary, no timeout. Seen twice on
+the same commit, both times ending only when the run was cancelled by hand
+nearly five hours later.
+
+**How to recognise it.** In the job log, Playwright's own progress output and
+wrangler's request log stop in the *same millisecond* and never resume. Two
+unrelated writers falling silent together is a stalled pipeline, not a stuck
+test — a hung test would leave the server logging. Confirmation comes at the
+bottom of the log: `Cleaning up orphan processes` lists the whole tree still
+alive, and **two** `workerd` and **two** `esbuild` entries mean
+`serve-worker.mjs` had restarted wrangler into a state nothing was draining.
+
+**The mechanism is not fully pinned.** It has not reproduced on macOS — the
+same suite completes there in about three and a half minutes. Treat the
+supervisor's restart path as the prime suspect until someone reproduces it on
+Linux.
+
+**Fix.** Bounded rather than cured, deliberately, in two layers:
+
+- `globalTimeout` in `playwright.config.ts` fails the *run* at ten minutes,
+  which still executes the log-collection and artifact steps.
+- `timeout-minutes` on the job is the backstop for a wedge that takes Playwright
+  itself with it. This one kills the step, so the evidence steps are skipped —
+  which is exactly why the Playwright-level ceiling is the lower of the two.
+
+A run that ends at either ceiling is this bug, not a slow suite. Re-run it, and
+add the occurrence to
+[#73](https://github.com/pixelknitter/eddies-portfolio/issues/73), which tracks
+the unproven mechanism.
+
+---
+
 ### Working on sealed content
 
 The markdown is the source you edit; the blob is what gets committed. `seal`

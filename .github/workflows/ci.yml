@@ -28,6 +28,9 @@ jobs:
     # the branch ruleset, so changing it silently unprotects master.
     name: tests
     runs-on: ubuntu-latest
+    # A clean run is under three minutes. This is not a performance target — it
+    # is the ceiling that stops a wedged process costing the six-hour default.
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -103,6 +106,13 @@ jobs:
     # Runs after verify so an E2E failure is unambiguous: the unit suite and
     # build already passed, so the fault is in the served application.
     needs: verify
+    # A clean run — build, boot, both projects, and the retry — is around six
+    # minutes. This exists because the step has hung outright: the tree stayed
+    # alive, Playwright's reporter and wrangler's request log stopped in the
+    # same millisecond, and nothing ever moved again. GitHub's default is six
+    # hours, so a required check sat pending for an entire afternoon and the
+    # branch could not merge. Whatever wedges it, it must cost minutes.
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
