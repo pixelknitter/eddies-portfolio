@@ -18,10 +18,19 @@ interface Props {
   onClose: () => void;
   /** Id of the heading that names the dialog, for `aria-labelledby`. */
   titleId: string;
+  /**
+   * Whether the panel itself scrolls. Default `true`, which suits a form.
+   *
+   * The ask dialog sets `false`: its input must stay put while only the region
+   * beneath it scrolls, so that someone reading a long answer can ask the next
+   * question without scrolling back up to find the field. A panel that scrolls
+   * as a whole cannot offer that.
+   */
+  bodyScrolls?: boolean;
   children: React.ReactNode;
 }
 
-export function Modal({ open, onClose, titleId, children }: Props) {
+export function Modal({ open, onClose, titleId, bodyScrolls = true, children }: Props) {
   const panelRef = React.useRef<HTMLDivElement>(null);
 
   // Remember what had focus so it can be handed back on close. Without this,
@@ -105,7 +114,9 @@ export function Modal({ open, onClose, titleId, children }: Props) {
         // max-h with overflow so a long form stays reachable on a short
         // viewport — the failure mode of a centred fixed panel is a submit
         // button below the fold with no way to scroll to it.
-        className="surface relative max-h-[92dvh] w-full overflow-y-auto rounded-t-2xl p-4 motion-safe:animate-[fade-in_150ms_ease-out] sm:max-w-xl sm:rounded-2xl sm:p-6"
+        className={`surface relative flex max-h-[92dvh] w-full flex-col rounded-t-2xl p-4 motion-safe:animate-[lift-in_180ms_ease-out] sm:max-w-xl sm:rounded-2xl sm:p-6 ${
+          bodyScrolls ? 'overflow-y-auto' : 'overflow-hidden'
+        }`}
       >
         {children}
       </div>
