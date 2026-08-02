@@ -286,7 +286,19 @@ export async function POST(context: APIContext): Promise<Response> {
       // The span exists even though no generation will. Without it every
       // unanswerable question would be invisible, and "% answered" — computed
       // as generations over traces — would silently exclude its denominator.
-      { retrieval: { traceId, retrievedIds: [], floorCleared: false } },
+      //
+      // It carries the question too, and only here: a decline calls no model,
+      // so this is the one place the questions the corpus cannot reach get
+      // recorded. That is the dataset a disputed decline points at, and the
+      // evidence #69 wants before anyone builds an embeddings pass.
+      {
+        retrieval: {
+          traceId,
+          retrievedIds: [],
+          floorCleared: false,
+          question: validated.question,
+        },
+      },
     );
   }
 
