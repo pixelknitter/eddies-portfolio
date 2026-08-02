@@ -484,18 +484,30 @@ Replace the suggestions block *and* the trailing `aria-live` answer block with a
           One container, two contents. Picking a suggestion or asking a question
           swaps what is inside it rather than revealing a second panel below.
 
-          `min-h-80` is the floor: it fits the suggestions, so the swap does not
-          resize the dialog under the reader's cursor. `max-h-[50dvh]` with
-          `overflow-y-auto` is the ceiling: a long answer with sources grows the
-          box until it reaches the available screen height and then scrolls
-          inside itself. Only this region scrolls — the input above stays put, so
-          a follow-up question never requires scrolling back to find the field.
+          `sm:min-h-80` is the floor: it fits the suggestions, so the swap does
+          not resize the dialog under the reader's cursor. It starts at `sm`
+          deliberately — a 320px floor inside a panel that cannot scroll would
+          push content past the bottom of a landscape phone with no way to
+          reach it, and a floor exists only to stop a jump, while a ceiling
+          keeps content reachable. Reachability wins where they conflict.
+
+          `max-h-[50dvh]` with `overflow-y-auto` is the ceiling: a long answer
+          with sources grows the box until it reaches the available screen
+          height and then scrolls inside itself. Only this region scrolls — the
+          input above stays put, so a follow-up question never requires
+          scrolling back to find the field.
+
+          `flex-1 min-h-0` is what makes that possible at all. The dialog panel
+          is a flex column with `overflow-hidden`; a flex child's default
+          `min-height: auto` refuses to shrink below its content, so without
+          `min-h-0` this box would grow past the panel and be clipped rather
+          than scroll.
         */}
         <div
           data-testid="air-body"
           aria-live="polite"
           aria-busy={pending}
-          className="mt-6 min-h-80 max-h-[50dvh] overflow-y-auto"
+          className="mt-6 flex-1 min-h-0 max-h-[50dvh] overflow-y-auto sm:min-h-80"
         >
           {pending && (
             <p className="font-body opacity-70">Reading through Eddie&rsquo;s work&hellip;</p>
