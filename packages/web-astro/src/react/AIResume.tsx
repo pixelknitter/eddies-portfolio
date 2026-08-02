@@ -192,7 +192,12 @@ export function AIResume({ variant = 'page' }: Props = {}) {
         </>
       )}
 
-      <div className="surface mt-6 p-4 sm:p-6">
+      {/*
+        The card chrome belongs to the page variant only: inside the dialog the
+        panel is already a `surface`, and a second one draws a card inside a
+        card.
+      */}
+      <div className={variant === 'page' ? 'surface mt-6 p-4 sm:p-6' : ''}>
         <label
           htmlFor="air-input"
           className="mb-2 block font-body font-semibold"
