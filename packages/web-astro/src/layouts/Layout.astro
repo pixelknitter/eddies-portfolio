@@ -3,6 +3,7 @@ import { ClientRouter } from 'astro:transitions';
 import { fade } from 'astro:transitions';
 import Header from '@components/Header.astro';
 import Footer from '@components/Footer.astro';
+import { resolveSections } from '@util/flags/sections.mjs';
 import '../styles/global.css';
 import '../styles/motion.css';
 
@@ -25,6 +26,22 @@ const SITE_DESCRIPTION =
   'A portfolio of Eddie Freeman containing projects ranging from mobile (react native), nextjs, astro, and LLMs';
 
 const { pageTitle, description = SITE_DESCRIPTION } = Astro.props;
+
+/*
+ * Whether analytics loads on this page at all, and how widely.
+ *
+ * Resolved here — server-side, at render time — so the decision is made before
+ * a byte ships. A client-side check would have downloaded the SDK and then
+ * decided not to use it, which is the expensive way to say no.
+ *
+ * `analytics` is derived from the key existing; `analyticsSiteWide` is the
+ * scope switch, flag-controlled so it can move without a deploy. Feedback-only
+ * is the default, in which case nothing loads here and the A.I.R. island
+ * imports the SDK itself when someone actually asks a question.
+ */
+const sections = await resolveSections(import.meta.env);
+const loadAnalytics = sections.analytics && sections.analyticsSiteWide;
+const posthogKey = import.meta.env.PUBLIC_POSTHOG_KEY;
 
 // Identifies which build is live. The deploy pipeline polls this to confirm
 // the new Worker version is actually serving before it smoke-tests, and it
@@ -98,5 +115,28 @@ const buildSha = import.meta.env.PUBLIC_BUILD_SHA ?? 'dev';
         }
       });
     </script>
+    {
+      loadAnalytics && (
+        <script define:vars={{ posthogKey }}>
+          {/*
+            Bound to astro:page-load rather than run at module scope.
+
+            A view transition swaps the document without a page load, so
+            module-scope code runs exactly once and every navigation after the
+            first would go uncounted. This event fires on both, which is why the
+            SDK's own capture_pageview is turned off in the adapter.
+
+            loadClient is single-flight, so the repeat firings cost nothing.
+          */}
+          document.addEventListener('astro:page-load', async () => {
+            const { loadClient, getClient } = await import(
+              '../util/telemetry/client.mjs'
+            );
+            await loadClient({ token: posthogKey });
+            getClient().pageview(window.location.pathname);
+          });
+        </script>
+      )
+    }
   </body>
 </html>

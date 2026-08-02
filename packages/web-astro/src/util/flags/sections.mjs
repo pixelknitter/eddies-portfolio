@@ -66,6 +66,20 @@ export const KILL_FLAGS = Object.freeze({
   resume: 'section-resume-kill',
 });
 
+/**
+ * Whether analytics loads on every route, or only where feedback is collected.
+ *
+ * Scope, not presence — `analytics` already says whether there is a key to send
+ * to at all. This says who pays for it: every page view, or only the surfaces
+ * that can actually produce a rating or a dispute.
+ *
+ * Not a section and not a kill switch, so it is keyed separately from both. It
+ * is read in `Layout.astro`'s existing `resolveSections` await, which means the
+ * decision is made **server-side, before a byte ships** — a client-side check
+ * would have downloaded the SDK before deciding not to use it.
+ */
+export const ANALYTICS_SITE_WIDE_FLAG = 'analytics-site-wide';
+
 /** Runtime may set these either way. */
 const CONTENT_SECTIONS = ['blog', 'highlights', 'unpublished'];
 
@@ -85,6 +99,10 @@ export function buildTimeSections(env = {}) {
     // Analytics is on exactly when there is a key to send to. Derived rather than
     // given its own flag so the two can never disagree.
     analytics: Boolean(env.PUBLIC_POSTHOG_KEY),
+    // Feedback-only unless opted in: the cheaper and more private default, on a
+    // site whose performance story is minimal client JS. Meaningless without
+    // `analytics`, and the two are checked together at the call site.
+    analyticsSiteWide: env.PUBLIC_ANALYTICS_SITE_WIDE === 'true',
   };
 }
 
@@ -109,6 +127,12 @@ export function applyOverrides(base, flags) {
     for (const [section, key] of Object.entries(KILL_FLAGS)) {
       if (flags[key] === true) resolved[section] = false;
     }
+
+    // Same boolean discipline as the sections above, and for the same reason: a
+    // missing flag or a string variant must leave the compiled value alone
+    // rather than coerce to false.
+    const siteWide = flags[ANALYTICS_SITE_WIDE_FLAG];
+    if (typeof siteWide === 'boolean') resolved.analyticsSiteWide = siteWide;
   }
 
   /*

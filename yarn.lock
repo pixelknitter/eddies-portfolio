@@ -4163,6 +4163,32 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@posthog/browser-common@npm:^0.3.1":
+  version: 0.3.1
+  resolution: "@posthog/browser-common@npm:0.3.1"
+  dependencies:
+    "@posthog/core": ^1.46.0
+    "@posthog/types": ^1.399.0
+  checksum: 276eaaa29e2e422bc5e5d0688619831823522f0d97799850b2d7f5c59b8b8606a165639a0e16725d5e6d79dcbe3d5f4a2ccc3c013c43c32e9a1b437ffa033ccd
+  languageName: node
+  linkType: hard
+
+"@posthog/core@npm:^1.46.0, @posthog/core@npm:^1.46.1":
+  version: 1.46.1
+  resolution: "@posthog/core@npm:1.46.1"
+  dependencies:
+    "@posthog/types": ^1.399.0
+  checksum: 42202beaaa2575879edea9ed12ac5a78391b4a84443d1e7f775d1bb8ee3dba5f0ce8073b06e4fbc426d34d9205a1be71f0280226ae0e5f17d2b175677470d970
+  languageName: node
+  linkType: hard
+
+"@posthog/types@npm:^1.399.0":
+  version: 1.399.0
+  resolution: "@posthog/types@npm:1.399.0"
+  checksum: 5dd3b0e71b1561e99c6ad466e181d736fdc72144addc308084b27dd28cc8ef3106916d7cb657b3185079d4607082d34efba19204fb77b58aa589c26f28a11556
+  languageName: node
+  linkType: hard
+
 "@rolldown/binding-android-arm64@npm:1.1.5":
   version: 1.1.5
   resolution: "@rolldown/binding-android-arm64@npm:1.1.5"
@@ -5017,6 +5043,13 @@ __metadata:
   dependencies:
     csstype: ^3.2.2
   checksum: 9704dc2001b6bcc32efc6e3fe144e18c411d5ee8a5c8dfe572535e44bd300424c4e7bddc9314299eeec28efb547816368b5c9851c93a3082e8ad1265786f3d31
+  languageName: node
+  linkType: hard
+
+"@types/trusted-types@npm:^2.0.7":
+  version: 2.0.7
+  resolution: "@types/trusted-types@npm:2.0.7"
+  checksum: 8e4202766a65877efcf5d5a41b7dd458480b36195e580a3b1085ad21e948bc417d55d6f8af1fd2a7ad008015d4117d5fdfe432731157da3c68678487174e4ba3
   languageName: node
   linkType: hard
 
@@ -6547,6 +6580,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"core-js@npm:^3.49.0":
+  version: 3.49.0
+  resolution: "core-js@npm:3.49.0"
+  checksum: 0e2c7ce0d6639ac6b0c040c6e82d415e84f94a542fb6523388d204a1c5c2e503870aa64de180115d56a7bc7c780e43b5eab4b925a6f821a9d27f4b92d191713d
+  languageName: node
+  linkType: hard
+
 "cosmiconfig@npm:^7.0.0":
   version: 7.1.0
   resolution: "cosmiconfig@npm:7.1.0"
@@ -6968,6 +7008,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"dompurify@npm:^3.3.2":
+  version: 3.4.12
+  resolution: "dompurify@npm:3.4.12"
+  dependencies:
+    "@types/trusted-types": ^2.0.7
+  dependenciesMeta:
+    "@types/trusted-types":
+      optional: true
+  checksum: 477e944e669bac9247c9ebfa55c7ea5c73f3cc6cd6b21ee72e306000e3e53d308e7bdaac89e655a0e2661de2ffbdd877e6a92537d07ba1d70c6c441fcef8c65c
+  languageName: node
+  linkType: hard
+
 "domutils@npm:^3.0.1":
   version: 3.2.2
   resolution: "domutils@npm:3.2.2"
@@ -7069,6 +7121,7 @@ __metadata:
     nx: 23.1.0
     pdf-lib: ^1.17.1
     postcss: 8.4.21
+    posthog-js: ^1.409.5
     prettier: 3
     prettier-plugin-astro: latest
     prettier-plugin-tailwindcss: latest
@@ -8134,6 +8187,13 @@ __metadata:
     picomatch:
       optional: true
   checksum: bd537daa9d3cd53887eed35efa0eab2dbb1ca408790e10e024120e7a36c6e9ae2b33710cb8381e35def01bc9c1d7eaba746f886338413e68ff6ebaee07b9a6e8
+  languageName: node
+  linkType: hard
+
+"fflate@npm:^0.4.8":
+  version: 0.4.9
+  resolution: "fflate@npm:0.4.9"
+  checksum: b2381e71ddcdc46c20982b15ac7b416edb290a188bb6ce4295ffdfd836ee283670f1306d55401e41b0a6a4c9badd41f1a60016393ae768dd8c52925ed646a55d
   languageName: node
   linkType: hard
 
@@ -11462,6 +11522,35 @@ __metadata:
   languageName: node
   linkType: hard
 
+"posthog-js@npm:^1.409.5":
+  version: 1.409.5
+  resolution: "posthog-js@npm:1.409.5"
+  dependencies:
+    "@posthog/browser-common": ^0.3.1
+    "@posthog/core": ^1.46.1
+    "@posthog/types": ^1.399.0
+    core-js: ^3.49.0
+    dompurify: ^3.3.2
+    fflate: ^0.4.8
+    preact: ^10.29.3
+    query-selector-shadow-dom: ^1.0.1
+    web-vitals: ^5.3.0
+  checksum: 4f571a1824cd3fb50191479c416ddc599b11eac35a60993d791912dd671be2152308d5ea046b60c8dd7de245b92f27ddfbd2cec1385a2c4af77b1c37d917069a
+  languageName: node
+  linkType: hard
+
+"preact@npm:^10.29.3":
+  version: 10.29.8
+  resolution: "preact@npm:10.29.8"
+  peerDependencies:
+    preact-render-to-string: ">=5"
+  peerDependenciesMeta:
+    preact-render-to-string:
+      optional: true
+  checksum: 5a4774e8bce4ef5ebef5a3ef2358b47be6cd8b9b30132b1543d359efc90f8005a13506a75bfac6e9a044a614fa2a9def5f32fefd2c068f05221cf737283f1397
+  languageName: node
+  linkType: hard
+
 "prelude-ls@npm:^1.2.1":
   version: 1.2.1
   resolution: "prelude-ls@npm:1.2.1"
@@ -11657,6 +11746,13 @@ __metadata:
   version: 2.3.1
   resolution: "punycode@npm:2.3.1"
   checksum: bb0a0ceedca4c3c57a9b981b90601579058903c62be23c5e8e843d2c2d4148a3ecf029d5133486fb0e1822b098ba8bba09e89d6b21742d02fa26bda6441a6fb2
+  languageName: node
+  linkType: hard
+
+"query-selector-shadow-dom@npm:^1.0.1":
+  version: 1.0.1
+  resolution: "query-selector-shadow-dom@npm:1.0.1"
+  checksum: 8ab1cdd5e1927b583503b590165d66770fb91c87ac28b50a43596b755db3792c0e506250f46d0af97f0064a5cc12a1de449fd5c2cfcadf18b0880a4d8aecebbd
   languageName: node
   linkType: hard
 
@@ -14402,6 +14498,13 @@ __metadata:
   version: 2.0.1
   resolution: "web-namespaces@npm:2.0.1"
   checksum: b6d9f02f1a43d0ef0848a812d89c83801d5bbad57d8bb61f02eb6d7eb794c3736f6cc2e1191664bb26136594c8218ac609f4069722c6f56d9fc2d808fa9271c6
+  languageName: node
+  linkType: hard
+
+"web-vitals@npm:^5.3.0":
+  version: 5.3.0
+  resolution: "web-vitals@npm:5.3.0"
+  checksum: 0140e84c1ecf42e4f3097f451c3d8d97141b1eb3d9756efa80c1d9c0cc1b087d451280603e5bc12d83af078b91979e685823a9c567db0c13bad30600b42eb24f
   languageName: node
   linkType: hard
 

@@ -4,6 +4,7 @@ import { readRuntimeFlags, resetFlagCache } from './client.mjs';
 import {
   applyOverrides,
   buildTimeSections,
+  ANALYTICS_SITE_WIDE_FLAG,
   KILL_FLAGS,
   resolveSections,
   SECTION_FLAGS,
@@ -298,5 +299,69 @@ describe('resolveSections', () => {
   it('returns a frozen object, so a caller cannot flip a gate downstream', async () => {
     const sections = await resolveSections({});
     expect(Object.isFrozen(sections)).toBe(true);
+  });
+});
+
+describe('the analytics scope switch', () => {
+  /*
+   * Scope, not presence. `analytics` says whether there is a key to send to at
+   * all; this says whether every route pays for the SDK or only the pages that
+   * collect feedback.
+   *
+   * It resolves server-side in Layout's existing `resolveSections` await, which
+   * is the whole point — a client-side check would have downloaded the SDK
+   * before deciding not to use it.
+   */
+
+  it('defaults to feedback-only when the environment says nothing', () => {
+    // The cheaper and more private default. Site-wide is opted into.
+    expect(buildTimeSections({}).analyticsSiteWide).toBe(false);
+  });
+
+  it('compiles site-wide in from the environment', () => {
+    expect(
+      buildTimeSections({ PUBLIC_ANALYTICS_SITE_WIDE: 'true' }).analyticsSiteWide,
+    ).toBe(true);
+  });
+
+  it('lets a runtime flag turn it on without a deploy', () => {
+    const resolved = applyOverrides(buildTimeSections({}), {
+      [ANALYTICS_SITE_WIDE_FLAG]: true,
+    });
+
+    expect(resolved.analyticsSiteWide).toBe(true);
+  });
+
+  it('lets a runtime flag turn it off again', () => {
+    const resolved = applyOverrides(
+      buildTimeSections({ PUBLIC_ANALYTICS_SITE_WIDE: 'true' }),
+      { [ANALYTICS_SITE_WIDE_FLAG]: false },
+    );
+
+    expect(resolved.analyticsSiteWide).toBe(false);
+  });
+
+  it('ignores a string variant, like every other section flag', () => {
+    // applyOverrides already documents this: only a real boolean counts, so a
+    // missing flag or a variant leaves the compiled value alone rather than
+    // coercing to false.
+    const resolved = applyOverrides(
+      buildTimeSections({ PUBLIC_ANALYTICS_SITE_WIDE: 'true' }),
+      { [ANALYTICS_SITE_WIDE_FLAG]: 'yes' },
+    );
+
+    expect(resolved.analyticsSiteWide).toBe(true);
+  });
+
+  it('does not make the privacy policy reachable on its own', () => {
+    // collectsData is about whether anything collects, not how widely. A scope
+    // switch with no key behind it must not summon a policy describing
+    // collection that is not happening.
+    const resolved = applyOverrides(
+      buildTimeSections({ PUBLIC_ANALYTICS_SITE_WIDE: 'true' }),
+      null,
+    );
+
+    expect(resolved.analytics).toBe(false);
   });
 });
