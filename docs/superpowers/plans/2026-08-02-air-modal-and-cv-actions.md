@@ -914,7 +914,16 @@ Replace the `ResumeVisual` block with one that puts the toggles either side of t
       </div>
     </ResumeVisual>
 
-    <div class="resume-no-print mx-auto mt-4 max-w-3xl">
+    {
+      /*
+      `organic` is load-bearing, not decoration. Every CTA rule in
+      resume-organic.css is scoped `.organic .resume-cta`, and this button sits
+      outside the résumé card — so unlike its twin above, which inherits the
+      class from ResumeVisual's own <article>, it has no `.organic` ancestor and
+      would fall back to a bare user-agent button.
+    */
+    }
+    <div class="organic resume-no-print mx-auto mt-4 max-w-3xl">
       <button
         type="button"
         class="resume-cta resume-cta-secondary"
