@@ -362,7 +362,7 @@ Replace the markup from the `Access code` label through the `Press Enter to ask.
           type={hasCode ? 'text' : 'password'}
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          className="w-full rounded-lg border border-hairline bg-light p-3 text-dark focus:outline-2 focus:outline-offset-2 focus:outline-underline dark:border-hairline-dark dark:bg-dark dark:text-light dark:focus:outline-link"
+          className="w-full rounded-lg border border-hairline bg-surface p-3 text-dark focus:outline-2 focus:outline-offset-2 focus:outline-underline dark:border-hairline-dark dark:bg-surface-dark dark:text-light dark:focus:outline-link"
           placeholder={hasCode ? "Ask about Eddie's work…" : 'Enter your access code'}
           autoComplete="off"
           onKeyDown={(event) => {
