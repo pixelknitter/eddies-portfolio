@@ -274,12 +274,36 @@ bottom of the log: `Cleaning up orphan processes` lists the whole tree still
 alive, and **two** `workerd` and **two** `esbuild` entries mean
 `serve-worker.mjs` had restarted wrangler into a state nothing was draining.
 
-**The mechanism is not fully pinned.** It has not reproduced on macOS — the
-same suite completes there in about three and a half minutes. Treat the
-supervisor's restart path as the prime suspect until someone reproduces it on
-Linux.
+**Cause.** The wedge is in Playwright's **teardown**, not in the tests. Once a
+ceiling was added the run stopped hanging and said so outright:
 
-**Fix.** Bounded rather than cured, deliberately, in two layers:
+```
+Timed out waiting 600s for the teardown for plugin setup to run
+```
+
+Three things combined:
+
+1. `serve-worker.mjs` spawns wrangler `detached`, so the whole tree can be
+   reaped by group id — which also means Playwright's process-group kill at
+   teardown never reaches it.
+2. The supervisor's signal handler called `process.exit(0)` on the line after
+   `reap()`. SIGKILL is delivered asynchronously, so it left while wrangler and
+   two workerd processes were still running.
+3. Those survivors had `stdio: 'inherit'` — Playwright's *own* stdout and
+   stderr. Playwright waits for those to close. They never did.
+
+The same orphans also held port 4321, which is why the job-level retry failed in
+three seconds without ever binding.
+
+**Fix.** Cured at the cause and bounded as well, since a teardown that cannot
+finish should never again cost six hours:
+
+- wrangler's output is piped and forwarded rather than inherited, so the fds
+  belong to the supervisor and close when it exits, whatever survives below it.
+- the signal handler waits for the port to be released before exiting, and both
+  give-up paths reap the tree.
+
+The ceilings stay, in two layers:
 
 - `globalTimeout` in `playwright.config.ts` fails the *run* at ten minutes,
   which still executes the log-collection and artifact steps.
@@ -287,10 +311,11 @@ Linux.
   itself with it. This one kills the step, so the evidence steps are skipped —
   which is exactly why the Playwright-level ceiling is the lower of the two.
 
-A run that ends at either ceiling is this bug, not a slow suite. Re-run it, and
-add the occurrence to
-[#73](https://github.com/pixelknitter/eddies-portfolio/issues/73), which tracks
-the unproven mechanism.
+A run that ends at either ceiling has hit something new, not a slow suite — a
+clean pass is under four minutes. Check `Cleaning up orphan processes` at the
+foot of the job log first: anything still listed there means something below the
+supervisor outlived it again. Record it on
+[#73](https://github.com/pixelknitter/eddies-portfolio/issues/73).
 
 ---
 

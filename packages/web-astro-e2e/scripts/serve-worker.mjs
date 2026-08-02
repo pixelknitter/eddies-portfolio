@@ -202,10 +202,28 @@ function start() {
   //
   // `detached` puts wrangler and its workerd children in their own process
   // group, so `reap()` can kill the tree without killing this supervisor.
+  //
+  // Piped, emphatically *not* inherited, and this is what stopped the job
+  // hanging outright. Inherited fds are Playwright's own stdout and stderr, and
+  // `detached` is exactly what keeps this tree alive through Playwright's
+  // process-group kill at teardown. An orphaned wrangler therefore sat holding
+  // the pipes Playwright waits to see close, and teardown never returned:
+  //
+  //     Timed out waiting 600s for the teardown for plugin setup to run
+  //
+  // Owning the pipes here means they close when *this* process exits, whatever
+  // survives below it. A survivor writing into a closed pipe takes an EPIPE and
+  // dies, which is the outcome we want anyway.
   child = spawn('npx', ['wrangler', 'dev', ...args], {
-    stdio: 'inherit',
+    stdio: ['ignore', 'pipe', 'pipe'],
     detached: true,
   });
+
+  // Forwarded rather than dropped: wrangler's stdout carries the `✘ [ERROR]`
+  // block and the path to its own logfile, which is the only account of why the
+  // server went away.
+  child.stdout?.on('data', (chunk) => process.stdout.write(chunk));
+  child.stderr?.on('data', (chunk) => process.stderr.write(chunk));
 
   const pid = child.pid;
   currentGeneration += 1;
@@ -221,7 +239,14 @@ function start() {
 
     const alive = Date.now() - startedAt;
     const how = signal ? `signal ${signal}` : `code ${code}`;
-    const fail = () => process.exit(code === 0 ? 1 : (code ?? 1));
+    // Reap before leaving on either giving-up path. wrangler exiting does not
+    // take workerd with it — the two-generation orphan list in a hung job is
+    // what that looks like — and a workerd still holding port 4321 turns the
+    // job-level retry into an instant bind failure.
+    const fail = () => {
+      reap(pid);
+      process.exit(code === 0 ? 1 : (code ?? 1));
+    };
 
     if (!everServed) {
       console.error(
@@ -262,11 +287,34 @@ function start() {
   });
 }
 
+/*
+ * Leave only once the tree is actually gone.
+ *
+ * SIGKILL is delivered asynchronously, so exiting on the line after `reap()`
+ * left wrangler and two workerd processes still running — long enough to hold
+ * port 4321, which is why the job-level retry died in three seconds without
+ * ever binding. Waiting on the port is waiting on the thing that actually
+ * matters to the next caller.
+ *
+ * Bounded by PORT_RELEASE_TIMEOUT_MS, and it exits either way: a teardown that
+ * refuses to finish is the bug being fixed here, not a reason to add another.
+ */
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => {
+    if (stopping) return;
     stopping = true;
     if (child?.pid) reap(child.pid);
-    process.exit(0);
+
+    waitForPort()
+      .then((released) => {
+        if (!released) {
+          console.error(
+            `[serve-worker] port ${port} still held ${PORT_RELEASE_TIMEOUT_MS}ms after ` +
+              `${signal}; exiting anyway.`,
+          );
+        }
+      })
+      .finally(() => process.exit(0));
   });
 }
 
