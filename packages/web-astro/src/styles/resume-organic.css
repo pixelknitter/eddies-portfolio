@@ -659,10 +659,6 @@
   background: color-mix(in srgb, var(--color-dark) 90%, transparent);
 }
 
-.resume-action-bar-spacer {
-  flex: 1 1 auto;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .organic .resume-cta {
     transition: none;

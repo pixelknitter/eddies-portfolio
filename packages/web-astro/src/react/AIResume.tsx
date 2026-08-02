@@ -621,8 +621,6 @@ export function AIResume({ variant = 'page', titleId }: Props = {}) {
               up. The 503 from an unconfigured environment returns in well under
               a second, and the shift as "Sending…" swapped back while this
               paragraph mounted was the flicker. */}
-            {/* Height reserved so an arriving message does not shift the buttons —
-              that shift was visible as a flicker on fast rejections. */}
             <div aria-live="polite" className="mt-4 min-h-6">
               {requestState.status === 'failed' && (
                 <p className="font-body">{requestState.message}</p>
