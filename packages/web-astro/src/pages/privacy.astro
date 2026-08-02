@@ -1,0 +1,61 @@
+---
+import Layout from '@layouts/Layout.astro';
+import Prose from '@components/Prose.astro';
+
+import { resolveSections } from '@util/flags/sections.mjs';
+
+import {
+  Content as Privacy,
+  frontmatter as privacyMatter,
+} from '../static/privacy.md';
+
+/**
+ * The privacy policy.
+ *
+ * Gated on `collectsData`, which is derived rather than flagged: it is true when
+ * A.I.R., the resume gate, or analytics is on. That is the one condition under
+ * which this page has anything to disclose, and gating on it means the policy
+ * cannot 404 while the thing it describes is live — which is the failure worth
+ * designing against. A policy that outlives what it documents is merely
+ * redundant; one that is missing while data is being collected is a broken
+ * promise.
+ *
+ * An earlier draft carried no flag at all, on the reasoning that an unreachable
+ * policy is worse than none. `collectsData` reaches the same guarantee without
+ * the side effect of publishing a data-collection notice on a tier that collects
+ * nothing. See the derivation and its comment in `util/flags/sections.mjs`.
+ *
+ * It is written to describe the site with telemetry enabled, and the features it
+ * covers are gated, so it says "by invitation" rather than asserting A.I.R. is
+ * available. That way the page stays true whichever flags are set.
+ *
+ * This page and `docs/observability/03-design.md` describe the same thing from
+ * two directions. If the event taxonomy, the retention window, or the list of
+ * third-party services changes there, it changes here too — a policy that has
+ * drifted from the code is a false statement, not stale documentation.
+ */
+const sections = await resolveSections(import.meta.env);
+
+// The gate has to cover the route, not just the footer link — same reasoning as
+// blog.astro. An unlinked page that still answers is not gated.
+if (!sections.collectsData) {
+  return new Response(null, { status: 404, statusText: 'Not found' });
+}
+
+const { title: pageTitle, subject, updated } = privacyMatter;
+
+const updatedLabel = new Date(`${updated}T00:00:00Z`).toLocaleDateString(
+  'en-US',
+  { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' },
+);
+---
+
+<Layout pageTitle={pageTitle}>
+  <h1>{subject}</h1>
+  <p class="font-body text-disabled mb-6">
+    Last updated <time datetime={updated}>{updatedLabel}</time>
+  </p>
+  <Prose>
+    <Privacy />
+  </Prose>
+</Layout>

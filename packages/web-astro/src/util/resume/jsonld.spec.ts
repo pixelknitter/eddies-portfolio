@@ -18,7 +18,7 @@ type Node = Record<string, unknown>;
 const graph = buildResumeJsonLd({
   resume: RESUME,
   siteUrl: 'https://eddie.engineering',
-  pagePath: '/air/resume/for-bots',
+  pagePath: '/cv/for-bots',
 }) as Node;
 
 const person = graph.mainEntity as Node;
@@ -58,7 +58,7 @@ describe('shape', () => {
   // Absolute, and always the production origin — a staging build that emitted
   // staging URLs would publish a second competing profile for the same person.
   it('uses absolute URLs on the production origin', () => {
-    expect(graph.url).toBe('https://eddie.engineering/air/resume/for-bots');
+    expect(graph.url).toBe('https://eddie.engineering/cv/for-bots');
     expect(person.url).toBe('https://eddie.engineering');
     for (const url of person.sameAs as string[])
       expect(url).toMatch(/^https:\/\//);
