@@ -231,4 +231,57 @@ describe('AIResume', () => {
     // The suggestions gave way rather than stacking above the answer.
     expect(within(region).queryByRole('button', { name: /system nobody wants to own/i })).not.toBeInTheDocument();
   });
+
+  /**
+   * Asking without a code is a guaranteed 401, so the suggestions are held
+   * shut until one is stored. Both directions are asserted: a disabled-only
+   * test would still pass if the buttons were never enabled at all.
+   */
+  it('holds the suggestions shut until a code is stored', () => {
+    window.localStorage.clear();
+    render(<AIResume />);
+
+    const region = screen.getByTestId('air-body');
+    expect(
+      within(region).getByRole('button', { name: /system nobody wants to own/i }),
+    ).toBeDisabled();
+  });
+
+  it('opens the suggestions once a code is stored', () => {
+    window.localStorage.setItem('air-access-code', 'conf-2026');
+    render(<AIResume />);
+
+    const region = screen.getByTestId('air-body');
+    expect(
+      within(region).getByRole('button', { name: /system nobody wants to own/i }),
+    ).toBeEnabled();
+  });
+
+  it('returns the container to the suggestions when asked for something else', async () => {
+    window.localStorage.setItem('air-access-code', 'conf-2026');
+    mockAnswer({
+      grounded: true,
+      answer: 'He built a smoke test.',
+      citations: ['platform-migration'],
+      sources: [{ id: 'platform-migration', title: 'Migrated a build pipeline' }],
+    });
+
+    const user = userEvent.setup();
+    render(<AIResume />);
+
+    const region = screen.getByTestId('air-body');
+    await user.type(
+      screen.getByPlaceholderText(/ask about Eddie's work/i),
+      'How does he deploy?{Enter}',
+    );
+    expect(await within(region).findByText(/built a smoke test/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /ask something else/i }));
+
+    expect(
+      within(region).getByRole('button', { name: /system nobody wants to own/i }),
+    ).toBeInTheDocument();
+    // And the answer went with it, rather than being left above the suggestions.
+    expect(within(region).queryByText(/built a smoke test/i)).not.toBeInTheDocument();
+  });
 });
