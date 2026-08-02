@@ -16,7 +16,15 @@ const { title: pageTitle, badges, subject } = aboutMatter;
     <Hero alt="RaccoonSpaceGif" src="/space.webp"/>
     <h1>{subject}</h1>
     <div class="flex flex-wrap mb-6">
-        {badges.map((badge: string) => <span class="bg-tag text-light rounded-md font-body font-semibold text-[0.85rem] mx-1 my-2 px-2 py-1 whitespace-nowrap place-content-center">{badge}</span> )}
+        {/*
+          `.badge` rather than the same utilities written out again. These
+          personas were a hand-rolled copy of that class, differing only in
+          font size (0.85rem against text-sm's 0.875rem) — close enough to be
+          unintentional. A copy does not follow the original: the pill gained a
+          light-mode fill and this would have kept the dark one, on the page
+          that shows the most of them.
+        */}
+        {badges.map((badge: string) => <span class="badge place-content-center">{badge}</span> )}
     </div>
     <Prose>
         <About />

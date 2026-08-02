@@ -44,7 +44,19 @@
   --color-link-on-light: #206f4a; /* on #fdebf3 — 5.34:1, AA */
   --color-underline: #348aa7;
   --color-emphasis: #525174;
+  /* Badge fill, paired per ground — and paired for *weight*, not for contrast.
+     The dark violet was never an accessibility failure on paper: pale text on
+     it measures 7.65:1. The failure is one of hierarchy. Measured against its
+     own ground, the same pill is 2.00:1 on dark — a quiet chip, gently raised —
+     and 7.65:1 on light, a slab as loud as body text. One element cannot mean
+     "incidental metadata" at both weights, and on the sunlit paper the loud
+     reading won: the badges read as holes punched in the page.
+     The light value is the same hue (271°) with saturation raised to survive
+     the tint, landing at 1.37:1 against the ground — the weight
+     --color-surface-dark already carries in dark mode (1.42:1). Body ink on it
+     is 11.16:1, so the pill gets quieter while its label gets clearer. */
   --color-tag: #584966;
+  --color-tag-on-light: #dcd1e5;
   /* Card/panel surfaces. The page and card previously shared --color-dark,
      so cards were invisible except for a faint shadow.
      Measured against the page background: the first attempt at #2a2740 was
@@ -71,8 +83,25 @@
        colliding once the header wraps at narrow widths. */
     @apply inline-block py-1 mx-2 text-center text-dark dark:text-light hover:underline hover:decoration-underline hover:decoration-2 hover:underline-offset-[6px];
   }
+  /* A text pill: a tag, a label, a repo language. Its job is to sit quietly
+     behind dark text, so it takes the paired fill. */
   .badge {
-    @apply bg-tag text-light text-center rounded-md font-body font-semibold text-sm mx-1 my-2 px-2 py-1 whitespace-nowrap;
+    @apply bg-tag-on-light text-dark dark:bg-tag dark:text-light text-center rounded-md font-body font-semibold text-sm mx-1 my-2 px-2 py-1 whitespace-nowrap;
+  }
+  /* The backdrop behind a tech-stack icon. Deliberately *not* .badge, and
+     deliberately dark in both themes.
+     It was .badge, by name collision rather than intent: Badge.astro puts
+     class="badge" on an <Image> and Astro's scoped style only adds padding on
+     top of the global rule, so the tiles inherited the pill's fill. That
+     accident then propagated — three brand marks in public/brand (Anthropic,
+     OpenAI, MCP) are hand-inked #FDEBF3 and are legible only because something
+     dark sits behind them. Paling this to match the pill drops them to 1.11:1,
+     under the 3:1 WCAG 1.4.11 asks of icons.
+     So the two classes want opposite things on paper: a pill needs to recede
+     behind dark text, a tile needs to guarantee an arbitrary vendor mark reads.
+     One token cannot serve both, which is the whole reason they are split. */
+  .tech-tile {
+    @apply bg-tag rounded-md p-1.5;
   }
   .btn {
     @apply inline-block text-center bg-transparent border-2 border-button rounded-lg
@@ -165,8 +194,17 @@
   html.dark {
     @apply bg-dark text-light;
   }
+  /* Ragged right, not justified.
+     Justification without hyphenation buys even margins by paying in uneven
+     word spacing, and at this measure — max-w-screen-md, so roughly 80
+     characters — the payment shows as rivers running down the paragraph. The
+     home page's "My Building Blocks" copy was the clearest example.
+     Prose.astro already overrode this with `text-left` for blog and project
+     content, which is the tell: the rule was being worked around wherever
+     someone looked closely at the typography. Removing it here makes the
+     override redundant rather than load-bearing. */
   body {
-    @apply max-w-screen-md mx-auto text-justify px-5 md:px-0 lg:px-0 text-dark dark:text-light;
+    @apply max-w-screen-md mx-auto px-5 md:px-0 lg:px-0 text-dark dark:text-light;
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-header;

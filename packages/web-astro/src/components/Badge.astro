@@ -10,7 +10,7 @@ const SKILL_SIZE = 46;
 <div class="group relative">
   <div class="badge-container">
     <Image
-      class="badge transition-all duration-300 hover:scale-110 hover:rotate-3 hover:shadow-lg"
+      class="tech-tile transition-all duration-300 hover:scale-110 hover:rotate-3 hover:shadow-lg"
       width={SKILL_SIZE}
       height={SKILL_SIZE}
       alt={label}
@@ -30,8 +30,9 @@ const SKILL_SIZE = 46;
     @apply inline-block;
     animation: float 3s ease-in-out infinite;
   }
-  .badge {
-    @apply rounded-md p-1.5;
+  /* Fill and padding come from .tech-tile in global.css; this adds only the
+     motion, which is specific to these floating icons. */
+  .tech-tile {
     transition: transform var(--animate-duration), rotate var(--animate-duration), box-shadow var(--animate-duration);
   }
   .tooltip {

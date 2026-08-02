@@ -48,8 +48,17 @@ const gateContact = isResumeRoute(Astro.url.pathname);
             </a>
           </li>
         </ul>
-        <small class="block mt-6">&copy; {year} Eddie Engineering by <a class="text-link no-underline" href="https://github.com/pixelknitter">pixelknitter</a>. All Rights Reserved.</small>
-        {collectsData && <small class="block mt-2"><a class="text-link no-underline" href="/privacy">Privacy</a></small>}
+        {/*
+          The paired link accent, not the bare one. Mint on the page ground
+          measures 1.74:1 — a clear AA failure, and on every page, since this
+          footer is in the base layout.
+          `--color-link-on-light` was added for exactly this; its own comment in
+          global.css names Footer.astro as the case that motivated it. The token
+          then landed in LatestWork, 404 and Prose and never came back here, so
+          the one file the fix was named after kept the failing colour.
+        */}
+        <small class="block mt-6">&copy; {year} Eddie Engineering by <a class="text-link-on-light dark:text-link no-underline" href="https://github.com/pixelknitter">pixelknitter</a>. All Rights Reserved.</small>
+        {collectsData && <small class="block mt-2"><a class="text-link-on-light dark:text-link no-underline" href="/privacy">Privacy</a></small>}
       </div>
 </footer>
 
