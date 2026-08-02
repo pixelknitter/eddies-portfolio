@@ -48,6 +48,27 @@ import {
   summarise,
   diffRuns,
 } from '../packages/web-astro/src/util/air/evals/graders.mjs';
+import { createTelemetry } from '@pk/telemetry';
+
+/*
+ * Eval runs emit the same trace shape production emits.
+ *
+ * This harness calls real models and graded them into a report nobody could
+ * compare against live traffic. Same `$ai_trace` and `$ai_span`, tagged
+ * `run: 'eval'`, so a model sweep sits beside real questions in the same views
+ * instead of in a markdown file — and so "does this model decline more than the
+ * one in production" is a query rather than a reading exercise.
+ *
+ * `run: 'eval'` is not optional. Without it a sweep of the golden set looks
+ * exactly like a traffic spike.
+ *
+ * Unconfigured is a no-op, so a local run without a key behaves exactly as it
+ * did before this existed. That is the transport's standing guarantee, and it
+ * is what lets this run on any machine.
+ */
+const telemetry = createTelemetry(process.env, {
+  distinctId: `air-eval-${process.env.GITHUB_RUN_ID ?? 'local'}`,
+});
 
 const args = process.argv.slice(2);
 const flag = (name) => {
@@ -177,6 +198,38 @@ async function runModel(model) {
     const verdict = gradeCase(testCase, result, retrievedIds);
     verdicts.push(verdict);
 
+    /*
+     * The same three events `api/air/ask.ts` emits, so the two are comparable
+     * without a translation step.
+     *
+     * `outcome` is derived from what actually happened rather than from whether
+     * the case passed: a correct decline is `no_context`, not a failure, and
+     * conflating "the guardrail worked" with "something went wrong" would make
+     * the boundary cases unreadable in aggregate.
+     */
+    telemetry.captureTrace({
+      trace: {
+        traceId: `${model}:${testCase.id}`,
+        outcome: calledModel ? 'answered' : 'no_context',
+        tier: 'eval',
+        model,
+        grounded: Boolean(result?.grounded),
+        questionLength: testCase.question.length,
+        run: 'eval',
+        case_id: testCase.id,
+        case_category: testCase.category,
+        eval_pass: verdict.pass,
+      },
+      retrieval: {
+        traceId: `${model}:${testCase.id}`,
+        retrievedIds,
+        floorCleared: retrievedIds.length > 0,
+        // Same rule as production: the question rides here only when nothing was
+        // retrieved, so declines are readable and grounded ones are not doubled.
+        question: testCase.question,
+      },
+    });
+
     const mark = verdict.pass ? '✓' : '✖';
     const route = calledModel ? `${Math.round(ms)}ms` : 'declined at retrieval';
     console.log(`${mark} ${testCase.id} (${route})`);
@@ -284,6 +337,16 @@ async function main() {
 
   const runs = [];
   for (const model of MODELS) runs.push(await runModel(model));
+
+  /*
+   * Flushed here, before any of the exit paths below.
+   *
+   * Several of them call process.exit, which does not wait for a pending
+   * request — so a failing run, which is precisely the one worth having traces
+   * for, would send nothing. Awaited rather than fired: this is a script, and
+   * there is no `waitUntil` to hand the send to.
+   */
+  await telemetry.flush();
 
   const report = buildReport(runs);
   console.log(`\n${report}`);
