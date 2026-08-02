@@ -16,7 +16,7 @@ import { createRateLimiter, isAuthorised } from '@util/air/access.mjs';
 import { readSecret } from '@util/air/runtime.mjs';
 import { verifyAccessCode } from '@util/air/requests.mjs';
 import { tierFromRequest } from '@util/air/tier.mjs';
-import { createTelemetry } from '@util/telemetry/index.mjs';
+import { createTelemetry } from '@eddie/telemetry-core';
 
 /**
  * A.I.R. question endpoint.

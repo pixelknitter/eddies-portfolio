@@ -107,11 +107,16 @@ export function createTelemetry(env, options = {}) {
      * Stub until Wave 2 (#66). Deliberately does nothing rather than falling
      * back to a `console.error`, which would read as an alert having fired.
      *
+     * The empty body is the point, so the lint rule is silenced here rather
+     * than satisfied with a token statement that would imply something happens.
+     * It exists now so the call sites in `ask.ts` are written once.
+     *
      * @param {'warn' | 'error'} _severity
      * @param {string} _message
      * @param {Record<string, unknown>} [_fields]
      */
-    alert(_severity, _message, _fields = {}) {},
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    alert(_severity, _message, _fields) {},
 
     flush: transport.flush,
   };

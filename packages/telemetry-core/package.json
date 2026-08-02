@@ -1,0 +1,19 @@
+{
+  "name": "@eddie/telemetry-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Telemetry primitives for A.I.R. Pure and dependency-free so the same redactor runs in workerd, in Node, and behind the browser adapter.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.mjs",
+  "exports": {
+    ".": "./src/index.mjs",
+    "./redact": "./src/redact.mjs",
+    "./llm": "./src/llm.mjs",
+    "./transport": "./src/transport.mjs"
+  },
+  "files": [
+    "src"
+  ],
+  "sideEffects": false
+}
