@@ -1,8 +1,8 @@
 ---
 import Layout from '@layouts/Layout.astro';
 import ResumeVisual from '@components/resume/ResumeVisual.astro';
-import ResumeActions from '@components/resume/ResumeActions.astro';
 import { ResumeDownload } from '../../react/ResumeDownload';
+import { AskAir } from '../../react/AskAir';
 import { loadResume } from '@util/resume/load';
 import { resolveSections } from '@util/flags/sections.mjs';
 import '../../styles/resume-organic.css';
@@ -109,28 +109,59 @@ const airPath = sections.air ? '/cv/air/' : undefined;
   }
   <div class="organic resume-action-bar resume-no-print">
     <ResumeDownload client:visible />
-    <span class="resume-action-bar-spacer"></span>
-    <button
-      type="button"
-      class="resume-cta resume-cta-secondary"
-      data-resume-expand
-      aria-expanded="false"
-    >
-      Expand all
-    </button>
   </div>
+
+  {
+    /*
+    A.I.R.'s front door, in the slot `Expand all` used to occupy. Rendered only
+    when the feature is on: with it off, the top zone is the two download
+    buttons and nothing else, rather than a control that leads to a 404.
+  */
+  }
+  {
+    airPath && (
+      <div class="organic resume-no-print mx-auto mt-3 max-w-3xl">
+        <AskAir client:visible href={airPath} />
+      </div>
+    )
+  }
 
   <div class="resume-no-print">
     <ResumeVisual {resume}>
       {
         /*
-        The web-only chrome, passed in rather than rendered inside ResumeVisual:
-        that file is fingerprinted, and slot content lives here, so restyling
-        these never touches the PDF hash.
+        `Expand all` now sits beside what it expands, rather than 628px above it
+        and above the résumé card entirely — where it offered to expand
+        something the visitor had not yet seen. A matching control at the foot
+        serves someone who has read to the bottom and wants to fold it back up
+        without scrolling to the top.
+
+        Both are excluded from print: they toggle <details> elements that print
+        open regardless, so on paper they are two dead buttons.
       */
       }
-      <ResumeActions slot="actions" {airPath} {botsPath} />
+      <div slot="actions" class="resume-no-print">
+        <button
+          type="button"
+          class="resume-cta resume-cta-secondary"
+          data-resume-expand
+          aria-expanded="false"
+        >
+          Expand all
+        </button>
+      </div>
     </ResumeVisual>
+
+    <div class="resume-no-print mx-auto mt-4 max-w-3xl">
+      <button
+        type="button"
+        class="resume-cta resume-cta-secondary"
+        data-resume-expand
+        aria-expanded="false"
+      >
+        Expand all
+      </button>
+    </div>
   </div>
 </Layout>
 <script>
@@ -142,11 +173,13 @@ const airPath = sections.air ? '/cv/air/' : undefined;
    * nav across swaps. A plain top-level listener would go stale on navigation.
    */
   function initResumeExpand() {
-    const button = document.querySelector<HTMLButtonElement>(
-      '[data-resume-expand]',
+    // Two controls now — one above the sections and one below — and they must
+    // report the same state, so a click on either updates both labels.
+    const buttons = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('[data-resume-expand]'),
     );
     const scope = document.querySelector<HTMLElement>('[data-resume-sections]');
-    if (!button || !scope) return;
+    if (buttons.length === 0 || !scope) return;
 
     const sections = Array.from(
       scope.querySelectorAll<HTMLDetailsElement>('details'),
@@ -155,16 +188,19 @@ const airPath = sections.air ? '/cv/air/' : undefined;
 
     const sync = () => {
       const allOpen = sections.every((section) => section.open);
-      button.textContent = allOpen ? 'Collapse all' : 'Expand all';
-      // The button controls the sections, so it reports their collective state.
-      button.setAttribute('aria-expanded', String(allOpen));
+      for (const button of buttons) {
+        button.textContent = allOpen ? 'Collapse all' : 'Expand all';
+        button.setAttribute('aria-expanded', String(allOpen));
+      }
     };
 
-    button.addEventListener('click', () => {
-      const allOpen = sections.every((section) => section.open);
-      for (const section of sections) section.open = !allOpen;
-      sync();
-    });
+    for (const button of buttons) {
+      button.addEventListener('click', () => {
+        const allOpen = sections.every((section) => section.open);
+        for (const section of sections) section.open = !allOpen;
+        sync();
+      });
+    }
 
     // Toggling any one section can complete or break "all open", so the label
     // has to follow individual toggles too, not just its own clicks.
