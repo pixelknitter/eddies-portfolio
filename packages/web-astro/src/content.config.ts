@@ -99,6 +99,49 @@ const star = defineCollection({
 });
 
 /**
+ * Challenges — a failing, and what came of it.
+ *
+ * Same four fields as `star`, on purpose: the arc holds, the difference is only
+ * that the situation arose from a mistake rather than an opportunity, and the
+ * result is a recovery rather than a win. Writing one should feel like writing a
+ * highlight, because it is one.
+ *
+ * ## Why it is a separate collection and not a flag on `star`
+ *
+ * `star` has a second consumer — published entries rotate into the home-page
+ * spotlight. A candid account of something going wrong is valuable to someone
+ * evaluating Eddie and is not a landing-page headline, and a boolean guarding
+ * that would be one forgotten default away from putting it there. Nothing
+ * renders this collection; only A.I.R. reads it.
+ *
+ * ## `reflection` is the field that earns the collection
+ *
+ * A hiring manager's real question is not "what went wrong" but "what do you do
+ * differently now". `result` cannot carry both the recovery and the lesson
+ * without one crowding the other — the same crowding that made `star` the wrong
+ * home for this.
+ *
+ * A note on how these are read: A.I.R. may draw a pattern from these entries and
+ * cite them as the examples supporting it. It may not turn one into a
+ * disposition. "In this migration he sized the work wrong and rewrote the
+ * estimate" is the story; "he underestimates timelines" is a claim about a
+ * person that no single entry supports.
+ */
+const challenges = defineCollection({
+  loader: glob({ pattern: CONTENT_GLOB, base: './src/content/challenges' }),
+  schema: z.object({
+    title: z.string(),
+    situation: z.string(),
+    task: z.string(),
+    action: z.string(),
+    result: z.string(),
+    reflection: z.string().optional(),
+    tags: z.array(z.string()).default([]),
+    draft: z.boolean().default(false),
+  }),
+});
+
+/**
  * Recently updated public repositories, fetched at build time and baked into
  * the page — no runtime API call, no token in the Worker, and a GitHub outage
  * cannot affect the live site.
@@ -327,6 +370,7 @@ export const collections = {
   blog,
   authors,
   star,
+  challenges,
   latestWork,
   resume,
 };

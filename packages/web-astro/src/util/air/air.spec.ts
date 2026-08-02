@@ -73,12 +73,28 @@ describe('retrieval', () => {
   });
 
   it('respects the entry limit', () => {
-    const many = Array.from({ length: 10 }, (_, i) => ({
+    /*
+     * Ten matching entries against twelve that do not, rather than ten
+     * identical ones on their own.
+     *
+     * A corpus where every document says "deployment pipeline" is one where
+     * those words discriminate nothing, so the coverage gate correctly admits
+     * none of them — the same reasoning that stops the subject's own name
+     * carrying a question. That is right, and it is not what this test is for:
+     * the assertion is about `limit`, so the fixture needs the query terms to
+     * be distinctive, which means most of the corpus must not contain them.
+     */
+    const matching = Array.from({ length: 10 }, (_, i) => ({
       id: `entry-${i}`,
       data: { title: 'deployment pipeline', tags: ['deployment'] },
     }));
+    const filler = Array.from({ length: 12 }, (_, i) => ({
+      id: `other-${i}`,
+      data: { title: `unrelated subject ${i}`, tags: ['unrelated'] },
+    }));
+
     expect(
-      selectContext('deployment pipeline', many, { limit: 3 }),
+      selectContext('deployment pipeline', [...matching, ...filler], { limit: 3 }),
     ).toHaveLength(3);
   });
 

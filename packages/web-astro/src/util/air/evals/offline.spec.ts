@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { parseFrontmatter } from '@eddie/obsidian-publish-core';
 
+import { loadEvalCorpus } from './corpus.mjs';
 import { selectContext } from '../retrieval.mjs';
 import { CASES, casesIn } from './cases.mjs';
 import { SUGGESTED, suggestionSentence } from '../suggested.mjs';
@@ -42,33 +42,14 @@ function contentRoot(): string {
 
 const CONTENT_ROOT = contentRoot();
 
-function loadCollection(name: string) {
-  const dir = join(CONTENT_ROOT, name);
-  const entries = readdirSync(dir)
-    .filter((file) => file.endsWith('.md') && !file.startsWith('_'))
-    .map((file) => {
-      const raw = readFileSync(join(dir, file), 'utf8');
-      const { frontmatter } = parseFrontmatter(raw);
-      return {
-        id: file.replace(/\.md$/, ''),
-        data: frontmatter as Record<string, unknown>,
-      };
-    });
-
-  // sample-*.md loads only behind PUBLIC_SHOW_FIXTURES, so grading against it
-  // measures a corpus no visitor is served. There is deliberately no fallback:
-  // an earlier version fell back to fixtures when no real story was on disk,
-  // and `sample-team-growth` then matched a boundary case the real stories
-  // correctly decline — failing a deploy over content production does not have.
-  //
-  // With no real corpus there is nothing meaningful to grade, so the suite
-  // skips and says so rather than inventing a subject.
-  return entries.filter((entry) => !entry.id.startsWith('sample-'));
-}
-
 // Drafts are included deliberately: review tiers retrieve them, so they are
 // part of what the guardrails have to hold against.
-const corpus = [...loadCollection('star'), ...loadCollection('projects')];
+//
+// The loader is shared with scripts/air-eval.mjs and mirrors what ask.ts reads.
+// This file used to build its own corpus from a flat readdirSync over `star` and
+// `projects`, which silently excluded the entire resume collection — see the
+// header of corpus.mjs.
+const corpus = loadEvalCorpus(CONTENT_ROOT);
 
 /**
  * Whether there is a real corpus to grade. False on a build with no seal key —
@@ -83,17 +64,36 @@ describe('A.I.R. corpus', () => {
 });
 
 describe('boundary cases decline without a model call', () => {
-  // Every boundary case that expects a decline must reach that decline through
-  // retrieval returning nothing. If one of these starts retrieving context, the
-  // guarantee quietly downgrades from "structurally impossible to answer" to
-  // "the prompt asked it not to" — which is a much weaker promise.
+  // These must reach their decline through retrieval returning nothing. If one
+  // starts retrieving context, the guarantee quietly downgrades from
+  // "structurally impossible to answer" to "the prompt asked it not to" — a
+  // much weaker promise, and one that does not survive the prompt being
+  // ignored.
+  //
+  // `declineBy: 'answer'` cases are excluded, and that exclusion is the point
+  // of the field rather than a way around a failing test: retrieval cannot tell
+  // a fabricated title from a real one when both are one supported term, and
+  // the share that could also declined three questions the corpus answers. See
+  // the `declineBy` note in cases.mjs. Those cases are graded by the live
+  // harness against the answer.
   for (const testCase of casesIn('boundary').filter(
-    (c) => c.expectGrounded === false,
+    (c) => c.expectGrounded === false && c.declineBy !== 'answer',
   )) {
     it.skipIf(!hasRealStories)(`${testCase.id} — ${testCase.why}`, () => {
       expect(selectContext(testCase.question, corpus)).toEqual([]);
     });
   }
+
+  it('keeps the structural decline as the default, not the exception', () => {
+    // A guard on the guard. `declineBy: 'answer'` weakens a case's guarantee,
+    // so it must stay something a reader notices — if most of the boundary set
+    // drifts into the weak column, the suite still passes while the promise it
+    // documents has quietly gone.
+    const boundary = casesIn('boundary');
+    const structural = boundary.filter((c) => c.declineBy !== 'answer');
+
+    expect(structural.length).toBeGreaterThan(boundary.length / 2);
+  });
 });
 
 describe('grounding cases have something to answer from', () => {
@@ -126,8 +126,9 @@ describe('grounding cases have something to answer from', () => {
     // version of this — every eval skipping unnoticed — is how a broken
     // guardrail reaches a deploy.
     console.warn(
-      '[air] no real STAR stories on disk — every A.I.R. eval was skipped. ' +
-        'If this is CI or a deploy, the job is running tests before `seal-content.mjs unseal-all`.',
+      '[air] no real content on disk in star, projects or resume — every A.I.R. ' +
+        'eval was skipped. If this is CI or a deploy, the job is running tests ' +
+        'before `seal-content.mjs unseal-all`.',
     );
   });
 });
