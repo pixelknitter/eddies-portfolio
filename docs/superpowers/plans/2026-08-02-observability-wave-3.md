@@ -4,7 +4,7 @@
 
 **Goal:** Add the human quality signal to A.I.R. — a rating on grounded answers and a dispute on declines — and move the telemetry code into packages so the Worker, the browser and the eval harness share one redactor.
 
-**Architecture:** Split along the runtime seam. `@eddie/telemetry-core` is pure and dependency-free, running unchanged in workerd and Node; `@eddie/telemetry-client` wraps posthog-js for the browser, where Surveys is not worth reimplementing. `web-astro` becomes wiring only and imports no PostHog symbol.
+**Architecture:** One package, `@pk/telemetry`, with no dependencies and no platform assumptions — the vendor SDK is injected by the consumer rather than imported, so the same code serves workerd, Node, a browser and React Native. `web-astro` becomes wiring only and imports no PostHog symbol.
 
 **Tech Stack:** Nx 23, Yarn 3 workspaces, Vitest, Astro 7, React 19, posthog-js, Cloudflare Workers.
 
@@ -119,23 +119,23 @@ git push
 
 ---
 
-### Task 2: Extract `@eddie/telemetry-core`
+### Task 2: Extract `@pk/telemetry`
 
 **Files:**
-- Create: `packages/telemetry-core/package.json`
-- Create: `packages/telemetry-core/project.json`
-- Create: `packages/telemetry-core/vitest.config.mts`
-- Create: `packages/telemetry-core/eslint.config.mjs`
-- Move: `packages/web-astro/src/util/telemetry/{index,llm,redact,transport}.mjs` → `packages/telemetry-core/src/`
-- Move: `packages/web-astro/src/util/telemetry/{index,llm,redact,transport}.spec.ts` → `packages/telemetry-core/src/`
+- Create: `packages/telemetry/package.json`
+- Create: `packages/telemetry/project.json`
+- Create: `packages/telemetry/vitest.config.mts`
+- Create: `packages/telemetry/eslint.config.mjs`
+- Move: `packages/web-astro/src/util/telemetry/{index,llm,redact,transport}.mjs` → `packages/telemetry/src/`
+- Move: `packages/web-astro/src/util/telemetry/{index,llm,redact,transport}.spec.ts` → `packages/telemetry/src/`
 - Modify: `packages/web-astro/src/pages/api/air/ask.ts:19`
 
 **Interfaces:**
 - Consumes: Task 1's CI scope
-- Produces: `@eddie/telemetry-core` exporting `createTelemetry(env, options)`, `OUTCOMES`, and subpaths `./redact`, `./llm`, `./transport`
+- Produces: `@pk/telemetry` exporting `createTelemetry(env, options)`, `OUTCOMES`, and subpaths `./redact`, `./llm`, `./transport`
 
 **Context you need.** `web-astro` has **no `package.json`** — it is not a Yarn
-workspace member, and its dependencies come from the root. `@eddie/*` resolves
+workspace member, and its dependencies come from the root. `@pk/*` resolves
 through a symlink in root `node_modules/` that Yarn creates for any workspace
 package. So creating the package and running `yarn install` is all the wiring
 there is; no dependency line to add anywhere.
@@ -155,14 +155,14 @@ this task.
 
 - [ ] **Step 2: Create the package manifest**
 
-`packages/telemetry-core/package.json`:
+`packages/telemetry/package.json`:
 
 ```json
 {
-  "name": "@eddie/telemetry-core",
+  "name": "@pk/telemetry",
   "version": "0.1.0",
   "private": true,
-  "description": "Telemetry primitives for A.I.R. Pure and dependency-free so the same redactor runs in workerd, in Node, and in the browser adapter.",
+  "description": "Product and LLM telemetry primitives. No dependencies and no platform assumptions, so the same code runs in workerd, Node, a browser and React Native — the vendor SDK is injected by the consumer, never imported here.",
   "license": "MIT",
   "type": "module",
   "main": "./src/index.mjs",
@@ -179,14 +179,14 @@ this task.
 
 - [ ] **Step 3: Create the Nx project**
 
-`packages/telemetry-core/project.json`:
+`packages/telemetry/project.json`:
 
 ```json
 {
-  "name": "telemetry-core",
+  "name": "telemetry",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "projectType": "library",
-  "sourceRoot": "packages/telemetry-core/src",
+  "sourceRoot": "packages/telemetry/src",
   "tags": [],
   "targets": {
     "test": {
@@ -194,7 +194,7 @@ this task.
       "cache": true,
       "options": {
         "command": "vitest run",
-        "cwd": "packages/telemetry-core"
+        "cwd": "packages/telemetry"
       },
       "configurations": { "watch": { "command": "vitest" } }
     },
@@ -202,7 +202,7 @@ this task.
       "executor": "@nx/eslint:lint",
       "outputs": ["{options.outputFile}"],
       "options": {
-        "lintFilePatterns": ["packages/telemetry-core/**/*.{js,mjs,ts}"]
+        "lintFilePatterns": ["packages/telemetry/**/*.{js,mjs,ts}"]
       }
     }
   }
@@ -211,7 +211,7 @@ this task.
 
 - [ ] **Step 4: Create the test and lint configs**
 
-`packages/telemetry-core/vitest.config.mts`:
+`packages/telemetry/vitest.config.mts`:
 
 ```ts
 /// <reference types="vitest" />
@@ -228,7 +228,7 @@ export default defineConfig({
 });
 ```
 
-`packages/telemetry-core/eslint.config.mjs`:
+`packages/telemetry/eslint.config.mjs`:
 
 ```js
 import baseConfig from '../../eslint.config.mjs';
@@ -245,15 +245,15 @@ export default [
 - [ ] **Step 5: Move the source, preserving history**
 
 ```bash
-mkdir -p packages/telemetry-core/src
-git mv packages/web-astro/src/util/telemetry/index.mjs      packages/telemetry-core/src/index.mjs
-git mv packages/web-astro/src/util/telemetry/llm.mjs        packages/telemetry-core/src/llm.mjs
-git mv packages/web-astro/src/util/telemetry/redact.mjs     packages/telemetry-core/src/redact.mjs
-git mv packages/web-astro/src/util/telemetry/transport.mjs  packages/telemetry-core/src/transport.mjs
-git mv packages/web-astro/src/util/telemetry/index.spec.ts      packages/telemetry-core/src/index.spec.ts
-git mv packages/web-astro/src/util/telemetry/llm.spec.ts        packages/telemetry-core/src/llm.spec.ts
-git mv packages/web-astro/src/util/telemetry/redact.spec.ts     packages/telemetry-core/src/redact.spec.ts
-git mv packages/web-astro/src/util/telemetry/transport.spec.ts  packages/telemetry-core/src/transport.spec.ts
+mkdir -p packages/telemetry/src
+git mv packages/web-astro/src/util/telemetry/index.mjs      packages/telemetry/src/index.mjs
+git mv packages/web-astro/src/util/telemetry/llm.mjs        packages/telemetry/src/llm.mjs
+git mv packages/web-astro/src/util/telemetry/redact.mjs     packages/telemetry/src/redact.mjs
+git mv packages/web-astro/src/util/telemetry/transport.mjs  packages/telemetry/src/transport.mjs
+git mv packages/web-astro/src/util/telemetry/index.spec.ts      packages/telemetry/src/index.spec.ts
+git mv packages/web-astro/src/util/telemetry/llm.spec.ts        packages/telemetry/src/llm.spec.ts
+git mv packages/web-astro/src/util/telemetry/redact.spec.ts     packages/telemetry/src/redact.spec.ts
+git mv packages/web-astro/src/util/telemetry/transport.spec.ts  packages/telemetry/src/transport.spec.ts
 rmdir packages/web-astro/src/util/telemetry
 ```
 
@@ -264,16 +264,16 @@ rmdir packages/web-astro/src/util/telemetry
 
 ```bash
 CYPRESS_INSTALL_BINARY=0 yarn install
-ls -la node_modules/@eddie/
+ls -la node_modules/@pk/
 ```
 
-Expected: a `telemetry-core -> ../../packages/telemetry-core` symlink alongside
+Expected: a `telemetry -> ../../packages/telemetry` symlink under `@pk`, alongside
 `obsidian-publish-core`.
 
 - [ ] **Step 7: Run the moved specs unedited**
 
 ```bash
-npx nx test telemetry-core 2>&1 | grep -E 'Tests|Test Files'
+npx nx test telemetry 2>&1 | grep -E 'Tests|Test Files'
 ```
 
 Expected: `Tests 42 passed (42)` — the same number as Step 1, with no file
@@ -290,7 +290,7 @@ import { createTelemetry } from '@util/telemetry/index.mjs';
 to:
 
 ```ts
-import { createTelemetry } from '@eddie/telemetry-core';
+import { createTelemetry } from '@pk/telemetry';
 ```
 
 - [ ] **Step 9: Type-check, and apply the fallback if needed**
@@ -304,7 +304,7 @@ Expected: `0 errors`.
 `ask.ts:90-91` uses `Parameters<typeof telemetry.captureTrace>[0]['retrieval']`.
 If TypeScript cannot resolve types through the package `exports` map, that line
 errors rather than degrading to `any`. **If and only if Step 9 reports an error**,
-add `packages/telemetry-core/src/index.d.ts`:
+add `packages/telemetry/src/index.d.ts`:
 
 ```ts
 export { OUTCOMES } from './llm.mjs';
@@ -348,13 +348,13 @@ yarn ci 2>&1 | tail -12
 ```
 
 Expected: `Successfully ran targets check, lint, test, build`, with
-`telemetry-core` among the projects.
+`@pk/telemetry` among the projects.
 
 - [ ] **Step 11: Commit**
 
 ```bash
-git add packages/telemetry-core packages/web-astro/src/pages/api/air/ask.ts
-git commit -m "refactor: extract @eddie/telemetry-core
+git add packages/telemetry packages/web-astro/src/pages/api/air/ask.ts
+git commit -m "refactor: extract @pk/telemetry
 
 Moves the telemetry seam out of web-astro so the Worker, the browser adapter and
 scripts/air-eval.mjs share one redactor. redact.mjs is the choke point every
@@ -373,25 +373,26 @@ git push
 
 ---
 
-## Slice B — The browser adapter
+## Slice B — The client interface and the PostHog adapter
 
-### Task 3: Scaffold `@eddie/telemetry-client` with a no-op default
+### Task 3: Add `@pk/telemetry/client` — the interface and a no-op default
+
+The package already exists from Slice A; this adds a module and an export entry
+to it. There is no second package, because the adapter takes the vendor SDK as
+an argument rather than importing it — so nothing here is platform-bound.
 
 **Files:**
-- Create: `packages/telemetry-client/package.json`
-- Create: `packages/telemetry-client/project.json`
-- Create: `packages/telemetry-client/vitest.config.mts`
-- Create: `packages/telemetry-client/eslint.config.mjs`
-- Create: `packages/telemetry-client/src/index.mjs`
-- Test: `packages/telemetry-client/src/index.spec.ts`
+- Create: `packages/telemetry/src/client.mjs`
+- Modify: `packages/telemetry/package.json` (add `"./client"` to `exports`)
+- Test: `packages/telemetry/src/client.spec.ts`
 
 **Interfaces:**
-- Consumes: `@eddie/telemetry-core` (`./redact`)
+- Consumes: nothing
 - Produces: `createNoopClient()` and the `TelemetryClient` shape — `init(config)`, `pageview(route)`, `capture(event, props)`, `surveyShown(surveyId, traceId)`, `surveySent(surveyId, traceId, responses)`
 
 - [ ] **Step 1: Write the failing test**
 
-`packages/telemetry-client/src/index.spec.ts`:
+`packages/telemetry/src/client.spec.ts`:
 
 ```ts
 import { describe, it, expect } from 'vitest';
@@ -423,61 +424,32 @@ describe('createNoopClient', () => {
 - [ ] **Step 2: Run it and watch it fail**
 
 ```bash
-npx vitest run --root packages/telemetry-client src/index.spec.ts
+npx vitest run --root packages/telemetry src/client.spec.ts
 ```
 
-Expected: FAIL — cannot resolve `./index.mjs`.
+Expected: FAIL — cannot resolve `./client.mjs`.
 
-- [ ] **Step 3: Create the package files**
+- [ ] **Step 3: Add the export entry**
 
-`packages/telemetry-client/package.json`:
+In `packages/telemetry/package.json`, add to `exports`:
 
 ```json
-{
-  "name": "@eddie/telemetry-client",
-  "version": "0.1.0",
-  "private": true,
-  "description": "Browser telemetry for the portfolio. The interface plus a PostHog adapter, so no consumer imports posthog-js directly.",
-  "license": "MIT",
-  "type": "module",
-  "main": "./src/index.mjs",
-  "exports": {
-    ".": "./src/index.mjs",
-    "./posthog": "./src/posthog.mjs"
-  },
-  "files": ["src"],
-  "sideEffects": false,
-  "dependencies": {
-    "posthog-js": "^1.281.0"
-  }
-}
+    "./client": "./src/client.mjs",
 ```
 
-`packages/telemetry-client/project.json` — identical to Task 2 Step 3 with
-`telemetry-core` replaced by `telemetry-client` throughout.
+**No `posthog-js` dependency, deliberately.** The adapter in Task 4 receives the
+SDK as an argument, so a React Native consumer can hand in
+`posthog-react-native` instead. Declaring a dependency here would force the
+wrong SDK on every consumer and end the "no dependencies" property that makes
+this package portable.
 
-`packages/telemetry-client/vitest.config.mts`:
-
-```ts
-/// <reference types="vitest" />
-import { defineConfig } from 'vitest/config';
-
-// jsdom, unlike telemetry-core: this half runs in a browser and the adapter
-// is tested against a fake posthog object.
-export default defineConfig({
-  test: {
-    environment: 'jsdom',
-    globals: true,
-    include: ['src/**/*.{test,spec}.{ts,mjs}'],
-  },
-});
-```
-
-`packages/telemetry-client/eslint.config.mjs` — identical to Task 2 Step 4.
+No new `project.json`, `vitest.config.mts` or `eslint.config.mjs` — the package
+already has them from Slice A, and the node environment is correct because
+nothing here touches a DOM.
 
 - [ ] **Step 4: Write the interface and the no-op**
 
-`packages/telemetry-client/src/index.mjs`:
+`packages/telemetry/src/client.mjs`:
 
 ```js
 /**
@@ -513,17 +485,19 @@ export function createNoopClient() {
 - [ ] **Step 5: Run the test**
 
 ```bash
-npx vitest run --root packages/telemetry-client src/index.spec.ts
+npx vitest run --root packages/telemetry src/client.spec.ts
 ```
 
 Expected: PASS, 2 tests.
 
-- [ ] **Step 6: Install and commit**
+- [ ] **Step 6: Commit**
+
+No `yarn install` — no dependency was added and no workspace was created, so the
+lockfile is untouched.
 
 ```bash
-CYPRESS_INSTALL_BINARY=0 yarn install
-git add packages/telemetry-client package.json yarn.lock
-git commit -m "feat: scaffold @eddie/telemetry-client with a no-op default
+git add packages/telemetry/src/client.mjs packages/telemetry/src/client.spec.ts packages/telemetry/package.json
+git commit -m "feat: scaffold @pk/telemetry/client with a no-op default
 
 The interface first, and a default implementation that does nothing. An unset
 key or a blocked script has to degrade to silence rather than to a broken page,
@@ -536,16 +510,17 @@ git push
 ### Task 4: The PostHog adapter, with autocapture nailed shut
 
 **Files:**
-- Create: `packages/telemetry-client/src/posthog.mjs`
-- Test: `packages/telemetry-client/src/posthog.spec.ts`
+- Create: `packages/telemetry/src/posthog.mjs`
+- Modify: `packages/telemetry/package.json` (add `"./posthog"` to `exports`)
+- Test: `packages/telemetry/src/posthog.spec.ts`
 
 **Interfaces:**
-- Consumes: `createNoopClient` from Task 3, `redact` from `@eddie/telemetry-core/redact`
+- Consumes: `createNoopClient` from Task 3, `redact` from `./redact.mjs`
 - Produces: `createPostHogClient(posthogLike)` returning a `TelemetryClient`
 
 - [ ] **Step 1: Write the failing tests**
 
-`packages/telemetry-client/src/posthog.spec.ts`:
+`packages/telemetry/src/posthog.spec.ts`:
 
 ```ts
 import { describe, it, expect, vi } from 'vitest';
@@ -625,17 +600,17 @@ describe('createPostHogClient', () => {
 - [ ] **Step 2: Run and watch them fail**
 
 ```bash
-npx vitest run --root packages/telemetry-client src/posthog.spec.ts
+npx vitest run --root packages/telemetry src/posthog.spec.ts
 ```
 
 Expected: FAIL — cannot resolve `./posthog.mjs`.
 
 - [ ] **Step 3: Write the adapter**
 
-`packages/telemetry-client/src/posthog.mjs`:
+`packages/telemetry/src/posthog.mjs`:
 
 ```js
-import { redact } from '@eddie/telemetry-core/redact';
+import { redact } from './redact.mjs';
 
 /**
  * The PostHog adapter.
@@ -703,7 +678,7 @@ export function createPostHogClient(posthog) {
 - [ ] **Step 4: Run the tests**
 
 ```bash
-npx nx test telemetry-client
+npx nx test telemetry
 ```
 
 Expected: PASS, 7 tests across both spec files.
@@ -711,7 +686,7 @@ Expected: PASS, 7 tests across both spec files.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add packages/telemetry-client/src/posthog.mjs packages/telemetry-client/src/posthog.spec.ts
+git add packages/telemetry/src/posthog.mjs packages/telemetry/src/posthog.spec.ts
 git commit -m "feat: add the PostHog adapter, with autocapture nailed shut
 
 Takes the SDK as an argument rather than importing it, so the tests run against
@@ -731,8 +706,8 @@ git push
 ### Task 5: The event contract
 
 **Files:**
-- Create: `packages/telemetry-core/src/events.mjs`
-- Test: `packages/telemetry-core/src/events.spec.ts`
+- Create: `packages/telemetry/src/events.mjs`
+- Test: `packages/telemetry/src/events.spec.ts`
 
 **Interfaces:**
 - Consumes: nothing
@@ -740,7 +715,7 @@ git push
 
 - [ ] **Step 1: Write the failing test**
 
-`packages/telemetry-core/src/events.spec.ts`:
+`packages/telemetry/src/events.spec.ts`:
 
 ```ts
 import { describe, it, expect } from 'vitest';
@@ -774,14 +749,14 @@ describe('the event contract', () => {
 - [ ] **Step 2: Run and watch it fail**
 
 ```bash
-npx vitest run --root packages/telemetry-core src/events.spec.ts
+npx vitest run --root packages/telemetry src/events.spec.ts
 ```
 
 Expected: FAIL — cannot resolve `./events.mjs`.
 
 - [ ] **Step 3: Write the contract**
 
-`packages/telemetry-core/src/events.mjs`:
+`packages/telemetry/src/events.mjs`:
 
 ```js
 /**
@@ -827,8 +802,8 @@ export const EVENTS = Object.freeze({
 - [ ] **Step 4: Run the test, then commit**
 
 ```bash
-npx nx test telemetry-core
-git add packages/telemetry-core/src/events.mjs packages/telemetry-core/src/events.spec.ts
+npx nx test telemetry
+git add packages/telemetry/src/events.mjs packages/telemetry/src/events.spec.ts
 git commit -m "feat: name every event once, in the package both runtimes import"
 git push
 ```
@@ -838,8 +813,8 @@ git push
 ### Task 6: Record the question on a declined retrieval
 
 **Files:**
-- Modify: `packages/telemetry-core/src/llm.mjs` (`buildRetrievalSpan`)
-- Modify: `packages/telemetry-core/src/llm.spec.ts`
+- Modify: `packages/telemetry/src/llm.mjs` (`buildRetrievalSpan`)
+- Modify: `packages/telemetry/src/llm.spec.ts`
 - Modify: `packages/web-astro/src/pages/api/air/ask.ts:247`
 
 **Interfaces:**
@@ -848,7 +823,7 @@ git push
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `packages/telemetry-core/src/llm.spec.ts`:
+Append to `packages/telemetry/src/llm.spec.ts`:
 
 ```ts
 describe('a declined retrieval records what was asked', () => {
@@ -899,14 +874,14 @@ describe('a declined retrieval records what was asked', () => {
 - [ ] **Step 2: Run and watch them fail**
 
 ```bash
-npx nx test telemetry-core
+npx nx test telemetry
 ```
 
 Expected: FAIL — `span.properties.question` is `undefined` in the first test.
 
 - [ ] **Step 3: Implement**
 
-In `packages/telemetry-core/src/llm.mjs`, add `question` to the `buildRetrievalSpan`
+In `packages/telemetry/src/llm.mjs`, add `question` to the `buildRetrievalSpan`
 JSDoc input and set it conditionally inside `properties`:
 
 ```js
@@ -924,7 +899,7 @@ JSDoc input and set it conditionally inside `properties`:
 - [ ] **Step 4: Run the tests**
 
 ```bash
-npx nx test telemetry-core
+npx nx test telemetry
 ```
 
 Expected: PASS.
@@ -947,7 +922,7 @@ to:
 
 ```bash
 yarn ci 2>&1 | tail -8
-git add packages/telemetry-core/src/llm.mjs packages/telemetry-core/src/llm.spec.ts packages/web-astro/src/pages/api/air/ask.ts
+git add packages/telemetry/src/llm.mjs packages/telemetry/src/llm.spec.ts packages/web-astro/src/pages/api/air/ask.ts
 git commit -m "feat: record what was asked when retrieval declines
 
 A decline calls no model, so no generation exists and the question was recorded
@@ -1072,7 +1047,7 @@ git push
 `packages/web-astro/src/util/telemetry/client.mjs`:
 
 ```js
-import { createNoopClient } from '@eddie/telemetry-client';
+import { createNoopClient } from '@pk/telemetry/client';
 
 /**
  * Resolves the browser telemetry client, once per page session.
@@ -1090,7 +1065,7 @@ export function getClient() {
 
 /**
  * @param {{token: string, host?: string}} config
- * @returns {Promise<import('@eddie/telemetry-client').TelemetryClient>}
+ * @returns {Promise<import('@pk/telemetry/client').TelemetryClient>}
  */
 export function loadClient(config) {
   if (client.active) return Promise.resolve(client);
@@ -1098,7 +1073,7 @@ export function loadClient(config) {
 
   loading = Promise.all([
     import('posthog-js'),
-    import('@eddie/telemetry-client/posthog'),
+    import('@pk/telemetry/posthog'),
   ])
     .then(([{ default: posthog }, { createPostHogClient }]) => {
       const live = createPostHogClient(posthog);
@@ -1249,7 +1224,7 @@ Expected: FAIL — module not found.
 
 ```tsx
 import React from 'react';
-import { SURVEYS } from '@eddie/telemetry-core/events';
+import { SURVEYS } from '@pk/telemetry/events';
 import { getClient } from '@util/telemetry/client.mjs';
 
 interface Props {
@@ -1417,7 +1392,7 @@ git push
 Add the imports:
 
 ```tsx
-import { EVENTS } from '@eddie/telemetry-core/events';
+import { EVENTS } from '@pk/telemetry/events';
 import { getClient } from '@util/telemetry/client.mjs';
 ```
 
@@ -1552,7 +1527,7 @@ git push
 - Modify: `scripts/air-eval.mjs`
 
 **Interfaces:**
-- Consumes: `createTelemetry` and `buildGeneration` from `@eddie/telemetry-core`
+- Consumes: `createTelemetry` and `buildGeneration` from `@pk/telemetry`
 - Produces: nothing downstream
 
 **Why.** This is the reason the extraction was worth doing rather than merely
@@ -1566,7 +1541,7 @@ reaches across into `web-astro` internals and emits nothing.
 At the top of `scripts/air-eval.mjs`:
 
 ```js
-import { createTelemetry } from '@eddie/telemetry-core';
+import { createTelemetry } from '@pk/telemetry';
 ```
 
 Where the run is set up:

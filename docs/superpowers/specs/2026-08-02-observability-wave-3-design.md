@@ -24,42 +24,52 @@ sentence; the question text alone frequently does not.
 
 ## Design
 
-### Two packages, split by runtime
+### One package, with the SDK injected
 
-The split is not stylistic. The two runtimes want opposite things, and the
-codebase has already established why for one of them.
+The Worker's half is settled by an argument the codebase already makes.
+`util/flags/client.mjs` rejects PostHog's server SDK in writing: local
+evaluation with the default in-memory cache is an anti-pattern in edge runtimes,
+and it needs a secure API key seeded on three tiers. That argument is about the
+*Worker*. It says nothing about the browser, where the SDK is the supported path
+to Surveys and hand-rolling would mean reimplementing survey mechanics we do not
+want to own.
 
-`util/flags/client.mjs` rejects PostHog's server SDK with a written rationale:
-local evaluation with the default in-memory cache is an anti-pattern in edge
-runtimes, and it needs a secure API key seeded on three tiers. That argument is
-about the *Worker*. It says nothing about the browser, where the SDK is the
-supported path to Surveys and hand-rolling would mean reimplementing survey
-mechanics we do not want to own.
+**One package, not two.** An earlier draft split this into a pure core and a
+browser client, on the grounds that the client half would depend on `posthog-js`
+and the core must stay dependency-free. That split was solving a problem the
+design had already solved elsewhere: **the adapter takes the vendor SDK as an
+argument rather than importing it.** A React Native consumer hands in
+`posthog-react-native`; the adapter code is unchanged. With injection there is
+nothing platform-bound left to separate.
 
 ```
-@eddie/telemetry-core          no dependencies, runs in workerd and Node
-  redact.mjs                   the choke point — one implementation, one spec
-  transport.mjs                hand-rolled POST /batch          (Worker)
-  llm.mjs                      builders for the LLM triad:
+@pk/telemetry                  no dependencies, no platform assumptions
+  redact.mjs      "./redact"   the choke point — one implementation, one spec
+  transport.mjs   "./transport" hand-rolled POST /batch
+  llm.mjs         "./llm"      builders for the LLM triad:
                                  $ai_trace / $ai_span / $ai_generation
-  index.mjs                    createTelemetry()
-  events.mjs                   NEW — names and property shapes for the
-                                 non-LLM events, browser and Worker alike
-
-@eddie/telemetry-client        browser only
-  index.mjs                    the interface, and a no-op default
-  posthog.mjs                  adapter over posthog-js        <- exports "./posthog"
+  events.mjs      "./events"   NEW — names and property shapes for the
+                                 non-LLM events, every runtime alike
+  index.mjs       "."          createTelemetry()
+  client.mjs      "./client"   NEW — the interface, and a no-op default
+  posthog.mjs     "./posthog"  NEW — adapter over an injected SDK
 
 web-astro                      wiring only; imports no PostHog symbol
   layouts/Layout.astro         resolveSections -> init, or not
   react/AIResume.tsx           rating and dispute surfaces
+  util/telemetry/client.mjs    dynamic-imports posthog-js, hands it to the adapter
   util/air/model.mjs           air-model flag, server-side
 ```
 
+Scoped `@pk` rather than to this site because it is meant to leave: the intent
+is a standalone repository usable across projects, web and React Native alike.
+Zero dependencies and an injected SDK are what make that a directory move rather
+than a rewrite.
+
 The shape mirrors `@eddie/obsidian-publish-core`, which already exists and
 describes itself as "pure and dependency-free so it runs in Node and in
-workerd". `telemetry-core` makes the same claim and is already true: its four
-modules import nothing but each other.
+workerd". `@pk/telemetry` makes a wider version of the same claim, and its
+existing four modules already import nothing but each other.
 
 **`scripts/air-eval.mjs` becomes a first-class consumer.** It calls real models
 and grades them; emitting the same `$ai_generation` shape production emits puts
@@ -252,7 +262,7 @@ redaction.
 
 Beyond that:
 
-- The 42 Wave 1 specs move with `telemetry-core` unchanged. If any needs editing
+- The 42 Wave 1 specs move with `@pk/telemetry` unchanged. If any needs editing
   to pass, the extraction has changed behaviour and is wrong.
 - The adapter is tested against a fake `posthog` object under jsdom: `redact`
   applied to every payload before capture; unconfigured calls no-op; survey
