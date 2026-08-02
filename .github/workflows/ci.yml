@@ -54,8 +54,14 @@ jobs:
           CONTENT_SEAL_KEY: ${{ secrets.CONTENT_SEAL_KEY }}
         run: node scripts/seal-content.mjs unseal-all
 
+      # Also run-many, for the same reason as Lint and Unit tests below. This
+      # was `nx check web-astro` until @pk/telemetry grew a `check` target of
+      # its own, at which point scoping it to one project would have meant the
+      # package's type-checking passed locally under `yarn ci` and never ran
+      # here — which is precisely how obsidian-publish-core's 43 tests stayed
+      # invisible.
       - name: Type-check
-        run: yarn nx check web-astro
+        run: yarn nx run-many --targets=check
 
       # Every project, not just web-astro.
       #
