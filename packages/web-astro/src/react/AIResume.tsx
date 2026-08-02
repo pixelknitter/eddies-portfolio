@@ -36,9 +36,20 @@ type Answer = {
  */
 // Shared with the decline message in api/air/ask.ts.
 import { SUGGESTED } from '../util/air/suggested.mjs';
+import { readStoredCode, storeCode } from '../util/air/access-code.mjs';
 
-export function AIResume() {
+interface Props {
+  /**
+   * `'dialog'` drops the page heading and lede: inside a modal the dialog's
+   * own title already says what this is, and a second one reads as a page
+   * embedded in a page.
+   */
+  variant?: 'page' | 'dialog';
+}
+
+export function AIResume({ variant = 'page' }: Props = {}) {
   const [accessCode, setAccessCode] = React.useState('');
+  const [draft, setDraft] = React.useState('');
   const [requesting, setRequesting] = React.useState(false);
   const [requestEmail, setRequestEmail] = React.useState('');
   const [requestReason, setRequestReason] = React.useState('');
@@ -53,6 +64,15 @@ export function AIResume() {
 
   const inputRef = React.useRef<HTMLInputElement>(null);
   const requestEmailRef = React.useRef<HTMLInputElement>(null);
+
+  // Read storage after mount, not in the state initialiser: this island is
+  // server-rendered, where `window` does not exist, and a first client render
+  // that disagreed with the server's HTML would hydrate wrong.
+  React.useEffect(() => {
+    setAccessCode(readStoredCode());
+  }, []);
+
+  const hasCode = accessCode !== '';
 
   // Move focus into the dialog when it opens, so keyboard and screen-reader
   // users land inside it rather than behind it.
@@ -161,54 +181,75 @@ export function AIResume() {
         up front is the most useful thing this page can tell someone, and it is
         the claim the whole grounding apparatus exists to keep.
       */}
-      <h1>Ask A.I.R. about Eddie&rsquo;s work</h1>
-      <p className="font-body text-lg">
-        It answers from Eddie&rsquo;s written work &mdash; the résumé, the
-        project write-ups, the stories behind them &mdash; and tells you when it
-        can&rsquo;t.
-      </p>
+      {variant === 'page' && (
+        <>
+          <h1>Ask A.I.R. about Eddie&rsquo;s work</h1>
+          <p className="font-body text-lg">
+            It answers from Eddie&rsquo;s written work &mdash; the résumé, the
+            project write-ups, the stories behind them &mdash; and tells you
+            when it can&rsquo;t.
+          </p>
+        </>
+      )}
 
       <div className="surface mt-6 p-4 sm:p-6">
         <label
-          htmlFor="air-access"
+          htmlFor="air-input"
           className="mb-2 block font-body font-semibold"
         >
-          Access code
+          {hasCode ? 'Ask a question' : 'Access code'}
         </label>
+        {/*
+          One field, two modes, keyed on whether a code is stored. The
+          placeholder is what signals the shift — a second field or a mode
+          toggle would both be more machinery than the state warrants, and a
+          visitor who has a code should never see the access UI at all.
+        */}
         <input
-          id="air-access"
-          type="password"
-          value={accessCode}
-          onChange={(event) => setAccessCode(event.target.value)}
-          className="w-full rounded-lg border border-hairline bg-surface p-3 text-dark focus:outline-2 focus:outline-offset-2 focus:outline-underline dark:border-hairline-dark dark:bg-surface-dark dark:text-light dark:focus:outline-link"
-          placeholder="The code from the card"
-          autoComplete="off"
-        />
-
-        <button
-          type="button"
-          onClick={() => setRequesting(true)}
-          className="mt-2 font-body text-sm underline decoration-underline underline-offset-4 dark:decoration-link"
-        >
-          Don&rsquo;t have one? Ask Eddie for access
-        </button>
-
-        <label
-          htmlFor="air-question"
-          className="mt-6 mb-2 block font-body font-semibold"
-        >
-          Ask a question
-        </label>
-        <input
-          id="air-question"
+          id="air-input"
           ref={inputRef}
-          className="w-full rounded-lg border border-hairline bg-surface p-3 text-dark focus:outline-2 focus:outline-offset-2 focus:outline-underline dark:border-hairline-dark dark:bg-surface-dark dark:text-light dark:focus:outline-link"
-          placeholder="What's something you want to know about Eddie?"
+          type={hasCode ? 'text' : 'password'}
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          className="w-full rounded-lg border border-hairline bg-light p-3 text-dark focus:outline-2 focus:outline-offset-2 focus:outline-underline dark:border-hairline-dark dark:bg-dark dark:text-light dark:focus:outline-link"
+          placeholder={
+            hasCode ? "Ask about Eddie's work…" : 'Enter your access code'
+          }
+          autoComplete="off"
           onKeyDown={(event) => {
-            if (event.key === 'Enter') ask(event.currentTarget.value);
+            if (event.key !== 'Enter') return;
+            if (hasCode) {
+              ask(draft);
+            } else {
+              const code = draft.trim();
+              if (!code) return;
+              storeCode(code);
+              setAccessCode(code);
+            }
+            setDraft('');
           }}
         />
-        <p className="mt-2 font-body text-sm opacity-70">Press Enter to ask.</p>
+        <p className="mt-2 font-body text-sm opacity-70">
+          {hasCode
+            ? 'Press Enter to ask.'
+            : 'Press Enter to save it on this device.'}
+        </p>
+
+        {/*
+          Hidden once a code is stored, so a returning visitor never sees the
+          access machinery. It sits here rather than on /cv/ because this is
+          where a code is actually needed, and "hides when one is stored" only
+          reads correctly beside the field whose mode it describes.
+        */}
+        {!hasCode && (
+          <button
+            type="button"
+            onClick={() => setRequesting(true)}
+            className="mt-2 font-body text-sm underline decoration-underline underline-offset-4 dark:decoration-link"
+          >
+            Don&rsquo;t have a code? Ask Eddie for access
+          </button>
+        )}
 
         <div className="mt-6">
           <p className="mb-2 font-body text-sm font-semibold">
@@ -220,11 +261,7 @@ export function AIResume() {
                 <button
                   type="button"
                   disabled={pending}
-                  onClick={() => {
-                    if (inputRef.current)
-                      inputRef.current.value = item.question;
-                    ask(item.question);
-                  }}
+                  onClick={() => ask(item.question)}
                   className="w-full rounded-lg border border-hairline p-3 text-left transition-colors hover:border-underline disabled:opacity-50 dark:border-hairline-dark dark:hover:border-link"
                 >
                   <span className="badge">{item.audience}</span>

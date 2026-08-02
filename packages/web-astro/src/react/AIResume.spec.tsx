@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AIResume } from './AIResume';
@@ -23,13 +23,16 @@ afterEach(() => {
 });
 
 describe('AIResume', () => {
+  beforeEach(() => window.localStorage.clear());
+
   it('renders the welcome heading and prompt input', () => {
+    window.localStorage.setItem('air-access-code', 'conf-2026');
     render(<AIResume />);
     expect(
       screen.getByRole('heading', { name: /Ask A\.I\.R\. about Eddie/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByPlaceholderText(/something you want to know about Eddie/i)
+      screen.getByPlaceholderText(/ask about Eddie's work/i)
     ).toBeInTheDocument();
   });
 
@@ -38,26 +41,71 @@ describe('AIResume', () => {
     expect(screen.getByRole('button', { name: /system nobody wants to own/i })).toBeInTheDocument();
   });
 
-  it('sends the access code with the question', async () => {
+  it('asks for a code first when none is stored', () => {
+    window.localStorage.clear();
+    render(<AIResume />);
+    expect(screen.getByPlaceholderText(/enter your access code/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /ask Eddie for access/i })).toBeInTheDocument();
+  });
+
+  it('accepts questions and hides the access machinery once a code is stored', () => {
+    window.localStorage.setItem('air-access-code', 'conf-2026');
+    render(<AIResume />);
+    expect(screen.getByPlaceholderText(/ask about Eddie's work/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /ask Eddie for access/i })).not.toBeInTheDocument();
+  });
+
+  it('sends a stored code with the question without asking for it again', async () => {
+    window.localStorage.setItem('air-access-code', 'conf-2026');
     const fetchMock = mockAnswer({ grounded: false, answer: 'No.', citations: [] });
     const user = userEvent.setup();
     render(<AIResume />);
 
-    await user.type(screen.getByLabelText(/access code/i), 'conf-2026');
     await user.type(
-      screen.getByPlaceholderText(/something you want to know about Eddie/i),
-      'How does he work?{Enter}'
+      screen.getByPlaceholderText(/ask about Eddie's work/i),
+      'How does he work?{Enter}',
     );
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/air/ask',
       expect.objectContaining({
         headers: expect.objectContaining({ 'x-air-access': 'conf-2026' }),
-      })
+      }),
+    );
+  });
+
+  it('submitting a code stores it and switches the input to questions', async () => {
+    window.localStorage.clear();
+    const user = userEvent.setup();
+    render(<AIResume />);
+
+    await user.type(screen.getByPlaceholderText(/enter your access code/i), 'conf-2026{Enter}');
+
+    expect(window.localStorage.getItem('air-access-code')).toBe('conf-2026');
+    expect(screen.getByPlaceholderText(/ask about Eddie's work/i)).toBeInTheDocument();
+  });
+
+  it('sends the access code with the question', async () => {
+    const fetchMock = mockAnswer({ grounded: false, answer: 'No.', citations: [] });
+    const user = userEvent.setup();
+    render(<AIResume />);
+
+    await user.type(screen.getByPlaceholderText(/enter your access code/i), 'conf-2026{Enter}');
+    await user.type(
+      screen.getByPlaceholderText(/ask about Eddie's work/i),
+      'How does he work?{Enter}',
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/air/ask',
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'x-air-access': 'conf-2026' }),
+      }),
     );
   });
 
   it('shows the sources a grounded answer drew on', async () => {
+    window.localStorage.setItem('air-access-code', 'conf-2026');
     mockAnswer({
       grounded: true,
       answer: 'He built a smoke test that ran against the deployed site.',
@@ -68,7 +116,7 @@ describe('AIResume', () => {
     const user = userEvent.setup();
     render(<AIResume />);
     await user.type(
-      screen.getByPlaceholderText(/something you want to know about Eddie/i),
+      screen.getByPlaceholderText(/ask about Eddie's work/i),
       'How does he deploy?{Enter}'
     );
 
@@ -78,12 +126,13 @@ describe('AIResume', () => {
   });
 
   it('marks an ungrounded answer as a gap rather than an assessment', async () => {
+    window.localStorage.setItem('air-access-code', 'conf-2026');
     mockAnswer({ grounded: false, answer: 'That is not something I can speak to.', citations: [] });
 
     const user = userEvent.setup();
     render(<AIResume />);
     await user.type(
-      screen.getByPlaceholderText(/something you want to know about Eddie/i),
+      screen.getByPlaceholderText(/ask about Eddie's work/i),
       'Favourite pizza?{Enter}'
     );
 
@@ -145,12 +194,13 @@ describe('AIResume', () => {
   });
 
   it('surfaces the error when the gate rejects the code', async () => {
+    window.localStorage.setItem('air-access-code', 'conf-2026');
     mockAnswer({ error: 'This resume is available by invitation.' }, false);
 
     const user = userEvent.setup();
     render(<AIResume />);
     await user.type(
-      screen.getByPlaceholderText(/something you want to know about Eddie/i),
+      screen.getByPlaceholderText(/ask about Eddie's work/i),
       'Anything?{Enter}'
     );
 
