@@ -239,14 +239,46 @@ describe('AIResume', () => {
    * shut until one is stored. Both directions are asserted: a disabled-only
    * test would still pass if the buttons were never enabled at all.
    */
-  it('holds the suggestions shut until a code is stored', () => {
+  /**
+   * A disabled suggestion is a dead end: it explains nothing about why it will
+   * not respond, and the field that would unlock it is a separate control the
+   * visitor has no reason to connect it to. So the suggestion stays live and
+   * sends them to that field instead, which answers "why did nothing happen?"
+   * in the same gesture that asks it.
+   */
+  it('sends a codeless visitor to the access field instead of doing nothing', async () => {
     window.localStorage.clear();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const user = userEvent.setup();
     render(<AIResume />);
 
     const region = screen.getByTestId('air-body');
-    expect(
+    await user.click(
       within(region).getByRole('button', { name: /system nobody wants to own/i }),
-    ).toBeDisabled();
+    );
+
+    const field = screen.getByPlaceholderText(/enter your access code/i);
+    expect(field).toHaveFocus();
+    expect(screen.getByText(/needs an access code first/i)).toBeInTheDocument();
+    // The question must not have been sent — it would be a guaranteed 401.
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('drops the prompt as soon as the visitor starts typing a code', async () => {
+    window.localStorage.clear();
+    const user = userEvent.setup();
+    render(<AIResume />);
+
+    const region = screen.getByTestId('air-body');
+    await user.click(
+      within(region).getByRole('button', { name: /system nobody wants to own/i }),
+    );
+    expect(screen.getByText(/needs an access code first/i)).toBeInTheDocument();
+
+    await user.type(screen.getByPlaceholderText(/enter your access code/i), 'c');
+    expect(screen.queryByText(/needs an access code first/i)).not.toBeInTheDocument();
   });
 
   it('opens the suggestions once a code is stored', () => {

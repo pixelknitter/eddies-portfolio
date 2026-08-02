@@ -75,14 +75,21 @@ export function AskAir({ href }: Props) {
         titleId="air-dialog-title"
         // The input must not scroll away; only the answer region does.
         bodyScrolls={false}
+        /*
+          The panel draws no card of its own: the island inside draws two, one
+          for the input and one for what it produces. A single card wrapping
+          both would say they are one thing, and they are not — the field
+          persists while its answer is replaced.
+        */
+        surface={false}
+        /*
+          Matches the max-w-3xl the trigger sits in on /cv/, so the dialog opens
+          at the width of the control that opened it and reads as that input
+          lifting off the page rather than a narrower box arriving over it.
+        */
+        widthClass="sm:max-w-3xl"
       >
-        <h2
-          id="air-dialog-title"
-          className="mb-3 font-body text-xl no-underline decoration-0"
-        >
-          Ask A.I.R.
-        </h2>
-        <AIResume variant="dialog" />
+        <AIResume variant="dialog" titleId="air-dialog-title" />
       </Modal>
     </>
   );

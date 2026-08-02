@@ -211,12 +211,28 @@ const airPath = sections.air ? '/cv/air/' : undefined;
     );
     if (sections.length === 0) return;
 
+    /**
+     * The foot control, if there is one.
+     *
+     * It is hidden while everything is collapsed, and that is the whole reason
+     * it is tolerable to have two. Two buttons both reading "Expand all" is
+     * duplication a reader has to resolve; a "Collapse all" that appears at the
+     * bottom of a document they have just expanded is the shortest path back,
+     * and it is never on screen at the same time as an identical twin.
+     */
+    const foot = buttons.length > 1 ? buttons[buttons.length - 1] : null;
+
     const sync = () => {
       const allOpen = sections.every((section) => section.open);
+      const anyOpen = sections.some((section) => section.open);
       for (const button of buttons) {
         button.textContent = allOpen ? 'Collapse all' : 'Expand all';
         button.setAttribute('aria-expanded', String(allOpen));
       }
+      // `hidden` rather than a class: it removes the control from the
+      // accessibility tree too, so a screen reader is not offered a button
+      // that would collapse nothing.
+      if (foot) foot.parentElement?.toggleAttribute('hidden', !anyOpen);
     };
 
     for (const button of buttons) {

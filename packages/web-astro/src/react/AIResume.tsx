@@ -45,11 +45,27 @@ interface Props {
    * embedded in a page.
    */
   variant?: 'page' | 'dialog';
+  /**
+   * Id for the dialog heading, so the dialog can be `aria-labelledby` it.
+   *
+   * The heading lives here rather than in the caller because it belongs inside
+   * the input's card — a heading floating above two separate cards would be
+   * labelling the gap between them.
+   */
+  titleId?: string;
 }
 
-export function AIResume({ variant = 'page' }: Props = {}) {
+export function AIResume({ variant = 'page', titleId }: Props = {}) {
   const [accessCode, setAccessCode] = React.useState('');
   const [draft, setDraft] = React.useState('');
+  /**
+   * Set when a visitor reaches for a suggestion without a stored code.
+   *
+   * Purely a prompt, never a validation error: nothing has been submitted and
+   * nothing is wrong with what they typed. It clears the moment they type, so
+   * it never lingers as an accusation.
+   */
+  const [needsCode, setNeedsCode] = React.useState(false);
   const [requesting, setRequesting] = React.useState(false);
   const [requestEmail, setRequestEmail] = React.useState('');
   const [requestReason, setRequestReason] = React.useState('');
@@ -193,11 +209,30 @@ export function AIResume({ variant = 'page' }: Props = {}) {
       )}
 
       {/*
-        The card chrome belongs to the page variant only: inside the dialog the
-        panel is already a `surface`, and a second one draws a card inside a
-        card.
+        Two containers, not one.
+
+        On the page they are a single card, because the island is the page. In
+        the dialog the input gets its own card and the suggestions/answer get
+        theirs: the field persists across every question while what sits under
+        it is replaced, and one card around both would claim they are one
+        thing. The separation is also what lets the lower card scroll while the
+        field stays put.
       */}
-      <div className={variant === 'page' ? 'surface mt-6 p-4 sm:p-6' : ''}>
+      <div
+        className={
+          variant === 'page'
+            ? 'surface mt-6 p-4 sm:p-6'
+            : 'surface shrink-0 p-4 sm:p-6'
+        }
+      >
+        {variant === 'dialog' && (
+          <h2
+            id={titleId}
+            className="mb-3 font-body text-xl no-underline decoration-0"
+          >
+            Ask A.I.R.
+          </h2>
+        )}
         <label
           htmlFor="air-input"
           className="mb-2 block font-body font-semibold"
@@ -215,8 +250,16 @@ export function AIResume({ variant = 'page' }: Props = {}) {
           ref={inputRef}
           type={hasCode ? 'text' : 'password'}
           value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          className="w-full rounded-lg border border-hairline bg-surface p-3 text-dark focus:outline-2 focus:outline-offset-2 focus:outline-underline dark:border-hairline-dark dark:bg-surface-dark dark:text-light dark:focus:outline-link"
+          onChange={(event) => {
+            setDraft(event.target.value);
+            // The prompt has been answered the moment they start typing.
+            if (needsCode) setNeedsCode(false);
+          }}
+          className={`w-full rounded-lg border p-3 text-dark focus:outline-2 focus:outline-offset-2 focus:outline-underline dark:text-light dark:focus:outline-link ${
+            needsCode
+              ? 'border-underline bg-surface dark:border-link dark:bg-surface-dark'
+              : 'border-hairline bg-surface dark:border-hairline-dark dark:bg-surface-dark'
+          }`}
           placeholder={
             hasCode ? "Ask about Eddie's work…" : 'Enter your access code'
           }
@@ -234,10 +277,17 @@ export function AIResume({ variant = 'page' }: Props = {}) {
             setDraft('');
           }}
         />
-        <p className="mt-2 font-body text-sm opacity-70">
+        {/*
+          `aria-live` so the explanation reaches a screen reader too: moving
+          focus without saying why is disorienting when you cannot see the
+          border change that accompanied it.
+        */}
+        <p className="mt-2 font-body text-sm opacity-70" aria-live="polite">
           {hasCode
             ? 'Press Enter to ask.'
-            : 'Press Enter to save it on this device.'}
+            : needsCode
+              ? 'That question needs an access code first. Enter it here to unlock them.'
+              : 'Press Enter to save it on this device.'}
         </p>
 
         {/*
@@ -255,7 +305,20 @@ export function AIResume({ variant = 'page' }: Props = {}) {
             Don&rsquo;t have a code? Ask Eddie for access
           </button>
         )}
+      </div>
 
+      {/*
+        The second container. In the dialog it is a card of its own, separated
+        from the field above; on the page the two are one card and this is just
+        the region inside it.
+      */}
+      <div
+        className={
+          variant === 'page'
+            ? 'contents'
+            : 'surface mt-3 flex min-h-0 flex-1 flex-col p-4 sm:p-6'
+        }
+      >
         {/*
           One container, two contents. Picking a suggestion or asking a question
           swaps what is inside it rather than revealing a second panel below.
@@ -283,7 +346,9 @@ export function AIResume({ variant = 'page' }: Props = {}) {
           data-testid="air-body"
           aria-live="polite"
           aria-busy={pending}
-          className="mt-6 flex-1 min-h-0 max-h-[50dvh] overflow-y-auto sm:min-h-80"
+          className={`min-h-0 flex-1 overflow-y-auto sm:min-h-80 ${
+            variant === 'page' ? 'mt-6 max-h-[50dvh]' : ''
+          }`}
         >
           {pending && (
             <p className="font-body opacity-70">Reading through Eddie&rsquo;s work&hellip;</p>
@@ -297,10 +362,27 @@ export function AIResume({ variant = 'page' }: Props = {}) {
               <ul className="flex list-none flex-col gap-2 pl-0">
                 {SUGGESTED.map((item) => (
                   <li key={item.question}>
+                    {/*
+                      Live without a code, not disabled.
+
+                      A disabled suggestion is a dead end: it explains nothing
+                      about why it will not respond, and the field that would
+                      unlock it is a separate control the visitor has no reason
+                      to connect it to. Clicking now sends focus to that field
+                      and flags it, which answers "why did nothing happen?" in
+                      the same gesture that asks it.
+                    */}
                     <button
                       type="button"
-                      disabled={pending || !hasCode}
-                      onClick={() => ask(item.question)}
+                      disabled={pending}
+                      onClick={() => {
+                        if (!hasCode) {
+                          setNeedsCode(true);
+                          inputRef.current?.focus();
+                          return;
+                        }
+                        ask(item.question);
+                      }}
                       className="w-full rounded-lg border border-hairline p-3 text-left transition-colors hover:border-underline disabled:opacity-50 dark:border-hairline-dark dark:hover:border-link"
                     >
                       <span className="badge">{item.audience}</span>

@@ -27,10 +27,35 @@ interface Props {
    * as a whole cannot offer that.
    */
   bodyScrolls?: boolean;
+  /**
+   * Whether the panel draws its own card. Default `true`, which suits a form —
+   * one dialog, one surface.
+   *
+   * The ask dialog sets `false` and draws its own: its input and its
+   * answer belong to separate containers, and nesting two cards inside a third
+   * reads as clutter rather than structure.
+   */
+  surface?: boolean;
+  /**
+   * Panel width class. Defaults to `sm:max-w-xl`, which suits a form.
+   *
+   * The ask dialog widens to match the control that opened it, so the dialog
+   * reads as that input lifting off the page rather than as an unrelated box
+   * landing on top of it.
+   */
+  widthClass?: string;
   children: React.ReactNode;
 }
 
-export function Modal({ open, onClose, titleId, bodyScrolls = true, children }: Props) {
+export function Modal({
+  open,
+  onClose,
+  titleId,
+  bodyScrolls = true,
+  surface = true,
+  widthClass = 'sm:max-w-xl',
+  children,
+}: Props) {
   const panelRef = React.useRef<HTMLDivElement>(null);
 
   // Remember what had focus so it can be handed back on close. Without this,
@@ -114,9 +139,9 @@ export function Modal({ open, onClose, titleId, bodyScrolls = true, children }: 
         // max-h with overflow so a long form stays reachable on a short
         // viewport — the failure mode of a centred fixed panel is a submit
         // button below the fold with no way to scroll to it.
-        className={`surface relative flex max-h-[92dvh] w-full flex-col rounded-t-2xl p-4 motion-safe:animate-[lift-in_180ms_ease-out] sm:max-w-xl sm:rounded-2xl sm:p-6 ${
-          bodyScrolls ? 'overflow-y-auto' : 'overflow-hidden'
-        }`}
+        className={`relative flex max-h-[92dvh] w-full flex-col motion-safe:animate-[lift-in_180ms_ease-out] ${widthClass} ${
+          surface ? 'surface rounded-t-2xl p-4 sm:rounded-2xl sm:p-6' : ''
+        } ${bodyScrolls ? 'overflow-y-auto' : 'overflow-hidden'}`}
       >
         {children}
       </div>
