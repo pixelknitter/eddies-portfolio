@@ -2,6 +2,7 @@
 import BaseLayout from './Layout.astro';
 import type { CollectionEntry } from 'astro:content';
 import Hero from "@components/Hero.astro";
+import Prose from "@components/Prose.astro";
 interface Props {
     frontmatter: CollectionEntry<'blog'>['data'];
 }
@@ -18,7 +19,7 @@ const authorName = String(author.id)
 <BaseLayout pageTitle={title}>
     <Hero alt="RaccoonLaptopGif" src="/laptop.webp"/>
     <article>
-        <h2>{title}</h2>
+        <h1 class="page-title">{title}</h1>
         <p class="font-body text-sm opacity-80 mt-2">{authorName}</p>
         {tags.length > 0 && (
             <ul class="flex flex-wrap gap-1 list-none p-0 mt-3">
@@ -30,7 +31,9 @@ const authorName = String(author.id)
             </ul>
         )}
         <div class="mt-6">
-            <slot />
+            <Prose>
+                <slot />
+            </Prose>
         </div>
     </article>
 </BaseLayout>

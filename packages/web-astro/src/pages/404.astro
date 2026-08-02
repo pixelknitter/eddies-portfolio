@@ -7,9 +7,15 @@ import Layout from '@layouts/Layout.astro';
     <div class="text-center mt-24">
         <Hero alt="Raccoon404Gif" src="/404.webp"/>
         <h1 class="text-8xl m-0 tracking-widest">{description}</h1>
-        <p class="text-gray-500 dark:text-gray-400">It seems like you've wandered into the wrong forest!</p>
+        <!-- Was `text-gray-500 dark:text-gray-400`: literals from neither
+             palette, measured at 4.22:1 light and 3.29:1 dark. It inherits the
+             body colour instead, like every other sentence on the site. -->
+        <p>It seems like you've wandered into the wrong forest!</p>
         <p>
-            <a class="text-button hover:underline" href="/">Return Home</a>
+            <!-- A link, so it takes the link token rather than the button
+                 background token it was borrowing — which rendered at 1.63:1
+                 on the light ground. -->
+            <a class="text-link-on-light dark:text-link hover:underline" href="/">Return Home</a>
         </p>
     </div>
 </Layout>

@@ -1,6 +1,27 @@
 ---
+/**
+ * Typographic wrapper for rendered markdown.
+ *
+ * Tailwind's preflight strips `list-style` and `padding` from lists, and
+ * `@tailwindcss/typography` is what puts them back. Markdown rendered outside
+ * this wrapper therefore has no bullets, no indent and no paragraph spacing —
+ * which is why blog posts read as run-together text rather than a document.
+ */
 ---
+
 <div
-  class="prose dark:prose-invert prose-a:text-violet-500 prose-p:text-start prose-ul:list-disc prose-headings:underline">
+  class="prose dark:prose-invert prose-a:text-link-on-light dark:prose-a:text-link prose-p:text-start prose-ul:list-disc text-left">
+  <!--
+    text-left overrides `body { text-align: justify }` from @layer base.
+    Justification with `hyphens: manual` can only pad word-spaces, so long
+    words open rivers of whitespace down the column. Prose is the one place
+    that matters; the rest of the site keeps its justified layout.
+
+    Deliberately absent: `prose-headings:underline`. @layer base already
+    underlines h2 and h3, so setting it here drew a second line.
+    Also absent: `prose-a:text-violet-500`. Links take the themed token like
+    every other link on the site, rather than a literal that exists in
+    neither palette.
+  -->
   <slot />
 </div>

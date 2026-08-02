@@ -343,6 +343,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@axe-core/playwright@npm:^4.10.2":
+  version: 4.12.1
+  resolution: "@axe-core/playwright@npm:4.12.1"
+  dependencies:
+    axe-core: ~4.12.1
+  peerDependencies:
+    playwright-core: ">= 1.0.0"
+  checksum: 860452bfaadc4db23c0bbbc8c2d206ce0ed83efd7bb688ee3e3289d4aa93d217d489e2087e5bb48e093488ee47b377fa7436b93799a51435fc6492c35f51e43f
+  languageName: node
+  linkType: hard
+
 "@babel/code-frame@npm:^7.0.0":
   version: 7.21.4
   resolution: "@babel/code-frame@npm:7.21.4"
@@ -5859,7 +5870,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"axe-core@npm:^4.10.0":
+"axe-core@npm:^4.10.0, axe-core@npm:~4.12.1":
   version: 4.12.1
   resolution: "axe-core@npm:4.12.1"
   checksum: 6d70292d01c71fe0be09bbd6f65b6ddde5a8875e1c480fd10575f123bd1cb14982c92aac1459a6c25494fe0090003de702482aac041ee70255b945ef55dcc8b0
@@ -6984,6 +6995,7 @@ __metadata:
     "@astrojs/cloudflare": 14.1.4
     "@astrojs/react": 6.0.1
     "@astrojs/ts-plugin": latest
+    "@axe-core/playwright": ^4.10.2
     "@babel/preset-react": ^7.14.5
     "@eslint/eslintrc": ^3.0.0
     "@eslint/js": ^9.8.0
