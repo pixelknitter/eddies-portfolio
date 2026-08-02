@@ -140,15 +140,20 @@ const airPath = sections.air ? '/cv/air/' : undefined;
     Nothing in the trigger or the dialog needs the scope: both are styled
     entirely with utilities.
 
-    `max-w-2xl` rather than `3xl`, and `mb-8` beneath: the row used to run wider
-    than the résumé's own text column and sit a full band away from the name
-    below it, so the page read as two documents rather than one with a control
-    on top.
+    `max-w-2xl` rather than `3xl`: the row used to run wider than the résumé's
+    own text column, so the page read as two documents rather than one with a
+    control on top.
+
+    The negative bottom margin cancels the résumé card's own 20px top margin.
+    Measured, not guessed: the 61px between this control and the name was the
+    card's margin plus its 41px top padding, none of it mine to set — the card
+    is styled in resume-organic.css, which is fingerprinted, so reaching in
+    there would cost a PDF regeneration for space that never reaches paper.
   */
   }
   {
     airPath && (
-      <div class="resume-no-print mx-auto mt-3 mb-8 max-w-2xl">
+      <div class="resume-no-print mx-auto mt-2 -mb-5 max-w-2xl">
         <AskAir client:visible href={airPath} />
       </div>
     )

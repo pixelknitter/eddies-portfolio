@@ -148,10 +148,26 @@ export function Modal({
     OPEN_STACK.push(token);
     const isTopmost = () => OPEN_STACK[OPEN_STACK.length - 1] === token;
 
-    // The page behind must not scroll. Restoring the previous value rather than
-    // clearing it keeps this safe if anything else is also managing overflow.
+    /*
+     * The page behind must not scroll — and must not move.
+     *
+     * Hiding the body's overflow removes the scrollbar, which hands its width
+     * back to the layout: every centred element on the page jumps left as the
+     * dialog opens, which reads as the whole site twitching. Replacing that
+     * width with padding keeps the page exactly where it was.
+     *
+     * Measured rather than assumed at 15px: scrollbar width varies by platform
+     * and is zero for overlay scrollbars, where adding padding would cause the
+     * very shift it is meant to prevent.
+     */
     const previousOverflow = document.body.style.overflow;
+    const previousPadding = document.body.style.paddingRight;
+    const scrollbar = window.innerWidth - document.documentElement.clientWidth;
     document.body.style.overflow = 'hidden';
+    if (scrollbar > 0) {
+      const current = parseFloat(getComputedStyle(document.body).paddingRight) || 0;
+      document.body.style.paddingRight = `${current + scrollbar}px`;
+    }
 
     function onKeyDown(event: KeyboardEvent) {
       // Only the dialog on top acts. Both instances listen on `document`, where
@@ -196,6 +212,7 @@ export function Modal({
       const at = OPEN_STACK.indexOf(token);
       if (at !== -1) OPEN_STACK.splice(at, 1);
       document.body.style.overflow = previousOverflow;
+      document.body.style.paddingRight = previousPadding;
       restoreTo.current?.focus();
     };
   }, [open, onClose]);
