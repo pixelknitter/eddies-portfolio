@@ -59,13 +59,23 @@ export function AIResume({ variant = 'page', titleId }: Props = {}) {
   const [accessCode, setAccessCode] = React.useState('');
   const [draft, setDraft] = React.useState('');
   /**
-   * Set when a visitor reaches for a suggestion without a stored code.
+   * A question that has been asked but cannot be sent yet, because no code is
+   * stored. `null` means nothing is waiting.
    *
-   * Purely a prompt, never a validation error: nothing has been submitted and
-   * nothing is wrong with what they typed. It clears the moment they type, so
-   * it never lingers as an accusation.
+   * ## Why the question comes first
+   *
+   * The gate used to be the front door: with no code stored, the field opened
+   * in code mode and the first thing a visitor met was a password box. That is
+   * the exact complaint the design started from — being asked to authenticate
+   * before being shown what authenticating is *for* — and asking for the code
+   * first reproduced it in a smaller box.
+   *
+   * So the field always accepts a question. The code is asked for at the moment
+   * it is actually needed, with the question held and sent automatically once
+   * the code arrives. The visitor states their intent once; the machinery
+   * arranges itself around it rather than the other way round.
    */
-  const [needsCode, setNeedsCode] = React.useState(false);
+  const [heldQuestion, setHeldQuestion] = React.useState<string | null>(null);
   const [requesting, setRequesting] = React.useState(false);
   const [requestEmail, setRequestEmail] = React.useState('');
   const [requestReason, setRequestReason] = React.useState('');
@@ -133,7 +143,34 @@ export function AIResume({ variant = 'page', titleId }: Props = {}) {
     }
   }
 
-  async function ask(asked: string) {
+  /** True while the field is standing in as the code field. */
+  const askingForCode = heldQuestion !== null;
+
+  /**
+   * Ask, or hold the question and ask for a code first.
+   *
+   * The single entry point for "a visitor wants this answered", whether it came
+   * from the field or from a suggestion. Holding rather than refusing is the
+   * point: the question survives the detour through the gate.
+   */
+  function requestAnswer(asked: string) {
+    const trimmed = asked.trim();
+    if (!trimmed || pending) return;
+    if (!hasCode) {
+      setHeldQuestion(trimmed);
+      setDraft('');
+      inputRef.current?.focus();
+      return;
+    }
+    ask(trimmed);
+  }
+
+  /**
+   * @param withCode A code entered moments ago, for the send that unblocks a
+   *   held question. `accessCode` state has been set but this closure captured
+   *   the previous render's value, so the header would carry the old one.
+   */
+  async function ask(asked: string, withCode?: string) {
     const trimmed = asked.trim();
     if (!trimmed || pending) return;
 
@@ -147,7 +184,9 @@ export function AIResume({ variant = 'page', titleId }: Props = {}) {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          'x-air-access': accessCode,
+          // `withCode` when a code was entered a moment ago: this closure
+          // captured the previous render's `accessCode`, which is still ''.
+          'x-air-access': withCode ?? accessCode,
         },
         body: JSON.stringify({ question: trimmed }),
       });
@@ -262,7 +301,7 @@ export function AIResume({ variant = 'page', titleId }: Props = {}) {
         {variant === 'dialog' && (
           <h2
             id={titleId}
-            className="mb-3 font-body text-xl no-underline decoration-0"
+            className="mb-4 font-body text-xl leading-snug no-underline decoration-0"
           >
             Ask A.I.R.
           </h2>
@@ -271,31 +310,28 @@ export function AIResume({ variant = 'page', titleId }: Props = {}) {
           htmlFor="air-input"
           className="mb-2 block font-body font-semibold"
         >
-          {hasCode ? 'Ask a question' : 'Access code'}
+          {askingForCode ? 'Access code' : 'Ask a question'}
         </label>
         {/*
-          One field, two modes, keyed on whether a code is stored. The
-          placeholder is what signals the shift — a second field or a mode
-          toggle would both be more machinery than the state warrants, and a
-          visitor who has a code should never see the access UI at all.
+          One field. It accepts questions by default and only turns into a code
+          field once a question is waiting on one — never before, so nobody is
+          asked to authenticate before being shown what for.
         */}
         <input
           id="air-input"
+          /* The element the dialog aligns to its trigger — see Modal's anchorTop. */
+          data-anchor-align
           ref={inputRef}
-          type={hasCode ? 'text' : 'password'}
+          type={askingForCode ? 'password' : 'text'}
           value={draft}
-          onChange={(event) => {
-            setDraft(event.target.value);
-            // The prompt has been answered the moment they start typing.
-            if (needsCode) setNeedsCode(false);
-          }}
+          onChange={(event) => setDraft(event.target.value)}
           className={`w-full rounded-lg border p-3 text-dark focus:outline-2 focus:outline-offset-2 focus:outline-underline dark:text-light dark:focus:outline-link ${
-            needsCode
+            askingForCode
               ? 'border-underline bg-surface dark:border-link dark:bg-surface-dark'
               : 'border-hairline bg-surface dark:border-hairline-dark dark:bg-surface-dark'
           }`}
           placeholder={
-            hasCode ? "Ask about Eddie's work…" : 'Enter your access code'
+            askingForCode ? 'Enter your access code' : "Ask about Eddie's work…"
           }
           autoComplete="off"
           onKeyDown={(event) => {
@@ -304,31 +340,32 @@ export function AIResume({ variant = 'page', titleId }: Props = {}) {
             // field regardless would erase the second of two quick presses
             // without ever sending it.
             if (pending) return;
-            if (hasCode) {
-              // Not cleared here: `ask` clears only once an answer arrives, so
-              // a rejected or failed question is still in the field to retry
-              // or edit rather than retyped from memory.
-              ask(draft);
+
+            if (askingForCode) {
+              const code = draft.trim();
+              if (!code) return;
+              storeCode(code);
+              setAccessCode(code);
+              setDraft('');
+              // The question that prompted this, sent now rather than retyped.
+              const held = heldQuestion;
+              setHeldQuestion(null);
+              if (held) ask(held, code);
               return;
             }
-            const code = draft.trim();
-            if (!code) return;
-            storeCode(code);
-            setAccessCode(code);
-            setDraft('');
+
+            requestAnswer(draft);
           }}
         />
         {/*
-          `aria-live` so the explanation reaches a screen reader too: moving
-          focus without saying why is disorienting when you cannot see the
-          border change that accompanied it.
+          `aria-live` so a screen reader hears the mode change: the field's
+          purpose has just changed under the cursor, and a border colour and a
+          placeholder are both invisible to it.
         */}
         <p className="mt-2 font-body text-sm opacity-70" aria-live="polite">
-          {hasCode
-            ? 'Press Enter to ask.'
-            : needsCode
-              ? 'That question needs an access code first. Enter it here to unlock them.'
-              : 'Press Enter to save it on this device.'}
+          {askingForCode
+            ? `Enter your code and I’ll ask “${heldQuestion}”`
+            : 'Press Enter to ask.'}
         </p>
 
         {/*
@@ -337,7 +374,7 @@ export function AIResume({ variant = 'page', titleId }: Props = {}) {
           where a code is actually needed, and "hides when one is stored" only
           reads correctly beside the field whose mode it describes.
         */}
-        {!hasCode && (
+        {askingForCode && (
           <button
             type="button"
             onClick={() => setRequesting(true)}
@@ -409,21 +446,14 @@ export function AIResume({ variant = 'page', titleId }: Props = {}) {
                       A disabled suggestion is a dead end: it explains nothing
                       about why it will not respond, and the field that would
                       unlock it is a separate control the visitor has no reason
-                      to connect it to. Clicking now sends focus to that field
-                      and flags it, which answers "why did nothing happen?" in
-                      the same gesture that asks it.
+                      to connect it to. Picking one now holds the question and
+                      asks for a code, then sends it — same route as typing one,
+                      because it is the same intent.
                     */}
                     <button
                       type="button"
                       disabled={pending}
-                      onClick={() => {
-                        if (!hasCode) {
-                          setNeedsCode(true);
-                          inputRef.current?.focus();
-                          return;
-                        }
-                        ask(item.question);
-                      }}
+                      onClick={() => requestAnswer(item.question)}
                       className="w-full rounded-lg border border-hairline p-3 text-left transition-colors hover:border-underline disabled:opacity-50 dark:border-hairline-dark dark:hover:border-link"
                     >
                       <span className="badge">{item.audience}</span>
@@ -437,7 +467,7 @@ export function AIResume({ variant = 'page', titleId }: Props = {}) {
 
           {!pending && answer && (
             <div>
-              <h2 className="mb-3 font-body text-xl no-underline decoration-0">{question}</h2>
+              <h2 className="mb-4 font-body text-xl leading-snug no-underline decoration-0">{question}</h2>
 
               {answer.answer
                 .split('\n')

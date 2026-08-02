@@ -107,8 +107,23 @@ const airPath = sections.air ? '/cv/air/' : undefined;
     part of the resume.
   */
   }
-  <div class="organic resume-action-bar resume-no-print">
-    <ResumeDownload client:visible />
+  {
+    /*
+    Centred by an outer wrapper rather than by a utility on the bar itself.
+    `.resume-action-bar` carries its own box metrics from resume-organic.css,
+    which won over `mx-auto` and left the bar 48px left of the ask row beneath
+    it — same width, different origin, which reads worse than either being
+    wrong alone. The wrapper does the centring; the bar keeps its own styling.
+
+    Constrained from the page rather than in resume-organic.css, which is
+    fingerprinted: doing it there would cost a PDF regeneration for a change
+    that never reaches paper.
+  */
+  }
+  <div class="mx-auto max-w-2xl">
+    <div class="organic resume-action-bar resume-no-print">
+      <ResumeDownload client:visible />
+    </div>
   </div>
 
   {
@@ -116,11 +131,24 @@ const airPath = sections.air ? '/cv/air/' : undefined;
     A.I.R.'s front door, in the slot `Expand all` used to occupy. Rendered only
     when the feature is on: with it off, the top zone is the two download
     buttons and nothing else, rather than a control that leads to a 404.
+
+    Deliberately NOT `organic`. That class scopes the résumé document's own
+    typography — `.organic h2` and friends, at a specificity utilities cannot
+    beat — and the dialog this trigger opens renders inside whatever wrapper the
+    trigger sits in. With `organic` here, the dialog's heading inherited the
+    document's display face and leading, overlapping the label beneath it.
+    Nothing in the trigger or the dialog needs the scope: both are styled
+    entirely with utilities.
+
+    `max-w-2xl` rather than `3xl`, and `mb-8` beneath: the row used to run wider
+    than the résumé's own text column and sit a full band away from the name
+    below it, so the page read as two documents rather than one with a control
+    on top.
   */
   }
   {
     airPath && (
-      <div class="organic resume-no-print mx-auto mt-3 max-w-3xl">
+      <div class="resume-no-print mx-auto mt-3 mb-8 max-w-2xl">
         <AskAir client:visible href={airPath} />
       </div>
     )

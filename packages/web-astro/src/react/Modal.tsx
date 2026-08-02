@@ -70,6 +70,14 @@ interface Props {
    * the difference between an input opening out and an unrelated panel
    * arriving over the page.
    *
+   * The panel is shifted up by the distance from its own top edge to the
+   * element marked `data-anchor-align`, if one exists — so it is that element
+   * that lands on `anchorTop`, not the panel's corner. For the ask dialog that
+   * element is the input, which means the dialog's field opens exactly over the
+   * field that was clicked. Aligning the panel's corner instead put the
+   * dialog's input a heading and a label below the one it replaced, which is
+   * the mismatch that made the two read as different controls.
+   *
    * Ignored below `sm`, where the dialog is a bottom sheet within thumb reach
    * and matching a control near the top of the page would put it out of it.
    */
@@ -88,6 +96,39 @@ export function Modal({
   children,
 }: Props) {
   const panelRef = React.useRef<HTMLDivElement>(null);
+
+  /**
+   * How far the anchored element sits below the panel's top edge.
+   *
+   * Measured in a layout effect rather than assumed, because it is the height
+   * of whatever the caller puts above it — a heading, a label, a hint line —
+   * and that is not knowable from here. Layout, not passive: it runs before
+   * paint, so the panel is never seen at the uncorrected position.
+   */
+  const [alignOffset, setAlignOffset] = React.useState(0);
+
+  React.useLayoutEffect(() => {
+    if (!open || anchorTop === undefined) return;
+    const panel = panelRef.current;
+    const target = panel?.querySelector<HTMLElement>('[data-anchor-align]');
+    if (!panel || !target) return;
+
+    /*
+     * Corrects against where the target actually landed, rather than computing
+     * where it ought to land.
+     *
+     * The panel is positioned by a margin inside a padded flex container, so
+     * its offset from the viewport is not the margin alone — the container's
+     * own padding is in there too, and hard-coding that would break the moment
+     * the padding changed. Measuring the residual and folding it back in gets
+     * the same answer without the dialog needing to know anything about its
+     * wrapper. It converges in one pass, and the sub-pixel guard stops it
+     * oscillating on fractional layouts.
+     */
+    const residual = target.getBoundingClientRect().top - anchorTop;
+    if (Math.abs(residual) < 1) return;
+    setAlignOffset((previous) => previous + residual);
+  }, [open, anchorTop, alignOffset]);
 
   // Remember what had focus so it can be handed back on close. Without this,
   // dismissing the dialog drops focus to the top of the document and a keyboard
@@ -192,7 +233,11 @@ export function Modal({
         style={
           anchorTop === undefined
             ? undefined
-            : ({ '--anchor-top': `${anchorTop}px` } as React.CSSProperties)
+            : ({
+                // Never negative: a dialog pulled above the viewport would put
+                // its own heading out of reach to align a field.
+                '--anchor-top': `${Math.max(0, anchorTop - alignOffset)}px`,
+              } as React.CSSProperties)
         }
         // max-h with overflow so a long form stays reachable on a short
         // viewport — the failure mode of a centred fixed panel is a submit

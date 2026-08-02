@@ -52,14 +52,22 @@ describe('AIResume', () => {
     expect(screen.getByRole('button', { name: /system nobody wants to own/i })).toBeInTheDocument();
   });
 
-  it('asks for a code first when none is stored', () => {
+  /**
+   * The design started from the complaint that a visitor was met by a password
+   * box before being shown what it was for. Opening in code mode when nothing
+   * is stored reproduces exactly that, so the field asks for a question first
+   * whether or not a code exists.
+   */
+  it('opens asking for a question, not for a code', () => {
     window.localStorage.clear();
     render(<AIResume />);
-    expect(screen.getByPlaceholderText(/enter your access code/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /ask Eddie for access/i })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/ask about Eddie's work/i)).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/enter your access code/i)).not.toBeInTheDocument();
+    // The access machinery belongs with the code prompt, which has not happened.
+    expect(screen.queryByRole('button', { name: /ask Eddie for access/i })).not.toBeInTheDocument();
   });
 
-  it('accepts questions and hides the access machinery once a code is stored', () => {
+  it('keeps the access machinery out of the way when a code is stored', () => {
     window.localStorage.setItem('air-access-code', 'conf-2026');
     render(<AIResume />);
     expect(screen.getByPlaceholderText(/ask about Eddie's work/i)).toBeInTheDocument();
@@ -85,34 +93,65 @@ describe('AIResume', () => {
     );
   });
 
-  it('submitting a code stores it and switches the input to questions', async () => {
+  /**
+   * The whole point of holding the question: it survives the detour through
+   * the gate. Asking the visitor to retype it after unlocking would make the
+   * gate the thing they remember.
+   */
+  it('holds the question, asks for a code, then sends it unprompted', async () => {
     window.localStorage.clear();
-    const user = userEvent.setup();
-    render(<AIResume />);
-
-    await user.type(screen.getByPlaceholderText(/enter your access code/i), 'conf-2026{Enter}');
-
-    expect(window.localStorage.getItem('air-access-code')).toBe('conf-2026');
-    expect(screen.getByPlaceholderText(/ask about Eddie's work/i)).toBeInTheDocument();
-  });
-
-  it('sends the access code with the question', async () => {
     const fetchMock = mockAnswer({ grounded: false, answer: 'No.', citations: [] });
     const user = userEvent.setup();
     render(<AIResume />);
 
-    await user.type(screen.getByPlaceholderText(/enter your access code/i), 'conf-2026{Enter}');
     await user.type(
       screen.getByPlaceholderText(/ask about Eddie's work/i),
       'How does he work?{Enter}',
     );
 
+    // Nothing sent yet — the field has become the code field, and it names the
+    // question it is holding so the detour is legible.
+    expect(fetchMock).not.toHaveBeenCalled();
+    const codeField = screen.getByPlaceholderText(/enter your access code/i);
+    expect(codeField).toHaveFocus();
+    expect(screen.getByText(/How does he work\?/)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /ask Eddie for access/i }),
+    ).toBeInTheDocument();
+
+    await user.type(codeField, 'conf-2026{Enter}');
+
+    expect(window.localStorage.getItem('air-access-code')).toBe('conf-2026');
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/air/ask',
       expect.objectContaining({
         headers: expect.objectContaining({ 'x-air-access': 'conf-2026' }),
       }),
     );
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).question).toBe(
+      'How does he work?',
+    );
+  });
+
+  it('returns to asking for questions once the code has been used', async () => {
+    window.localStorage.clear();
+    mockAnswer({ grounded: false, answer: 'No.', citations: [] });
+    const user = userEvent.setup();
+    render(<AIResume />);
+
+    await user.type(
+      screen.getByPlaceholderText(/ask about Eddie's work/i),
+      'How does he work?{Enter}',
+    );
+    await user.type(
+      screen.getByPlaceholderText(/enter your access code/i),
+      'conf-2026{Enter}',
+    );
+
+    expect(
+      await screen.findByPlaceholderText(/ask about Eddie's work/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/enter your access code/i)).not.toBeInTheDocument();
   });
 
   it('shows the sources a grounded answer drew on', async () => {
@@ -258,10 +297,9 @@ describe('AIResume', () => {
 
     expect(await screen.findByText(/available by invitation/i)).toBeInTheDocument();
     expect(window.localStorage.getItem('air-access-code')).toBeNull();
-    expect(screen.getByPlaceholderText(/enter your access code/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /ask Eddie for access/i }),
-    ).toBeInTheDocument();
+    // Back to asking for questions, not for a code: the gate appears only when
+    // a question is actually waiting on one, and the next attempt will raise it.
+    expect(screen.getByPlaceholderText(/ask about Eddie's work/i)).toBeInTheDocument();
   });
 
   it('surfaces the error when the gate rejects the code', async () => {
@@ -309,46 +347,84 @@ describe('AIResume', () => {
    * test would still pass if the buttons were never enabled at all.
    */
   /**
-   * A disabled suggestion is a dead end: it explains nothing about why it will
-   * not respond, and the field that would unlock it is a separate control the
-   * visitor has no reason to connect it to. So the suggestion stays live and
-   * sends them to that field instead, which answers "why did nothing happen?"
-   * in the same gesture that asks it.
+   * A suggestion takes the same route a typed question does: it is held, the
+   * code is asked for, and it is sent. A disabled button would have explained
+   * nothing about why it would not respond.
    */
-  it('sends a codeless visitor to the access field instead of doing nothing', async () => {
+  it('holds a suggestion behind the gate rather than refusing it', async () => {
     window.localStorage.clear();
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ grounded: false, answer: 'No.', citations: [] }),
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     const user = userEvent.setup();
     render(<AIResume />);
 
-    const region = screen.getByTestId('air-body');
     await user.click(
-      within(region).getByRole('button', { name: /system nobody wants to own/i }),
+      within(screen.getByTestId('air-body')).getByRole('button', {
+        name: /system nobody wants to own/i,
+      }),
     );
 
-    const field = screen.getByPlaceholderText(/enter your access code/i);
-    expect(field).toHaveFocus();
-    expect(screen.getByText(/needs an access code first/i)).toBeInTheDocument();
-    // The question must not have been sent — it would be a guaranteed 401.
+    // Not sent — it would be a guaranteed 401 — and the field now asks for a
+    // code while naming the question it is holding.
     expect(fetchMock).not.toHaveBeenCalled();
+    const codeField = screen.getByPlaceholderText(/enter your access code/i);
+    expect(codeField).toHaveFocus();
+    expect(
+      screen.getByText(/system nobody wants to own/i, { selector: 'p' }),
+    ).toBeInTheDocument();
+
+    await user.type(codeField, 'conf-2026{Enter}');
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).question).toMatch(
+      /system nobody wants to own/i,
+    );
   });
 
-  it('drops the prompt as soon as the visitor starts typing a code', async () => {
-    window.localStorage.clear();
+  it('surfaces the error when the gate rejects the code', async () => {
+    window.localStorage.setItem('air-access-code', 'conf-2026');
+    mockAnswer({ error: 'This resume is available by invitation.' }, false);
+
+    const user = userEvent.setup();
+    render(<AIResume />);
+    await user.type(
+      screen.getByPlaceholderText(/ask about Eddie's work/i),
+      'Anything?{Enter}'
+    );
+
+    expect(await screen.findByText(/available by invitation/i)).toBeInTheDocument();
+  });
+
+  it('shows the answer in the same container the suggestions occupied', async () => {
+    window.localStorage.setItem('air-access-code', 'conf-2026');
+    mockAnswer({
+      grounded: true,
+      answer: 'He built a smoke test.',
+      citations: ['platform-migration'],
+      sources: [{ id: 'platform-migration', title: 'Migrated a build pipeline' }],
+    });
+
     const user = userEvent.setup();
     render(<AIResume />);
 
     const region = screen.getByTestId('air-body');
-    await user.click(
-      within(region).getByRole('button', { name: /system nobody wants to own/i }),
-    );
-    expect(screen.getByText(/needs an access code first/i)).toBeInTheDocument();
+    expect(within(region).getByRole('button', { name: /system nobody wants to own/i })).toBeInTheDocument();
 
-    await user.type(screen.getByPlaceholderText(/enter your access code/i), 'c');
-    expect(screen.queryByText(/needs an access code first/i)).not.toBeInTheDocument();
+    await user.type(
+      screen.getByPlaceholderText(/ask about Eddie's work/i),
+      'How does he deploy?{Enter}',
+    );
+
+    expect(await within(region).findByText(/built a smoke test/i)).toBeInTheDocument();
+    // The suggestions gave way rather than stacking above the answer.
+    expect(within(region).queryByRole('button', { name: /system nobody wants to own/i })).not.toBeInTheDocument();
   });
+
 
   /**
    * Replaces an assertion that the button is *enabled*, which stopped meaning
