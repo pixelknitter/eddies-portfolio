@@ -10,7 +10,7 @@
     "test:watch": "nx test web-astro --configuration=watch",
     "check": "nx check web-astro",
     "lint": "nx lint web-astro",
-    "ci": "nx run-many --targets=check,lint,test,build --projects=web-astro",
+    "ci": "nx run-many --targets=check,lint,test,build",
     "smoke": "node scripts/smoke-test.mjs",
     "posts:queue": "node scripts/posts-queue.mjs",
     "posts:next": "node scripts/posts-queue.mjs --next",

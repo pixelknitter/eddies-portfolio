@@ -57,11 +57,21 @@ jobs:
       - name: Type-check
         run: yarn nx check web-astro
 
+      # Every project, not just web-astro.
+      #
+      # Scoping these to one project meant obsidian-publish-core's 43 tests had
+      # never run in CI — nobody noticed, because nothing failed. That is the
+      # same shape as the A.I.R. evals, which skipped silently for months while
+      # a real regression landed behind them.
+      #
+      # Omitting `--projects` runs every project that defines the target, and
+      # Nx skips the ones that do not, so `check` above stays web-astro-only
+      # without having to say so.
       - name: Lint
-        run: yarn nx lint web-astro
+        run: yarn nx run-many --targets=lint
 
       - name: Unit tests
-        run: yarn nx test web-astro
+        run: yarn nx run-many --targets=test
 
 
       # Needs no key: reads frontmatter of already-public files, so it enforces
