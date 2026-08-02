@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { dialog, openDialog } from './support/dialog';
 
 /**
  * The A.I.R. access flow, step by step.
@@ -26,18 +27,16 @@ import { test, expect } from '@playwright/test';
 
 const AIR = '/cv/air/';
 
-/** The dialog panel, not the overlay wrapper. */
-const dialog = '[role="dialog"]';
+/** The control that lifts the request form into its dialog. */
+const accessOpener = (page: import('@playwright/test').Page) =>
+  page.getByRole('button', { name: /ask eddie for access/i });
 
 test.describe('A.I.R. access request', () => {
   test('the request form opens as an overlay rather than stacking below', async ({ page }) => {
     await page.goto(AIR);
 
     const box = await page.locator('#air-input').boundingBox();
-    await page.getByRole('button', { name: /ask eddie for access/i }).click();
-
-    const panel = page.locator(dialog);
-    await expect(panel).toBeVisible();
+    const panel = await openDialog(page, accessOpener(page));
 
     // The bug this replaces: the form rendered inline, so it appeared *below*
     // the access-code panel and pushed the page taller. An overlay must cover
@@ -57,8 +56,8 @@ test.describe('A.I.R. access request', () => {
   test('focus moves into the dialog and returns to the opener on close', async ({ page }) => {
     await page.goto(AIR);
 
-    const opener = page.getByRole('button', { name: /ask eddie for access/i });
-    await opener.click();
+    const opener = accessOpener(page);
+    await openDialog(page, opener);
 
     await expect(page.locator('#air-request-email')).toBeFocused();
 
@@ -72,7 +71,7 @@ test.describe('A.I.R. access request', () => {
 
   test('Tab stays inside the dialog', async ({ page }) => {
     await page.goto(AIR);
-    await page.getByRole('button', { name: /ask eddie for access/i }).click();
+    await openDialog(page, accessOpener(page));
 
     // Walk well past the number of controls in the form; every stop must remain
     // inside the panel. `aria-modal` promises exactly this, and the previous
@@ -89,7 +88,7 @@ test.describe('A.I.R. access request', () => {
 
   test('clicking the backdrop closes it', async ({ page }) => {
     await page.goto(AIR);
-    await page.getByRole('button', { name: /ask eddie for access/i }).click();
+    await openDialog(page, accessOpener(page));
 
     // Click near the corner, not the centre. The backdrop spans the viewport but
     // the panel sits on top of its midpoint, so a plain click — even a forced
@@ -102,7 +101,7 @@ test.describe('A.I.R. access request', () => {
 
   test('the page behind the dialog cannot scroll', async ({ page }) => {
     await page.goto(AIR);
-    await page.getByRole('button', { name: /ask eddie for access/i }).click();
+    await openDialog(page, accessOpener(page));
 
     await expect
       .poll(() => page.evaluate(() => document.body.style.overflow))
@@ -122,7 +121,7 @@ test.describe('A.I.R. access request', () => {
     );
 
     await page.goto(AIR);
-    await page.getByRole('button', { name: /ask eddie for access/i }).click();
+    await openDialog(page, accessOpener(page));
 
     await page.locator('#air-request-email').fill('someone@example.com');
     await page.locator('#air-request-reason').fill('Hiring for a platform role.');
@@ -155,8 +154,8 @@ test.describe('A.I.R. access request', () => {
     );
 
     await page.goto(AIR);
-    const opener = page.getByRole('button', { name: /ask eddie for access/i });
-    await opener.click();
+    const opener = accessOpener(page);
+    await openDialog(page, opener);
 
     await page.locator('#air-request-email').fill('someone@example.com');
     await page.locator('#air-request-reason').fill('Curious about the platform work.');
@@ -178,7 +177,7 @@ test.describe('A.I.R. access request', () => {
     await done.click();
     await expect(page.locator(dialog)).toHaveCount(0);
 
-    await opener.click();
+    await openDialog(page, opener);
 
     // Reopening shows the form again, not the previous outcome — a stale
     // confirmation reads as a response to a request that was never sent.
