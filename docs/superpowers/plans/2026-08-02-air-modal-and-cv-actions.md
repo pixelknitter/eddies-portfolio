@@ -668,12 +668,28 @@ describe('AskAir', () => {
     );
   });
 
-  it('opens the dialog on focus rather than waiting for a submit', async () => {
+  /**
+   * WCAG 2.1 SC 3.2.1 (On Focus, Level A): receiving focus must not initiate a
+   * change of context, and opening a focus-trapping dialog is one. Tabbing past
+   * this control must leave the page alone — otherwise a keyboard visitor
+   * scanning the résumé is dropped inside a dialog they never asked for, with
+   * no way to tab back out because `aria-modal` makes the page behind inert.
+   */
+  it('does not open when focus merely passes through it', async () => {
     const user = userEvent.setup();
     render(<AskAir href="/cv/air/" />);
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     await user.tab();
+    expect(screen.getByRole('link', { name: /ask A\.I\.R\./i })).toHaveFocus();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('opens on Enter, so a keyboard visitor can reach it deliberately', async () => {
+    const user = userEvent.setup();
+    render(<AskAir href="/cv/air/" />);
+
+    await user.tab();
+    await user.keyboard('{Enter}');
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
 
@@ -719,16 +735,31 @@ import { AIResume } from './AIResume';
 /**
  * The résumé's front door to A.I.R.
  *
- * Styled as an input but it is **not a text field** — it is the modal trigger,
- * and focusing it opens the dialog. Stated because the alternative reading
- * (type here, press enter, then the modal opens) means a visitor's first
- * keystrokes land in a control that is about to be replaced, and the text has
- * to be carried across. One input that accepts text lives in the dialog; this
- * one only opens it.
+ * Styled as a search field but it is **not a text field** — it is the modal
+ * trigger. One input that accepts text lives in the dialog; this one only
+ * opens it, so a visitor's keystrokes never land in a control that is about to
+ * be replaced.
  *
- * It is an `<a href>` rather than a `<button>` so that the feature works with
+ * ## Activated, never focused
+ *
+ * The dialog opens on click or Enter, never on focus. WCAG 2.1 SC 3.2.1
+ * (On Focus, Level A) is explicit: a component receiving focus must not
+ * initiate a change of context, and opening a focus-trapping dialog is exactly
+ * that. A keyboard visitor tabbing down the résumé would otherwise land inside
+ * a dialog they never asked for — and could not tab back out of, because
+ * `aria-modal="true"` makes the rest of the page inert. That is the whole
+ * point of a modal, which is why focus-to-open and modality cannot both hold.
+ * Closing on blur instead would trade the trap for a dialog that vanishes
+ * mid-sentence. Activation is the only option that is neither.
+ *
+ * The `⏎` hint carries its share of the work: it tells a sighted visitor that
+ * this is a control to press rather than a box to type in, which is the one
+ * thing the search-field styling does not say on its own.
+ *
+ * It is an `<a href>` rather than a `<button>` so the feature works with
  * JavaScript off: the link goes to /cv/air/, which renders the same island as
- * a full page. The upgrade is `preventDefault` on activation.
+ * a full page. The upgrade is `preventDefault` on activation. A link is
+ * activated by Enter, which is the keyboard behaviour we want anyway.
  */
 
 interface Props {
@@ -749,14 +780,22 @@ export function AskAir({ href }: Props) {
       <a
         href={href}
         onClick={openDialog}
-        // Focus opens it: someone who has clicked into the field is already
-        // asking, and making them press Enter first to reach the real input
-        // buys nothing.
-        onFocus={openDialog}
-        className="flex w-full items-center gap-2 rounded-lg border border-hairline bg-surface p-3 text-left font-body no-underline opacity-90 transition-colors hover:border-underline dark:border-hairline-dark dark:bg-surface-dark dark:hover:border-link"
+        className="flex w-full items-center gap-2 rounded-lg border border-hairline bg-surface p-3 text-left font-body no-underline transition-colors hover:border-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-underline dark:border-hairline-dark dark:bg-surface-dark dark:hover:border-link dark:focus-visible:outline-link"
       >
         <span aria-hidden="true">✦</span>
-        <span>Ask A.I.R. about Eddie&rsquo;s work&hellip;</span>
+        <span className="opacity-70">Ask A.I.R. about Eddie&rsquo;s work&hellip;</span>
+        {/*
+          Says "press this" in the one place the search-field styling says
+          "type here". aria-hidden because the accessible name already reads
+          "link, Ask A.I.R. about Eddie's work" — a screen reader announcing
+          a keycap after it would be noise, not information.
+        */}
+        <span
+          aria-hidden="true"
+          className="ml-auto rounded border border-hairline px-1.5 py-0.5 text-xs opacity-60 dark:border-hairline-dark"
+        >
+          ⏎
+        </span>
       </a>
 
       <Modal
