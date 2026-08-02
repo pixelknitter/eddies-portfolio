@@ -11,7 +11,8 @@
     "./redact": "./src/redact.mjs",
     "./llm": "./src/llm.mjs",
     "./transport": "./src/transport.mjs",
-    "./client": "./src/client.mjs"
+    "./client": "./src/client.mjs",
+    "./posthog": "./src/posthog.mjs"
   },
   "files": [
     "src"
