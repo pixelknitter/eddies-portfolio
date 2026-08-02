@@ -297,9 +297,14 @@ describe('AIResume', () => {
 
     expect(await screen.findByText(/available by invitation/i)).toBeInTheDocument();
     expect(window.localStorage.getItem('air-access-code')).toBeNull();
-    // Back to asking for questions, not for a code: the gate appears only when
-    // a question is actually waiting on one, and the next attempt will raise it.
-    expect(screen.getByPlaceholderText(/ask about Eddie's work/i)).toBeInTheDocument();
+    // And it asks for a new one on the spot, holding the rejected question.
+    // Clearing without re-prompting left a dead end: the code UI only appears
+    // when a question is waiting, so there was no route back to it.
+    expect(screen.getByPlaceholderText(/enter your access code/i)).toBeInTheDocument();
+    expect(screen.getByText(/Anything\?/)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /ask Eddie for access/i }),
+    ).toBeInTheDocument();
   });
 
   it('surfaces the error when the gate rejects the code', async () => {

@@ -98,7 +98,19 @@ export function AIResume({ variant = 'page', titleId }: Props = {}) {
     setAccessCode(readStoredCode());
   }, []);
 
-  const hasCode = accessCode !== '';
+  /**
+   * Whether a code is available *right now*, reading storage rather than state
+   * when state has not caught up.
+   *
+   * The effect above runs after mount, so between first paint and that effect
+   * `accessCode` is `''` even for a visitor who has one. That window is small
+   * but reachable — the dialog opens on a click that may land in it, and the
+   * consequence is asking a returning visitor for a code they already gave.
+   * Reading through to storage closes it without moving the read back into
+   * render, where it would break hydration.
+   */
+  const currentCode = accessCode || readStoredCode();
+  const hasCode = currentCode !== '';
 
   // Move focus into the dialog when it opens, so keyboard and screen-reader
   // users land inside it rather than behind it.
@@ -186,7 +198,7 @@ export function AIResume({ variant = 'page', titleId }: Props = {}) {
           'content-type': 'application/json',
           // `withCode` when a code was entered a moment ago: this closure
           // captured the previous render's `accessCode`, which is still ''.
-          'x-air-access': withCode ?? accessCode,
+          'x-air-access': withCode ?? currentCode,
         },
         body: JSON.stringify({ question: trimmed }),
       });
@@ -216,8 +228,24 @@ export function AIResume({ variant = 'page', titleId }: Props = {}) {
          * the one action that can help.
          */
         if (response.status === 401) {
+          /*
+           * Forget the code *and* ask for a new one, holding the question.
+           *
+           * Clearing alone left a dead end: the error said the résumé was by
+           * invitation, the field was still asking for questions, and the code
+           * UI only appears when a question is waiting on one — so there was no
+           * route to the one thing that would help. The visitor had to guess
+           * that asking again would produce the prompt.
+           *
+           * Holding `trimmed` puts the field straight into code mode with the
+           * rejected question named beneath it, so the next code entered sends
+           * it. This is the common case on a preview, where codes rotate on
+           * every deploy and a stored one is stale rather than wrong.
+           */
           storeCode('');
           setAccessCode('');
+          setHeldQuestion(trimmed);
+          inputRef.current?.focus();
         }
         setError(
           body?.error ??
