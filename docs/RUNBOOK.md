@@ -212,6 +212,118 @@ ruby -ryaml -e 'Dir.glob(".github/workflows/*.yml").each { |f| YAML.load_file(f)
 
 ---
 
+### E2E fails with a wall of `ERR_CONNECTION_REFUSED`
+
+**Symptom.** The `e2e` job reports a large number of failures, all of them
+`page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:4321/…`, across
+specs that have nothing to do with the change. The count and the point it
+starts move between runs — one run passed 12 tests before dying, another 50.
+
+**This is not a signal about the change under test.** It has happened on
+`master` on a docs-only commit, and the same commit has both passed and failed.
+Confirmed by re-running a failed job with no code change: it went green.
+
+**Cause.** `wrangler dev` exits partway through the run, so every test queued
+after that moment fails against a server that is no longer listening. In its own
+log the exit looks like this:
+
+```
+debug  Error in ProxyController: Error inside ProxyWorker
+         at castErrorCause
+         at ProxyController2.emitErrorEvent
+         at ProxyController2.onProxyWorkerMessage
+         at PROXY_CONTROLLER
+         at async #handleLoopbackCustomFetchService (miniflare)
+debug  => Error contextual data: { config: { …the whole bundle… } }
+error  ✘ [ERROR]
+```
+
+Wrangler's internal ProxyWorker — the proxy that fronts the real Worker in dev —
+raises an error carrying no message, and `ProxyController` escalates any such
+error to fatal and ends the process. The empty message is why the console line
+is a bare `✘ [ERROR]`. Wrangler's own advice in the same log is to check whether
+a newer version fixes it; this was seen on **4.114.0**, with 4.118.0 available.
+
+Nothing in the application or the specs is involved.
+
+**Fix.** Re-run the job — it is a genuine flake, not a masked failure. If it
+becomes frequent, upgrade wrangler first, since that is what its own error text
+recommends.
+
+**Reading the evidence.** The reason is in wrangler's logfile, which the `e2e`
+job both uploads and echoes into its own output under a `wrangler log …` group.
+Read the job log rather than the artifact: the logs API returns only a job's
+tail — on a failing run that is entirely Playwright's summary — so search the
+job log for `ProxyWorker`, and note the artifact is served from a blob host that
+a restrictive egress policy may refuse.
+
+---
+
+### The `e2e` job hangs, producing no output at all
+
+**Symptom.** `Run E2E suite` stays in progress with nothing written after some
+ordinary-looking page load. No failure, no summary, no timeout. Seen twice on
+the same commit, both times ending only when the run was cancelled by hand
+nearly five hours later.
+
+**How to recognise it.** In the job log, Playwright's own progress output and
+wrangler's request log stop in the *same millisecond* and never resume. Two
+unrelated writers falling silent together is a stalled pipeline, not a stuck
+test — a hung test would leave the server logging. Confirmation comes at the
+bottom of the log: `Cleaning up orphan processes` lists the whole tree still
+alive, and **two** `workerd` and **two** `esbuild` entries mean
+`serve-worker.mjs` had restarted wrangler into a state nothing was draining.
+
+**Cause.** The wedge is in Playwright's **teardown**, not in the tests. Once a
+ceiling was added the run stopped hanging and said so outright:
+
+```
+Timed out waiting 600s for the teardown for plugin setup to run
+```
+
+Three things combined:
+
+1. `serve-worker.mjs` spawns wrangler `detached`, so the whole tree can be
+   reaped by group id — which also means Playwright's process-group kill at
+   teardown never reaches it.
+2. The supervisor's signal handler called `process.exit(0)` on the line after
+   `reap()`. SIGKILL is delivered asynchronously, so it left while wrangler and
+   two workerd processes were still running.
+3. Those survivors had `stdio: 'inherit'` — Playwright's *own* stdout and
+   stderr. Playwright waits for those to close. They never did.
+
+The same orphans also held port 4321, which is why the job-level retry failed in
+three seconds without ever binding.
+
+**Fix.** Cured at the cause and bounded as well, since a teardown that cannot
+finish should never again cost six hours:
+
+- wrangler's output is piped and forwarded rather than inherited, so the fds
+  belong to the supervisor and close when it exits, whatever survives below it.
+- the signal handler waits for the port to be released before exiting, and both
+  give-up paths reap the tree.
+
+The ceilings stay, in two layers:
+
+- `globalTimeout` in `playwright.config.ts` fails the *run* at ten minutes,
+  which still executes the log-collection and artifact steps.
+- `timeout-minutes` on the job is the backstop for a wedge that takes Playwright
+  itself with it. This one kills the step, so the evidence steps are skipped —
+  which is exactly why the Playwright-level ceiling is the lower of the two.
+
+A run that ends at either ceiling has hit something new, not a slow suite — a
+clean pass is well under a minute. Record it on
+[#73](https://github.com/pixelknitter/eddies-portfolio/issues/73).
+
+**`Cleaning up orphan processes` is not the tell, and this is worth knowing.**
+The first green run after the fix still listed all seven — `npm exec wrangler`,
+two `workerd`, the rest — and finished in 38 seconds. Reaping is still
+incomplete; it simply stopped mattering, because the survivors no longer hold
+anything Playwright waits on. That is the clearest confirmation of the cause
+available: the orphans were never what hung the job, the inherited fds were.
+
+---
+
 ### Working on sealed content
 
 The markdown is the source you edit; the blob is what gets committed. `seal`
