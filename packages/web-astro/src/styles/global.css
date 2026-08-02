@@ -52,11 +52,16 @@
      "incidental metadata" at both weights, and on the sunlit paper the loud
      reading won: the badges read as holes punched in the page.
      The light value is the same hue (271°) with saturation raised to survive
-     the tint, landing at 1.37:1 against the ground — the weight
-     --color-surface-dark already carries in dark mode (1.42:1). Body ink on it
-     is 11.16:1, so the pill gets quieter while its label gets clearer. */
+     the tint — mixing this violet straight into warm paper drains the violet
+     out and leaves a taupe grey, so the hue is held and the lightness moved.
+     It lands at 1.23:1 against the ground, just under the 1.30:1 the card
+     surface lifts off the same page. That ordering is the point: a chip sits
+     inside a card, so it must not outweigh the container holding it. Body ink
+     on it is 12.45:1, so the pill gets quieter while its label gets clearer —
+     those normally trade against each other, and do not here because the two
+     numbers measure different pairs. */
   --color-tag: #584966;
-  --color-tag-on-light: #dcd1e5;
+  --color-tag-on-light: #e6ddee;
   /* Card/panel surfaces. The page and card previously shared --color-dark,
      so cards were invisible except for a faint shadow.
      Measured against the page background: the first attempt at #2a2740 was

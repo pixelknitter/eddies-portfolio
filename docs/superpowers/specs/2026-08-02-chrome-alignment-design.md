@@ -95,20 +95,23 @@ the most urgent item here.
 
 ```css
 --color-tag: #584966;          /* unchanged — dark mode */
---color-tag-on-light: #dcd1e5; /* hue 271°, saturation raised to survive the tint */
+--color-tag-on-light: #e6ddee; /* hue 271°, saturation raised to survive the tint */
 ```
 
 Chosen by measurement, not by eye. Tinting `--color-tag` toward the paper ground
-hits the target weight at `#d9d0cf`, but mixing a low-saturation violet into warm
-paper drains the violet out and leaves a taupe grey. Holding the hue at 271° and
-raising saturation keeps it recognisably the same colour.
+hits the dark theme's chip weight at `#d9d0cf`, but mixing a low-saturation
+violet into warm paper drains the violet out and leaves a taupe grey. Holding
+the hue at 271° and moving lightness instead keeps it recognisably the same
+colour.
 
-| | vs paper | ink on it |
-|---|---|---|
-| `#dcd1e5` | **1.37:1** | **11.16:1** |
+| | vs page | vs card | ink on it |
+|---|---|---|---|
+| `#e6ddee` | **1.23:1** | 1.30:1 | **12.45:1** |
 
-1.37:1 is the weight `--color-surface-dark` already carries in dark mode
-(1.42:1), so the pill reads as the same kind of object in both themes.
+Rendered side by side against the real ground, the first candidate (`#dcd1e5`,
+1.37:1) still carried slightly more weight than the cards containing it. A chip
+sits *inside* a card, so it must not outweigh its own container; `#e6ddee` sits
+just under the card's lift, which puts the two in the right order.
 
 The pill gets quieter *and* its label gets clearer. Those normally trade against
 each other; here they do not, because the two numbers measure different pairs —
@@ -150,8 +153,9 @@ both themes at every route — not inferred.
 
 | Claim | How it was checked |
 |---|---|
-| The badge reads as a chip, not a slab, on paper | 7.65:1 → 1.37:1 against the ground |
-| Its label stayed legible | 7.65:1 → 11.16:1 |
+| The badge reads as a chip, not a slab, on paper | 7.65:1 → 1.23:1 against the ground |
+| The chip does not outweigh the card containing it | 1.23:1 against the page, under the card's own 1.30:1 |
+| Its label stayed legible | 7.65:1 → 12.45:1 |
 | Dark mode is untouched | badge still 2.00:1; dark screenshots identical but for the ragged-right copy |
 | Brand marks still read | tiles stayed dark; marks hold at 7.17:1 |
 | Footer links reach AA | 1.74:1 → 5.70:1, on every route |
