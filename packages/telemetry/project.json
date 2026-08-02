@@ -5,6 +5,14 @@
   "sourceRoot": "packages/telemetry/src",
   "tags": [],
   "targets": {
+    "check": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "options": {
+        "command": "tsc --noEmit -p tsconfig.json",
+        "cwd": "packages/telemetry"
+      }
+    },
     "test": {
       "executor": "nx:run-commands",
       "cache": true,

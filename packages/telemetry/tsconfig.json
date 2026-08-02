@@ -1,0 +1,31 @@
+{
+  // Type-checks the package's own source, which nothing did before.
+  //
+  // `allowJs` was already set in web-astro, so *consumers* have always been
+  // checked against this package's JSDoc — a wrong option passed to
+  // `createTelemetry` fails `astro check` today. What was missing is the other
+  // direction: nothing verified the JSDoc against the code it describes, so an
+  // annotation could drift from its implementation and only the consumer would
+  // ever hear about it.
+  //
+  // `checkJs` closes that without a build step. The source already passes under
+  // `strict`, so this locks in what is true rather than asking for new work —
+  // and the package keeps shipping its `.mjs` directly, which is what lets it
+  // run unchanged in workerd, Node, a browser and React Native, and what makes
+  // moving it to its own repository a directory copy rather than a port.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowJs": true,
+    "checkJs": true,
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    // The specs run with vitest's globals rather than importing them.
+    "types": ["vitest/globals"]
+  },
+  "include": ["src/**/*.mjs", "src/**/*.ts"],
+  "exclude": ["node_modules"]
+}
