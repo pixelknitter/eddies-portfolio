@@ -4105,6 +4105,12 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@pk/telemetry@workspace:packages/telemetry":
+  version: 0.0.0-use.local
+  resolution: "@pk/telemetry@workspace:packages/telemetry"
+  languageName: unknown
+  linkType: soft
+
 "@pkgjs/parseargs@npm:^0.11.0":
   version: 0.11.0
   resolution: "@pkgjs/parseargs@npm:0.11.0"

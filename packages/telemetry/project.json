@@ -1,0 +1,25 @@
+{
+  "name": "telemetry",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "packages/telemetry/src",
+  "tags": [],
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "options": {
+        "command": "vitest run",
+        "cwd": "packages/telemetry"
+      },
+      "configurations": { "watch": { "command": "vitest" } }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["packages/telemetry/**/*.{js,mjs,ts}"]
+      }
+    }
+  }
+}
