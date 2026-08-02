@@ -47,16 +47,26 @@ const TIMEOUT_MS = 1_500;
  */
 const DISTINCT_ID = 'eddie-engineering-server';
 
-/** @type {{ at: number, flags: Record<string, unknown> | null }} */
-let cache = { at: 0, flags: null };
+/**
+ * Both projections of one answer.
+ *
+ * `flags` is key to `enabled`, which is what a section toggle needs. `variants`
+ * is key to the string PostHog returns for a multivariate flag, which is what
+ * `air-model` needs — and which the boolean projection necessarily throws away.
+ * One fetch feeds both, because two callers wanting different slices of the
+ * same response is not a reason to ask twice.
+ *
+ * @type {{ at: number, flags: Record<string, unknown> | null, variants: Record<string, unknown> | null }}
+ */
+let cache = { at: 0, flags: null, variants: null };
 
 /** Shared so a burst of concurrent requests makes one fetch, not one each. */
-/** @type {Promise<Record<string, unknown> | null> | null} */
+/** @type {Promise<{flags: Record<string, unknown> | null, variants: Record<string, unknown> | null}> | null} */
 let inFlight = null;
 
 /** Test seam. Module state outlives a single test otherwise. */
 export function resetFlagCache() {
-  cache = { at: 0, flags: null };
+  cache = { at: 0, flags: null, variants: null };
   inFlight = null;
 }
 
@@ -67,13 +77,38 @@ export function resetFlagCache() {
  *   "no runtime opinion" — unconfigured, unreachable, or malformed.
  */
 export async function readRuntimeFlags(env, options = {}) {
+  return (await read(env, options)).flags;
+}
+
+/**
+ * The variant each flag resolved to, for the flags that carry one.
+ *
+ * Shares the fetch and the cache with `readRuntimeFlags`. A flag with no
+ * variant is `null` here and still `true`/`false` there.
+ *
+ * @param {Record<string, unknown> | undefined} env
+ * @param {{ now?: number, fetchImpl?: typeof fetch }} [options]
+ * @returns {Promise<Record<string, unknown> | null>}
+ */
+export async function readRuntimeVariants(env, options = {}) {
+  return (await read(env, options)).variants;
+}
+
+/**
+ * @param {Record<string, unknown> | undefined} env
+ * @param {{ now?: number, fetchImpl?: typeof fetch }} [options]
+ * @returns {Promise<{flags: Record<string, unknown> | null, variants: Record<string, unknown> | null}>}
+ */
+async function read(env, options = {}) {
   const key = env?.PUBLIC_POSTHOG_KEY;
   // Unconfigured is a normal state, not an error: `astro dev`, vitest, and any
   // preview whose key was not set all land here.
-  if (!key) return null;
+  if (!key) return { flags: null, variants: null };
 
   const now = options.now ?? Date.now();
-  if (cache.flags && now - cache.at < TTL_MS) return cache.flags;
+  if (cache.flags && now - cache.at < TTL_MS) {
+    return { flags: cache.flags, variants: cache.variants };
+  }
   if (inFlight) return inFlight;
 
   const host = env?.PUBLIC_POSTHOG_HOST || DEFAULT_HOST;
@@ -87,7 +122,7 @@ export async function readRuntimeFlags(env, options = {}) {
         body: JSON.stringify({ api_key: key, distinct_id: DISTINCT_ID }),
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
-      if (!response.ok) return cache.flags;
+      if (!response.ok) return { flags: cache.flags, variants: cache.variants };
 
       const body = await response.json();
       /*
@@ -104,17 +139,22 @@ export async function readRuntimeFlags(env, options = {}) {
       const entries = body?.flags;
       // A body with no flag map is a malformed answer, not an empty one. An
       // empty map is legitimate and means every flag is inactive.
-      if (!entries || typeof entries !== 'object') return cache.flags;
+      if (!entries || typeof entries !== 'object') {
+        return { flags: cache.flags, variants: cache.variants };
+      }
 
       const flags = Object.fromEntries(
         Object.entries(entries).map(([key, entry]) => [key, entry?.enabled]),
       );
+      const variants = Object.fromEntries(
+        Object.entries(entries).map(([key, entry]) => [key, entry?.variant]),
+      );
 
-      cache = { at: now, flags };
-      return flags;
+      cache = { at: now, flags, variants };
+      return { flags, variants };
     } catch {
       // Timeout, network error, invalid JSON. Keep serving what we had.
-      return cache.flags;
+      return { flags: cache.flags, variants: cache.variants };
     } finally {
       inFlight = null;
     }

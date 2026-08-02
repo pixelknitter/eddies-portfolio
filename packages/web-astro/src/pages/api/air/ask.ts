@@ -16,6 +16,7 @@ import { createRateLimiter, isAuthorised } from '@util/air/access.mjs';
 import { readSecret } from '@util/air/runtime.mjs';
 import { verifyAccessCode } from '@util/air/requests.mjs';
 import { tierFromRequest } from '@util/air/tier.mjs';
+import { resolveModel } from '@util/air/model.mjs';
 import { createTelemetry } from '@pk/telemetry';
 
 /**
@@ -33,7 +34,12 @@ const limiter = createRateLimiter();
 /** Bounds one answer's cost. Two or three short paragraphs need far less. */
 const MAX_TOKENS = 2000;
 
-const MODEL = 'claude-opus-5';
+/*
+ * Which model answers is resolved per request from the `air-model` flag, not
+ * compiled in — comparing models on real traffic needs the swap to happen
+ * without a deploy. See util/air/model.mjs; every failure path returns the
+ * compiled default, so a network blip never changes what the site serves.
+ */
 
 function json(
   body: unknown,
@@ -109,6 +115,10 @@ export async function POST(context: APIContext): Promise<Response> {
   const telemetry = createTelemetry(import.meta.env, {
     waitUntil: resolveWaitUntil(context.locals),
   });
+
+  // Resolved once per request and threaded through every exit, so the trace
+  // records which model actually answered rather than which one we assume.
+  const model = await resolveModel(import.meta.env);
 
   const traceId = crypto.randomUUID();
   const tier = tierFromRequest(context.request);
@@ -325,7 +335,7 @@ export async function POST(context: APIContext): Promise<Response> {
   const startedAt = Date.now();
   try {
     response = await client.messages.create({
-      model: MODEL,
+      model,
       max_tokens: MAX_TOKENS,
       // Grounded extraction over four short documents does not need deep
       // reasoning, and effort is the primary latency and cost lever here.
@@ -346,10 +356,10 @@ export async function POST(context: APIContext): Promise<Response> {
     // Recorded as an exception as well as an outcome: the trace says what
     // happened, the exception says what threw. An Anthropic 429, a 529, a
     // timeout and a network failure are one indistinguishable 502 today.
-    telemetry.recordError(error, { outcome: 'upstream_error', model: MODEL });
+    telemetry.recordError(error, { outcome: 'upstream_error', model });
     return finish(
       json({ error: 'A.I.R. could not answer that just now.' }, 502),
-      { outcome: 'upstream_error', questionLength, grantType, model: MODEL },
+      { outcome: 'upstream_error', questionLength, grantType, model },
       { retrieval },
     );
   }
@@ -359,7 +369,7 @@ export async function POST(context: APIContext): Promise<Response> {
   /** Shared by every exit below, so a generation is never lost to an early return. */
   const generation = {
     traceId,
-    model: MODEL,
+    model,
     ms,
     usage,
     stopReason: response.stop_reason,
@@ -379,7 +389,7 @@ export async function POST(context: APIContext): Promise<Response> {
           "I can't answer that one. Ask me about Eddie's work and I'll do better.",
         citations: [],
       }),
-      { outcome: 'refusal', grounded: false, questionLength, grantType, model: MODEL },
+      { outcome: 'refusal', grounded: false, questionLength, grantType, model },
       { retrieval, generation },
     );
   }
@@ -400,7 +410,7 @@ export async function POST(context: APIContext): Promise<Response> {
         outcome: response.stop_reason === 'max_tokens' ? 'truncated' : 'unparseable',
         questionLength,
         grantType,
-        model: MODEL,
+        model,
       },
       { retrieval, generation: { ...generation, output: text } },
     );
@@ -424,7 +434,7 @@ export async function POST(context: APIContext): Promise<Response> {
         grounded: false,
         questionLength,
         grantType,
-        model: MODEL,
+        model,
       },
       {
         retrieval,
@@ -453,7 +463,7 @@ export async function POST(context: APIContext): Promise<Response> {
       grounded: answer.grounded,
       questionLength,
       grantType,
-      model: MODEL,
+      model,
     },
     {
       retrieval,

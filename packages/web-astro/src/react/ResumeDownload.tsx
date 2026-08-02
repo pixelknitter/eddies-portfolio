@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { EVENTS } from '@pk/telemetry/events';
+import { ensureClient, getClient } from '../util/telemetry/client.mjs';
+
 /**
  * The lead-capture gate on the resume page.
  *
@@ -67,6 +70,20 @@ export function ResumeDownload() {
     if (wanted) emailRef.current?.focus();
   }, [wanted]);
 
+  /**
+   * Opening the form is the first funnel step, and the first point at which
+   * this page needs telemetry at all.
+   *
+   * `ensureClient` is fire-and-forget: in feedback-only mode the layout has not
+   * loaded the SDK, and the capture below is queued by the façade and replayed
+   * once it arrives. Nothing is lost while it resolves, and nothing waits on it.
+   */
+  function openForm(which: Wanted) {
+    void ensureClient();
+    getClient().capture(EVENTS.resumeFormOpened);
+    setWanted(which);
+  }
+
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!wanted) return;
@@ -107,6 +124,19 @@ export function ResumeDownload() {
 
       // Staggered: browsers throttle downloads fired in the same tick, and the
       // second one silently never happens.
+      /*
+       * Counted once per submission, not once per file. Two files leave here
+       * on a human request, and a funnel step that increments twice for one
+       * visitor's action is a funnel that lies.
+       *
+       * No properties, deliberately: this component's own props are the one
+       * place on the site where a token decoding to an email is in scope, so
+       * the event carries the step and nothing else.
+       */
+      getClient().capture(EVENTS.resumeDownloadTriggered);
+
+      // Staggered: browsers throttle downloads fired in the same tick, and the
+      // second one silently never happens.
       body.downloads.forEach((download, index) => {
         window.setTimeout(
           () => triggerDownload(download.url, download.filename),
@@ -136,14 +166,18 @@ export function ResumeDownload() {
         <button
           type="button"
           className="resume-cta resume-cta-primary"
-          onClick={() => setWanted('human')}
+          onClick={() => {
+            openForm('human');
+          }}
         >
           <span aria-hidden="true">⤓</span> Human readable
         </button>
         <button
           type="button"
           className="resume-cta resume-cta-secondary"
-          onClick={() => setWanted('bot')}
+          onClick={() => {
+            openForm('bot');
+          }}
         >
           <span aria-hidden="true">⤓</span> Bot readable
         </button>
