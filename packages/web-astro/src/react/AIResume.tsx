@@ -166,6 +166,20 @@ export function AIResume({ variant = 'page', titleId }: Props = {}) {
       const body = await response.json().catch(() => null);
 
       if (!response.ok) {
+        /*
+         * A rejected code is forgotten, not kept.
+         *
+         * 401 means the stored code does not work — expired, mistyped once and
+         * saved, or the event it belonged to is over. Keeping it leaves the
+         * input in question mode asking for questions it will never answer,
+         * with no way back to the field that would fix it: the code UI only
+         * appears when nothing is stored. Clearing it returns the visitor to
+         * the one action that can help.
+         */
+        if (response.status === 401) {
+          storeCode('');
+          setAccessCode('');
+        }
         setError(
           body?.error ??
             `A.I.R. couldn't answer that (error ${response.status}). This is a problem on my end, not yours.`,
@@ -181,6 +195,10 @@ export function AIResume({ variant = 'page', titleId }: Props = {}) {
       }
 
       setAnswer(body as Answer);
+      // Cleared only now. A question that failed is still wanted — wiping the
+      // field on an error makes the visitor retype it to find out whether the
+      // failure was theirs or ours.
+      setDraft('');
     } catch {
       setError('Could not reach A.I.R. Check your connection and try again.');
     } finally {
@@ -189,7 +207,23 @@ export function AIResume({ variant = 'page', titleId }: Props = {}) {
   }
 
   return (
-    <section>
+    /*
+      In the dialog this root is a link in the scroll chain, not a wrapper.
+
+      The panel is a bounded flex column with `overflow-hidden`; the answer card
+      below carries `flex-1 min-h-0` so it can shrink and scroll inside it. Both
+      of those are inert unless every element between them is also a flex
+      container that can shrink — a plain block here has `min-height: auto`
+      resolving to its content height, so the card grows past the panel and is
+      clipped with nothing to scroll.
+
+      This is one line and it is the whole reason a long answer is reachable.
+    */
+    <section
+      className={
+        variant === 'dialog' ? 'flex min-h-0 flex-1 flex-col' : undefined
+      }
+    >
       {/*
         Says what the page does rather than greeting the visitor. A.I.R. is a
         way to read the résumé now, not a product with its own front door — the
@@ -266,14 +300,21 @@ export function AIResume({ variant = 'page', titleId }: Props = {}) {
           autoComplete="off"
           onKeyDown={(event) => {
             if (event.key !== 'Enter') return;
+            // `ask` refuses while a question is in flight, and clearing the
+            // field regardless would erase the second of two quick presses
+            // without ever sending it.
+            if (pending) return;
             if (hasCode) {
+              // Not cleared here: `ask` clears only once an answer arrives, so
+              // a rejected or failed question is still in the field to retry
+              // or edit rather than retyped from memory.
               ask(draft);
-            } else {
-              const code = draft.trim();
-              if (!code) return;
-              storeCode(code);
-              setAccessCode(code);
+              return;
             }
+            const code = draft.trim();
+            if (!code) return;
+            storeCode(code);
+            setAccessCode(code);
             setDraft('');
           }}
         />

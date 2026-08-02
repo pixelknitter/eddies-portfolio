@@ -40,15 +40,39 @@ interface Props {
 
 export function AskAir({ href }: Props) {
   const [open, setOpen] = React.useState(false);
+  const triggerRef = React.useRef<HTMLAnchorElement>(null);
+  /**
+   * Where the trigger was when it was activated.
+   *
+   * Measured rather than assumed: the control's distance from the top of the
+   * viewport depends on how far the visitor has scrolled, so a fixed offset
+   * would only be right at the top of the page. Opening the dialog anywhere
+   * else is what made it read as an unrelated panel arriving over the résumé
+   * rather than this input opening out.
+   */
+  const [anchorTop, setAnchorTop] = React.useState<number | undefined>();
 
   const openDialog = React.useCallback((event?: React.SyntheticEvent) => {
     event?.preventDefault();
+    const top = triggerRef.current?.getBoundingClientRect().top;
+    // Clamped so a trigger scrolled near the bottom does not open a dialog
+    // with no room beneath it.
+    if (typeof top === 'number') {
+      setAnchorTop(Math.max(0, Math.min(top, window.innerHeight * 0.25)));
+    }
     setOpen(true);
   }, []);
+
+  // Stable, because Modal has it as an effect dependency and that effect's
+  // cleanup restores focus to the trigger. A fresh identity each render would
+  // re-run it on any future re-render while open, bouncing focus out of the
+  // dialog and back in mid-sentence.
+  const closeDialog = React.useCallback(() => setOpen(false), []);
 
   return (
     <>
       <a
+        ref={triggerRef}
         href={href}
         onClick={openDialog}
         className="flex w-full items-center gap-2 rounded-lg border border-hairline bg-surface p-3 text-left font-body no-underline transition-colors hover:border-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-underline dark:border-hairline-dark dark:bg-surface-dark dark:hover:border-link dark:focus-visible:outline-link"
@@ -71,7 +95,7 @@ export function AskAir({ href }: Props) {
 
       <Modal
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={closeDialog}
         titleId="air-dialog-title"
         // The input must not scroll away; only the answer region does.
         bodyScrolls={false}
@@ -88,6 +112,7 @@ export function AskAir({ href }: Props) {
           lifting off the page rather than a narrower box arriving over it.
         */
         widthClass="sm:max-w-3xl"
+        anchorTop={anchorTop}
       >
         <AIResume variant="dialog" titleId="air-dialog-title" />
       </Modal>

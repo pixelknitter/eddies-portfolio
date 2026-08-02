@@ -13,6 +13,23 @@ import React from 'react';
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+/**
+ * Every open dialog, innermost last.
+ *
+ * Dialogs nest here: the access-request form renders inside the ask dialog, and
+ * `Modal` does not portal, so the inner panel is a DOM descendant of the outer
+ * one. Both then listen for `keydown` on `document`, and a listener on the same
+ * node cannot be stopped by `stopPropagation` — so without this, Escape in the
+ * request form closed the ask dialog too and discarded what had been typed, and
+ * Tab off the form's last field landed on the input *behind* it, in the region
+ * `aria-modal` promises is inert.
+ *
+ * Module scope rather than context because it must be shared across every
+ * `Modal` regardless of where it is mounted, and there is only ever one
+ * document to arbitrate over.
+ */
+const OPEN_STACK: object[] = [];
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -44,6 +61,19 @@ interface Props {
    * landing on top of it.
    */
   widthClass?: string;
+  /**
+   * Distance from the top of the viewport to open at, in pixels.
+   *
+   * Omit to centre, which suits a dialog with no origin on the page. The ask
+   * dialog passes the top edge of the control that opened it, so the dialog
+   * appears where that control is rather than in the middle of the screen —
+   * the difference between an input opening out and an unrelated panel
+   * arriving over the page.
+   *
+   * Ignored below `sm`, where the dialog is a bottom sheet within thumb reach
+   * and matching a control near the top of the page would put it out of it.
+   */
+  anchorTop?: number;
   children: React.ReactNode;
 }
 
@@ -54,6 +84,7 @@ export function Modal({
   bodyScrolls = true,
   surface = true,
   widthClass = 'sm:max-w-xl',
+  anchorTop,
   children,
 }: Props) {
   const panelRef = React.useRef<HTMLDivElement>(null);
@@ -71,14 +102,24 @@ export function Modal({
     const panel = panelRef.current;
     panel?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
 
+    // Claim the top of the stack for as long as this dialog is open.
+    const token = {};
+    OPEN_STACK.push(token);
+    const isTopmost = () => OPEN_STACK[OPEN_STACK.length - 1] === token;
+
     // The page behind must not scroll. Restoring the previous value rather than
     // clearing it keeps this safe if anything else is also managing overflow.
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
     function onKeyDown(event: KeyboardEvent) {
+      // Only the dialog on top acts. Both instances listen on `document`, where
+      // `stopPropagation` cannot separate them — it stops the event travelling
+      // between nodes, not between two listeners on the same node — and the
+      // outer one registered first, so it would otherwise win.
+      if (!isTopmost()) return;
+
       if (event.key === 'Escape') {
-        event.stopPropagation();
         onClose();
         return;
       }
@@ -108,6 +149,11 @@ export function Modal({
 
     return () => {
       document.removeEventListener('keydown', onKeyDown);
+      // Spliced by identity, not popped: a nested dialog can outlive its
+      // parent if the parent is closed programmatically, and popping would
+      // then remove the wrong token and leave a live dialog deaf to Escape.
+      const at = OPEN_STACK.indexOf(token);
+      if (at !== -1) OPEN_STACK.splice(at, 1);
       document.body.style.overflow = previousOverflow;
       restoreTo.current?.focus();
     };
@@ -119,7 +165,9 @@ export function Modal({
     <div
       // Fills the viewport and centres the panel; `items-end sm:items-center`
       // puts it within thumb reach on a phone and centres it on a desktop.
-      className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4"
+      className={`fixed inset-0 z-50 flex items-end justify-center p-0 sm:p-4 ${
+        anchorTop === undefined ? 'sm:items-center' : 'sm:items-start'
+      }`}
     >
       {/* Backdrop. A separate element so a click on it closes without the panel's
           own clicks bubbling out and dismissing what the user is filling in. */}
@@ -136,10 +184,22 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        /*
+          A CSS custom property rather than a Tailwind class, because the value
+          is measured at open time and there is no utility for "wherever that
+          control happens to be". Only consulted at `sm` and up — see anchorTop.
+        */
+        style={
+          anchorTop === undefined
+            ? undefined
+            : ({ '--anchor-top': `${anchorTop}px` } as React.CSSProperties)
+        }
         // max-h with overflow so a long form stays reachable on a short
         // viewport — the failure mode of a centred fixed panel is a submit
         // button below the fold with no way to scroll to it.
         className={`relative flex max-h-[92dvh] w-full flex-col motion-safe:animate-[lift-in_180ms_ease-out] ${widthClass} ${
+          anchorTop === undefined ? '' : 'sm:mt-[var(--anchor-top)]'
+        } ${
           surface ? 'surface rounded-t-2xl p-4 sm:rounded-2xl sm:p-6' : ''
         } ${bodyScrolls ? 'overflow-y-auto' : 'overflow-hidden'}`}
       >

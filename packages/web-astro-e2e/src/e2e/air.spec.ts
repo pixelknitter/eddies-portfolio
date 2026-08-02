@@ -33,7 +33,7 @@ test.describe('A.I.R. access request', () => {
   test('the request form opens as an overlay rather than stacking below', async ({ page }) => {
     await page.goto(AIR);
 
-    const box = await page.locator('#air-access').boundingBox();
+    const box = await page.locator('#air-input').boundingBox();
     await page.getByRole('button', { name: /ask eddie for access/i }).click();
 
     const panel = page.locator(dialog);
@@ -51,7 +51,7 @@ test.describe('A.I.R. access request', () => {
     expect(panelBox.y + panelBox.height).toBeLessThanOrEqual(viewport.height + 1);
 
     // Content behind the dialog has not moved.
-    expect((await page.locator('#air-access').boundingBox())!.y).toBeCloseTo(box!.y, 0);
+    expect((await page.locator('#air-input').boundingBox())!.y).toBeCloseTo(box!.y, 0);
   });
 
   test('focus moves into the dialog and returns to the opener on close', async ({ page }) => {
@@ -191,9 +191,13 @@ test.describe('A.I.R. asking', () => {
   test('a wrong access code is reported and no answer is shown', async ({ page }) => {
     await page.goto(AIR);
 
-    await page.locator('#air-access').fill('not-the-code');
-    await page.locator('#air-question').fill('What has Eddie built?');
-    await page.locator('#air-question').press('Enter');
+    // One field, two modes: the code is entered and saved first, which flips
+    // the same input to accepting questions. There is no separate #air-input
+    // any more — that split is what this branch removed.
+    await page.locator('#air-input').fill('not-the-code');
+    await page.locator('#air-input').press('Enter');
+    await page.locator('#air-input').fill('What has Eddie built?');
+    await page.locator('#air-input').press('Enter');
 
     // The unconfigured build answers this for real — no stub needed, and it is
     // the same shape of response a wrong code produces in production.
@@ -215,8 +219,8 @@ test.describe('A.I.R. asking', () => {
     );
 
     await page.goto(AIR);
-    await page.locator('#air-question').fill('How does Eddie approach owning a system?');
-    await page.locator('#air-question').press('Enter');
+    await page.locator('#air-input').fill('How does Eddie approach owning a system?');
+    await page.locator('#air-input').press('Enter');
 
     await expect(page.getByText(/extracted the platform onto owned infrastructure/i)).toBeVisible();
     await expect(page.getByText('Drawn from')).toBeVisible();
@@ -237,8 +241,8 @@ test.describe('A.I.R. asking', () => {
     );
 
     await page.goto(AIR);
-    await page.locator('#air-question').fill('What is his favourite restaurant?');
-    await page.locator('#air-question').press('Enter');
+    await page.locator('#air-input').fill('What is his favourite restaurant?');
+    await page.locator('#air-input').press('Enter');
 
     await expect(page.getByText(/treat it as a gap rather than an assessment/i)).toBeVisible();
     await expect(page.getByText('Drawn from')).toHaveCount(0);

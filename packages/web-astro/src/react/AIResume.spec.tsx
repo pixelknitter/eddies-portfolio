@@ -11,8 +11,19 @@ import { AIResume } from './AIResume';
  * UI that shows them the same way would undo it entirely.
  */
 
-function mockAnswer(body: Record<string, unknown>, ok = true) {
-  const fetchMock = vi.fn().mockResolvedValue({ ok, json: async () => body });
+/**
+ * `status` matters as well as `ok`: the component treats 401 specially,
+ * forgetting the stored code, so a test that only sets `ok: false` cannot
+ * reach that branch.
+ */
+function mockAnswer(
+  body: Record<string, unknown>,
+  ok = true,
+  status = ok ? 200 : 500,
+) {
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValue({ ok, status, json: async () => body });
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
 }
@@ -195,6 +206,64 @@ describe('AIResume', () => {
     expect(screen.queryByText('Drawn from')).not.toBeInTheDocument();
   });
 
+  /**
+   * A failed question is still a wanted question. Clearing the field on error
+   * makes the visitor retype it just to discover whether the failure was
+   * theirs or ours.
+   */
+  it('keeps the question in the field when the ask fails', async () => {
+    window.localStorage.setItem('air-access-code', 'conf-2026');
+    mockAnswer({ error: 'Something went wrong.' }, false);
+
+    const user = userEvent.setup();
+    render(<AIResume />);
+
+    const field = screen.getByPlaceholderText(/ask about Eddie's work/i);
+    await user.type(field, 'How does he work?{Enter}');
+
+    expect(await screen.findByText(/something went wrong/i)).toBeInTheDocument();
+    expect(field).toHaveValue('How does he work?');
+  });
+
+  it('clears the field once an answer actually arrives', async () => {
+    window.localStorage.setItem('air-access-code', 'conf-2026');
+    mockAnswer({ grounded: false, answer: 'That is a gap.', citations: [] });
+
+    const user = userEvent.setup();
+    render(<AIResume />);
+
+    const field = screen.getByPlaceholderText(/ask about Eddie's work/i);
+    await user.type(field, 'How does he work?{Enter}');
+
+    expect(await screen.findByText(/that is a gap/i)).toBeInTheDocument();
+    expect(field).toHaveValue('');
+  });
+
+  /**
+   * A stored code that the server rejects is worse than no code: the access UI
+   * only appears when nothing is stored, so the visitor is left in question
+   * mode with no route back to the one field that could fix it.
+   */
+  it('forgets a stored code the server rejects, and offers the field back', async () => {
+    window.localStorage.setItem('air-access-code', 'stale-code');
+    mockAnswer({ error: 'This resume is available by invitation.' }, false, 401);
+
+    const user = userEvent.setup();
+    render(<AIResume />);
+
+    await user.type(
+      screen.getByPlaceholderText(/ask about Eddie's work/i),
+      'Anything?{Enter}',
+    );
+
+    expect(await screen.findByText(/available by invitation/i)).toBeInTheDocument();
+    expect(window.localStorage.getItem('air-access-code')).toBeNull();
+    expect(screen.getByPlaceholderText(/enter your access code/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /ask Eddie for access/i }),
+    ).toBeInTheDocument();
+  });
+
   it('surfaces the error when the gate rejects the code', async () => {
     window.localStorage.setItem('air-access-code', 'conf-2026');
     mockAnswer({ error: 'This resume is available by invitation.' }, false);
@@ -281,7 +350,36 @@ describe('AIResume', () => {
     expect(screen.queryByText(/needs an access code first/i)).not.toBeInTheDocument();
   });
 
-  it('opens the suggestions once a code is stored', () => {
+  /**
+   * Replaces an assertion that the button is *enabled*, which stopped meaning
+   * anything once the codeless case became a redirect rather than a disable:
+   * the button is now always enabled, so that test passed whether or not the
+   * gate existed. This asserts what the gate actually does — with a code, the
+   * question is sent.
+   */
+  it('sends the question straight through once a code is stored', async () => {
+    window.localStorage.setItem('air-access-code', 'conf-2026');
+    const fetchMock = mockAnswer({ grounded: false, answer: 'No.', citations: [] });
+
+    const user = userEvent.setup();
+    render(<AIResume />);
+
+    await user.click(
+      within(screen.getByTestId('air-body')).getByRole('button', {
+        name: /system nobody wants to own/i,
+      }),
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/air/ask',
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'x-air-access': 'conf-2026' }),
+      }),
+    );
+    expect(screen.queryByText(/needs an access code first/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps the suggestions reachable once a code is stored', () => {
     window.localStorage.setItem('air-access-code', 'conf-2026');
     render(<AIResume />);
 
