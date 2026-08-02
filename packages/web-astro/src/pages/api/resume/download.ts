@@ -89,7 +89,7 @@ function fail(
   return page(
     title,
     `<p style="line-height:1.6;">${escapeHtml(detail)}</p>
-     <p style="line-height:1.6;"><a href="/air/resume/" style="color:#5dd39e;">Request a fresh copy</a></p>`,
+     <p style="line-height:1.6;"><a href="/cv/" style="color:#5dd39e;">Request a fresh copy</a></p>`,
     status,
   );
 }

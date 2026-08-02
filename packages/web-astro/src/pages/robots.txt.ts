@@ -37,7 +37,7 @@ const ALWAYS_DISALLOWED = [
   '/api/',
   // The print-render routes exist only for the PDF generator and carry contact
   // details. They 404 on deployed tiers anyway; this is the belt to that braces.
-  '/air/resume/print/',
+  '/cv/print/',
 ];
 
 export const GET: APIRoute = ({ request, url }) => {

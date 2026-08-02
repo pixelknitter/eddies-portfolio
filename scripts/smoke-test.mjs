@@ -56,11 +56,10 @@ const gatedRoutes = [
   // A.I.R. is flag-gated like the rest. It was exempt while production built
   // with PUBLIC_SHOW_AIR=true and leaned on the access code alone — but the
   // page and its nav link were still reachable by anyone.
-  { path: '/air/' },
-  // The resume rides its own flag, deliberately independent of A.I.R. — the two
-  // ship separately, so they are gated separately.
-  { path: '/air/resume/', contains: 'Eddie Freeman' },
-  { path: '/air/resume/for-bots', contains: 'Eddie Freeman' },
+  { path: '/cv/air/' },
+  // The resume is no longer here: it ships on every tier, so it is asserted
+  // live in `checks` below rather than asserted absent in strict mode. It rode
+  // its own flag precisely so it could go live without A.I.R., and it has.
 ];
 
 /** Routes asserted on every deploy. `contains` is checked case-sensitively. */
@@ -73,10 +72,15 @@ const checks = [
   // details, and a PDF at a public path would make the download token
   // decoration — and the asset handler's real behaviour only exists at the edge,
   // so a local check cannot stand in for this.
-  { path: '/air/resume/print/human', status: 404 },
-  { path: '/air/resume/print/bot', status: 404 },
+  { path: '/cv/print/human', status: 404 },
+  { path: '/cv/print/bot', status: 404 },
   { path: '/Eddie-Freeman-Resume.pdf', status: 404 },
   { path: '/resume.pdf', status: 404 },
+  // Live on every tier, production included — the resume is what the site is
+  // for. Asserted positively here rather than as a gated route, so a deploy
+  // that quietly stops serving it fails instead of passing by omission.
+  { path: '/cv/', status: 200, contains: 'Eddie Freeman' },
+  { path: '/cv/for-bots', status: 200, contains: 'Eddie Freeman' },
   ...gatedRoutes.map(({ path, contains }) =>
     strictFlags ? { path, status: 404 } : { path, status: 200, contains }
   ),
@@ -89,9 +93,9 @@ const checks = [
 const flaggedSections = [
   { name: 'blog', href: '/blog/' },
   { name: 'works', href: '/works/' },
-  // The nav link, not just the route: a 404 at /air/ with a link still pointing
+  // The nav link, not just the route: a 404 at /cv/air/ with a link still pointing
   // at it is how an unfinished section gets found.
-  { name: 'air', href: '/air/' },
+  { name: 'air', href: '/cv/air/' },
 ];
 
 function headers() {

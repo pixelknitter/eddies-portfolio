@@ -13,7 +13,7 @@
  * the shape and the contact-detail rule, both of which hold:
  *
  * Five surfaces render from this shape: the collapsed visual page at
- * `/air/resume/`, the complete machine-oriented page at `/air/resume/for-bots`,
+ * `/cv/`, the complete machine-oriented page at `/cv/for-bots`,
  * the JSON-LD graph that page carries, and the two print routes the PDF
  * generator prints. They must agree, so there is exactly one copy of the prose.
  *
@@ -69,7 +69,7 @@ export interface ResumeStrength {
  * A single achievement line.
  *
  * `featured` marks the subset the visual page shows. The complete set always
- * renders on `/air/resume/for-bots` and in the PDFs, so nothing is lost —
+ * renders on `/cv/for-bots` and in the PDFs, so nothing is lost —
  * the flag controls emphasis, not inclusion.
  */
 export interface ResumeBullet {
@@ -585,7 +585,7 @@ export const RESUME = {
  * Contact details, for print and PDF surfaces **only**.
  *
  * Never import this into a route that renders to the public web. The visible
- * resume deliberately publishes no address; `/air/resume/` sends visitors
+ * resume deliberately publishes no address; `/cv/` sends visitors
  * through the request form instead, and that is the whole basis of the
  * lead-capture gate.
  *
@@ -628,7 +628,7 @@ export function rolesByRecency(resume: {
 }
 
 /** Where the visible resume sends people instead of publishing an address. */
-export const REQUEST_PATH = '/air/resume/';
+export const REQUEST_PATH = '/cv/';
 
 /**
  * Route prefix for every resume surface.
@@ -639,7 +639,7 @@ export const REQUEST_PATH = '/air/resume/';
  * republishes the address on the one page whose whole premise is that it does
  * not. A route match cannot be forgotten.
  */
-export const RESUME_ROUTE_PREFIX = '/air/resume';
+export const RESUME_ROUTE_PREFIX = '/cv';
 
 /**
  * Whether a pathname belongs to a resume surface, and should therefore route

@@ -40,7 +40,7 @@ if (!resume) {
   return new Response(null, { status: 404, statusText: 'Not found' });
 }
 
-const pagePath = '/air/resume/for-bots';
+const pagePath = '/cv/for-bots';
 
 /**
  * Always the production origin, never `Astro.url.origin`. A staging build that
@@ -64,7 +64,7 @@ const description = plainText(resume.longSummary).slice(0, 300);
     <link
       rel="alternate"
       type="text/html"
-      href="/air/resume/"
+      href="/cv/"
       title="Visual resume"
     />
     <script
@@ -76,7 +76,7 @@ const description = plainText(resume.longSummary).slice(0, 300);
 
   <ResumeFull
     {resume}
-    visualPath="/air/resume/"
-    airPath={sections.air ? '/air/' : undefined}
+    visualPath="/cv/"
+    airPath={sections.air ? '/cv/air/' : undefined}
   />
 </Layout>

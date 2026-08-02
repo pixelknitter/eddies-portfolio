@@ -153,7 +153,7 @@ describe('email templates', () => {
   it('includes both an html and a text part', () => {
     const message = accessGrantedEmail({
       code: 'abc.def',
-      airUrl: 'https://x.test/air/',
+      airUrl: 'https://x.test/cv/air/',
     });
     expect(message.html).toContain('abc.def');
     expect(message.text).toContain('abc.def');

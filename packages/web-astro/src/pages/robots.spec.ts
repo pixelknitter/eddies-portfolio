@@ -70,7 +70,7 @@ describe('robots.txt', () => {
   it('keeps endpoints and the print routes out on production', async () => {
     const text = await body('eddie.engineering');
     expect(text).toContain('Disallow: /api/');
-    expect(text).toContain('Disallow: /air/resume/print/');
+    expect(text).toContain('Disallow: /cv/print/');
   });
 
   it('serves plain text and varies on host', () => {

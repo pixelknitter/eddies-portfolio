@@ -118,7 +118,7 @@ published from a tree that would have failed CI.
 **After deploying** — `scripts/smoke-test.mjs` probes the freshly deployed URL
 and asserts real behaviour:
 
-- `/`, `/blog/`, `/works/`, a project page, a blog post and `/air/` return 200
+- `/`, `/blog/`, `/works/`, a project page, a blog post and `/cv/air/` return 200
 - the home page actually contains its rendered content, not just any 200
 - an unknown route returns 404
 - the response is not the Cloudflare Access login page
