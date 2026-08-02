@@ -8,7 +8,17 @@
 /* Design tokens (migrated from the former tailwind.config.cjs theme). */
 @theme {
   --color-dark: #1e1e2e;
-  --color-light: #fdebf3;
+  /* Sunlit paper, formerly the pink #fdebf3.
+     This token is the light-mode page ground *and* the pale ink on dark — the
+     same paper colour used as ground or as figure depending on the theme, which
+     is why one value serves both. Moving it warms the dark theme's body text by
+     the same step, which is intended: the two themes should read as one site.
+     Pink is not gone, it is re-roled — it remains the artwork's own accent, and
+     carries the resume's primary voice in dark mode as coral.
+     Measured on this ground: body ink 15.28:1, the mint link 5.70:1, badge text
+     7.65:1, emphasis 7.02:1 — every one of them better than it was on the pink,
+     which was the darkest of the candidates. */
+  --color-light: #fdf6ec;
   /* Stays mint: `--color-button` is a *background* (`.btn` pairs
      `hover:bg-button` with `hover:text-dark`), and mint behind dark text
      reads well on either ground. Darkening it to fix a foreground usage
@@ -42,9 +52,13 @@
      1.42:1 (dark) with the border a further step up at 1.57:1, so the edge
      defines the card without the fill washing out. Body text stays at
      10.1:1, far above the 4.5:1 AA threshold. */
-  --color-surface: #ffffff;
+  /* Warmed off pure white, which reads cold and slightly blue against a warm
+     ground. The lift over the page is deliberately slight (1.06:1) — the
+     hairline is what draws the edge, exactly as it already did. */
+  --color-surface: #fffdf9;
   --color-surface-dark: #3b3458;
-  --color-hairline: #e9c5da;
+  /* Warmed off the pink #e9c5da to sit on the paper ground. */
+  --color-hairline: #eee0cd;
   --color-hairline-dark: #574f85;
 
   --font-header: "Pacifico", cursive;
