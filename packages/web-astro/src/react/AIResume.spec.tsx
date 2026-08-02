@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AIResume } from './AIResume';
 
@@ -205,5 +205,30 @@ describe('AIResume', () => {
     );
 
     expect(await screen.findByText(/available by invitation/i)).toBeInTheDocument();
+  });
+
+  it('shows the answer in the same container the suggestions occupied', async () => {
+    window.localStorage.setItem('air-access-code', 'conf-2026');
+    mockAnswer({
+      grounded: true,
+      answer: 'He built a smoke test.',
+      citations: ['platform-migration'],
+      sources: [{ id: 'platform-migration', title: 'Migrated a build pipeline' }],
+    });
+
+    const user = userEvent.setup();
+    render(<AIResume />);
+
+    const region = screen.getByTestId('air-body');
+    expect(within(region).getByRole('button', { name: /system nobody wants to own/i })).toBeInTheDocument();
+
+    await user.type(
+      screen.getByPlaceholderText(/ask about Eddie's work/i),
+      'How does he deploy?{Enter}',
+    );
+
+    expect(await within(region).findByText(/built a smoke test/i)).toBeInTheDocument();
+    // The suggestions gave way rather than stacking above the answer.
+    expect(within(region).queryByRole('button', { name: /system nobody wants to own/i })).not.toBeInTheDocument();
   });
 });

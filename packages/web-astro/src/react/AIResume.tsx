@@ -251,25 +251,118 @@ export function AIResume({ variant = 'page' }: Props = {}) {
           </button>
         )}
 
-        <div className="mt-6">
-          <p className="mb-2 font-body text-sm font-semibold">
-            Not sure where to start?
-          </p>
-          <ul className="flex list-none flex-col gap-2 pl-0">
-            {SUGGESTED.map((item) => (
-              <li key={item.question}>
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => ask(item.question)}
-                  className="w-full rounded-lg border border-hairline p-3 text-left transition-colors hover:border-underline disabled:opacity-50 dark:border-hairline-dark dark:hover:border-link"
-                >
-                  <span className="badge">{item.audience}</span>
-                  <span className="mt-2 block font-body">{item.question}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+        {/*
+          One container, two contents. Picking a suggestion or asking a question
+          swaps what is inside it rather than revealing a second panel below.
+
+          `sm:min-h-80` is the floor: it fits the suggestions, so the swap does
+          not resize the dialog under the reader's cursor. It starts at `sm`
+          deliberately — a 320px floor inside a panel that cannot scroll would
+          push content past the bottom of a landscape phone with no way to
+          reach it, and a floor exists only to stop a jump, while a ceiling
+          keeps content reachable. Reachability wins where they conflict.
+
+          `max-h-[50dvh]` with `overflow-y-auto` is the ceiling: a long answer
+          with sources grows the box until it reaches the available screen
+          height and then scrolls inside itself. Only this region scrolls — the
+          input above stays put, so a follow-up question never requires
+          scrolling back to find the field.
+
+          `flex-1 min-h-0` is what makes that possible at all. The dialog panel
+          is a flex column with `overflow-hidden`; a flex child's default
+          `min-height: auto` refuses to shrink below its content, so without
+          `min-h-0` this box would grow past the panel and be clipped rather
+          than scroll.
+        */}
+        <div
+          data-testid="air-body"
+          aria-live="polite"
+          aria-busy={pending}
+          className="mt-6 flex-1 min-h-0 max-h-[50dvh] overflow-y-auto sm:min-h-80"
+        >
+          {pending && (
+            <p className="font-body opacity-70">Reading through Eddie&rsquo;s work&hellip;</p>
+          )}
+
+          {!pending && error && <p className="font-body">{error}</p>}
+
+          {!pending && !error && !answer && (
+            <>
+              <p className="mb-2 font-body text-sm font-semibold">Not sure where to start?</p>
+              <ul className="flex list-none flex-col gap-2 pl-0">
+                {SUGGESTED.map((item) => (
+                  <li key={item.question}>
+                    <button
+                      type="button"
+                      disabled={pending || !hasCode}
+                      onClick={() => ask(item.question)}
+                      className="w-full rounded-lg border border-hairline p-3 text-left transition-colors hover:border-underline disabled:opacity-50 dark:border-hairline-dark dark:hover:border-link"
+                    >
+                      <span className="badge">{item.audience}</span>
+                      <span className="mt-2 block font-body">{item.question}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          {!pending && answer && (
+            <div>
+              <h2 className="mb-3 font-body text-xl no-underline decoration-0">{question}</h2>
+
+              {answer.answer
+                .split('\n')
+                .filter(Boolean)
+                .map((paragraph, index) => (
+                  <p key={index} className="mb-3 font-body leading-relaxed">
+                    {paragraph}
+                  </p>
+                ))}
+
+              {answer.grounded && answer.sources && answer.sources.length > 0 && (
+                <div className="mt-4 border-t border-hairline pt-4 dark:border-hairline-dark">
+                  <p className="mb-2 font-body text-sm font-semibold">Drawn from</p>
+                  <ul className="flex list-none flex-wrap gap-2 pl-0">
+                    {answer.sources.map((source) => (
+                      <li key={source.id}>
+                        <span className="badge">{source.title}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {!answer.grounded && (
+                <p className="mt-4 border-t border-hairline pt-4 font-body text-sm opacity-70 dark:border-hairline-dark">
+                  No sources &mdash; this answer isn&rsquo;t grounded in Eddie&rsquo;s written
+                  work, so treat it as a gap rather than an assessment.
+                </p>
+              )}
+
+              {/* Rating on a grounded answer, dispute on a decline — the
+                component picks, so the two signals never share a control.
+                Absent without a trace id, since feedback with nothing to
+                attach to is worse than none. */}
+              {answer.traceId && (
+                <AnswerFeedback
+                  grounded={answer.grounded}
+                  traceId={answer.traceId}
+                />
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setAnswer(null);
+                  setError(null);
+                }}
+                className="mt-4 font-body text-sm underline decoration-underline underline-offset-4 dark:decoration-link"
+              >
+                Ask something else
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -380,72 +473,6 @@ export function AIResume({ variant = 'page' }: Props = {}) {
           </div>
         )}
       </Modal>
-
-      {/* aria-live so an arriving answer is announced, not just painted. */}
-      <div aria-live="polite" aria-busy={pending}>
-        {pending && (
-          <p className="mt-6 font-body opacity-70">
-            Reading through Eddie&rsquo;s work&hellip;
-          </p>
-        )}
-
-        {error && (
-          <div className="surface mt-6 p-4 sm:p-6">
-            <p className="font-body">{error}</p>
-          </div>
-        )}
-
-        {answer && (
-          <div className="surface mt-6 p-4 sm:p-6">
-            <h2 className="mb-3 font-body text-xl no-underline decoration-0">
-              {question}
-            </h2>
-
-            {answer.answer
-              .split('\n')
-              .filter(Boolean)
-              .map((paragraph, index) => (
-                <p key={index} className="mb-3 font-body leading-relaxed">
-                  {paragraph}
-                </p>
-              ))}
-
-            {answer.grounded && answer.sources && answer.sources.length > 0 && (
-              <div className="mt-4 border-t border-hairline pt-4 dark:border-hairline-dark">
-                <p className="mb-2 font-body text-sm font-semibold">
-                  Drawn from
-                </p>
-                <ul className="flex list-none flex-wrap gap-2 pl-0">
-                  {answer.sources.map((source) => (
-                    <li key={source.id}>
-                      <span className="badge">{source.title}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {!answer.grounded && (
-              <p className="mt-4 border-t border-hairline pt-4 font-body text-sm opacity-70 dark:border-hairline-dark">
-                No sources &mdash; this answer isn&rsquo;t grounded in
-                Eddie&rsquo;s written work, so treat it as a gap rather than an
-                assessment.
-              </p>
-            )}
-
-            {/* Rating on a grounded answer, dispute on a decline — the
-              component picks, so the two signals never share a control. Absent
-              without a trace id, since feedback with nothing to attach to is
-              worse than none. */}
-            {answer.traceId && (
-              <AnswerFeedback
-                grounded={answer.grounded}
-                traceId={answer.traceId}
-              />
-            )}
-          </div>
-        )}
-      </div>
     </section>
   );
 }
