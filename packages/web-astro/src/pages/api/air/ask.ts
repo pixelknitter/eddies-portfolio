@@ -46,6 +46,51 @@ function json(
   });
 }
 
+/**
+ * The platform's `waitUntil`, or `undefined` if this runtime has none.
+ *
+ * ## Why this is a function with a try/catch rather than optional chaining
+ *
+ * It used to read `locals.runtime?.ctx?.waitUntil`. Astro 6 replaced
+ * `locals.runtime.ctx` with `locals.cfContext` and left the old name in place
+ * as a **getter that throws** — so the optional chaining, which reads as
+ * defensive, guarded nothing. `?.` short-circuits on null and undefined; it
+ * does not catch. Every request to this endpoint threw on that line, before the
+ * gate, before auth, before the body was even parsed.
+ *
+ * It failed in the least legible way available: Astro turns an endpoint throw
+ * into a 500 with an *empty body*, the Worker still reports `outcome: "ok"`
+ * because it did return a response, and `AIResume.tsx` calls `response.json()`
+ * before checking `response.ok` — so an empty body throws there too and the
+ * visitor is told "Could not reach A.I.R. Check your connection." A server
+ * fault, reported to the user as their network.
+ *
+ * So this reads the current name, falls back to the old one for any runtime
+ * still providing it, and treats *any* throw as "no waitUntil available".
+ * Telemetry is not worth a 500: without it the send is awaited instead of
+ * deferred, which is slower and completely correct. The next rename degrades
+ * instead of breaking.
+ */
+function resolveWaitUntil(
+  locals: unknown,
+): ((promise: Promise<unknown>) => void) | undefined {
+  for (const read of [
+    () => (locals as { cfContext?: { waitUntil?: unknown } })?.cfContext,
+    () => (locals as { runtime?: { ctx?: { waitUntil?: unknown } } })?.runtime?.ctx,
+  ]) {
+    try {
+      const ctx = read();
+      if (typeof ctx?.waitUntil === 'function') {
+        return (ctx.waitUntil as (p: Promise<unknown>) => void).bind(ctx);
+      }
+    } catch {
+      // A removed accessor that throws rather than returning undefined. Try the
+      // next shape; running without `waitUntil` is a supported state.
+    }
+  }
+  return undefined;
+}
+
 export async function POST(context: APIContext): Promise<Response> {
   // The section is gated, and so is its API. A flagged-off feature whose
   // endpoint still answers is not gated, it is merely unlinked.
@@ -61,11 +106,8 @@ export async function POST(context: APIContext): Promise<Response> {
    * provides it, so the visitor's answer is never waiting on PostHog; awaited
    * otherwise, so local runs and tests do not exit before the send is made.
    */
-  const runtime = (
-    context.locals as { runtime?: { ctx?: { waitUntil?: (p: Promise<unknown>) => void } } }
-  )?.runtime;
   const telemetry = createTelemetry(import.meta.env, {
-    waitUntil: runtime?.ctx?.waitUntil?.bind(runtime.ctx),
+    waitUntil: resolveWaitUntil(context.locals),
   });
 
   const traceId = crypto.randomUUID();

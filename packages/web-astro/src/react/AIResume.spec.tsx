@@ -90,6 +90,58 @@ describe('AIResume', () => {
     expect(screen.queryByText('Drawn from')).not.toBeInTheDocument();
   });
 
+  /**
+   * The endpoint threw before it could write a body, and this component read
+   * `response.json()` before checking `response.ok` — so the parse threw, the
+   * `catch` ran, and a 500 was reported to the visitor as *their* network
+   * failing. Telling someone to check their connection when the server is
+   * broken sends them to fix the one thing they cannot.
+   */
+  it('blames the server, not the visitor, when an error carries no body', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => {
+        throw new SyntaxError('Unexpected end of JSON input');
+      },
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const user = userEvent.setup();
+    render(<AIResume />);
+    await user.type(
+      screen.getByPlaceholderText(/something you want to know about Eddie/i),
+      'Anything?{Enter}'
+    );
+
+    expect(await screen.findByText(/problem on my end, not yours/i)).toBeInTheDocument();
+    expect(screen.getByText(/error 500/i)).toBeInTheDocument();
+    expect(screen.queryByText(/check your connection/i)).not.toBeInTheDocument();
+  });
+
+  it('does not render an unparseable 200 as though it were an answer', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => {
+          throw new SyntaxError('Unexpected end of JSON input');
+        },
+      }),
+    );
+
+    const user = userEvent.setup();
+    render(<AIResume />);
+    await user.type(
+      screen.getByPlaceholderText(/something you want to know about Eddie/i),
+      'Anything?{Enter}'
+    );
+
+    expect(await screen.findByText(/could not read/i)).toBeInTheDocument();
+    expect(screen.queryByText('Drawn from')).not.toBeInTheDocument();
+  });
+
   it('surfaces the error when the gate rejects the code', async () => {
     mockAnswer({ error: 'This resume is available by invitation.' }, false);
 
