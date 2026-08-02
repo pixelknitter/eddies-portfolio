@@ -158,10 +158,11 @@ describe('AIResume', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
+    window.localStorage.setItem('air-access-code', 'conf-2026');
     const user = userEvent.setup();
     render(<AIResume />);
     await user.type(
-      screen.getByPlaceholderText(/something you want to know about Eddie/i),
+      screen.getByPlaceholderText(/ask about Eddie's work/i),
       'Anything?{Enter}'
     );
 
@@ -182,10 +183,11 @@ describe('AIResume', () => {
       }),
     );
 
+    window.localStorage.setItem('air-access-code', 'conf-2026');
     const user = userEvent.setup();
     render(<AIResume />);
     await user.type(
-      screen.getByPlaceholderText(/something you want to know about Eddie/i),
+      screen.getByPlaceholderText(/ask about Eddie's work/i),
       'Anything?{Enter}'
     );
 
