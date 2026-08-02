@@ -40,7 +40,10 @@ const { pageTitle, description = SITE_DESCRIPTION } = Astro.props;
  * imports the SDK itself when someone actually asks a question.
  */
 const sections = await resolveSections(import.meta.env);
-const loadAnalytics = sections.analytics && sections.analyticsSiteWide;
+/** Is there a key to send to at all. Publishes the config for islands. */
+const analyticsOn = sections.analytics;
+/** Does *this* page load the SDK, or does it wait for an island to ask. */
+const loadAnalytics = analyticsOn && sections.analyticsSiteWide;
 const posthogKey = import.meta.env.PUBLIC_POSTHOG_KEY;
 
 // Identifies which build is live. The deploy pipeline polls this to confirm
@@ -116,25 +119,38 @@ const buildSha = import.meta.env.PUBLIC_BUILD_SHA ?? 'dev';
       });
     </script>
     {
-      loadAnalytics && (
-        <script define:vars={{ posthogKey }}>
+      analyticsOn && (
+        <script define:vars={{ posthogKey, loadAnalytics }}>
           {/*
-            Bound to astro:page-load rather than run at module scope.
+            Published whenever analytics is on at all, not only site-wide.
 
-            A view transition swaps the document without a page load, so
-            module-scope code runs exactly once and every navigation after the
-            first would go uncounted. This event fires on both, which is why the
-            SDK's own capture_pageview is turned off in the adapter.
+            In feedback-only mode — the default — nothing here loads the SDK,
+            but the A.I.R. island still needs to know the token so it can load
+            it when someone actually asks a question. Without this the island
+            had no way to reach one, and every rating silently went nowhere.
+
+            The pageview binding is separate, and gated on the scope flag.
+          */}
+          globalThis.__PK_TELEMETRY__ = { token: posthogKey };
+
+          {/*
+            Bound to astro:page-load rather than run at module scope: a view
+            transition swaps the document without a page load, so module-scope
+            code runs once and every navigation after the first would go
+            uncounted. That is also why the adapter turns the SDK's own
+            capture_pageview off.
 
             loadClient is single-flight, so the repeat firings cost nothing.
           */}
-          document.addEventListener('astro:page-load', async () => {
-            const { loadClient, getClient } = await import(
-              '../util/telemetry/client.mjs'
-            );
-            await loadClient({ token: posthogKey });
-            getClient().pageview(window.location.pathname);
-          });
+          if (loadAnalytics) {
+            document.addEventListener('astro:page-load', async () => {
+              const { ensureClient, getClient } = await import(
+                '../util/telemetry/client.mjs'
+              );
+              await ensureClient();
+              getClient().pageview(window.location.pathname);
+            });
+          }
         </script>
       )
     }
