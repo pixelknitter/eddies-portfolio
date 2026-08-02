@@ -130,17 +130,53 @@ const airPath = sections.air ? '/cv/air/' : undefined;
     <ResumeVisual {resume}>
       {
         /*
-        `Expand all` now sits beside what it expands, rather than 628px above it
-        and above the résumé card entirely — where it offered to expand
-        something the visitor had not yet seen. A matching control at the foot
-        serves someone who has read to the bottom and wants to fold it back up
-        without scrolling to the top.
+        `Expand all`, immediately above the first section it expands.
+
+        It began 628px above that section and outside the résumé card, where it
+        offered to expand something the visitor had not yet seen. Moving it into
+        the `actions` slot closed that to 372px but left it above the metric
+        cards, still a full band away — measured, not assumed. `sections-lead`
+        exists so the control and its target are actually adjacent.
+
+        A matching control at the foot serves someone who has read to the bottom
+        and wants to fold it back up without scrolling to the top.
 
         Both are excluded from print: they toggle <details> elements that print
         open regardless, so on paper they are two dead buttons.
       */
       }
-      <div slot="actions" class="resume-no-print">
+      {
+        /*
+        Spaced with utilities rather than a rule in resume-organic.css, which is
+        itself fingerprinted — styling it there would tie every future spacing
+        tweak to a PDF regeneration. Slot content lives in this file precisely
+        so it does not.
+      */
+      }
+      <div slot="sections-lead" class="resume-no-print mt-2 mb-4">
+        <button
+          type="button"
+          class="resume-cta resume-cta-secondary"
+          data-resume-expand
+          aria-expanded="false"
+        >
+          Expand all
+        </button>
+      </div>
+
+      {
+        /*
+        The foot control, inside the card rather than after it.
+
+        Outside, it inherited neither the card's padding nor its `.organic`
+        scope: it landed 48px left of its own twin, and every `.resume-cta` rule
+        is scoped `.organic .resume-cta`, so it rendered as a bare user-agent
+        button until the class was added by hand. Both problems were the same
+        problem — the control had been separated from the document it belongs
+        to. In the slot it inherits both, and the pair aligns.
+      */
+      }
+      <div slot="sections-trail" class="resume-no-print mt-6">
         <button
           type="button"
           class="resume-cta resume-cta-secondary"
@@ -151,26 +187,6 @@ const airPath = sections.air ? '/cv/air/' : undefined;
         </button>
       </div>
     </ResumeVisual>
-
-    {
-      /*
-      `organic` is load-bearing, not decoration. Every CTA rule in
-      resume-organic.css is scoped `.organic .resume-cta`, and this button sits
-      outside the résumé card — so unlike its twin above, which inherits the
-      class from ResumeVisual's own <article>, it has no `.organic` ancestor and
-      would fall back to a bare user-agent button.
-    */
-    }
-    <div class="organic resume-no-print mx-auto mt-4 max-w-3xl">
-      <button
-        type="button"
-        class="resume-cta resume-cta-secondary"
-        data-resume-expand
-        aria-expanded="false"
-      >
-        Expand all
-      </button>
-    </div>
   </div>
 </Layout>
 <script>
