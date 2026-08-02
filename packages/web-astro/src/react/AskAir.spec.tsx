@@ -62,6 +62,52 @@ describe('AskAir', () => {
     await user.keyboard('{Escape}');
   });
 
+  /**
+   * The keycap on the trigger promises a shortcut that works from anywhere.
+   * These assert the promise is kept — and that it is kept without stealing
+   * keystrokes from anything else on the page.
+   */
+  it('opens from anywhere on the page with the modifier shortcut', async () => {
+    const user = userEvent.setup();
+    render(<AskAir href="/cv/air/" />);
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    // Focus deliberately nowhere near the trigger.
+    document.body.focus();
+    await user.keyboard('{Meta>}k{/Meta}');
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+  });
+
+  it('also answers to Ctrl for anyone not on a Mac', async () => {
+    const user = userEvent.setup();
+    render(<AskAir href="/cv/air/" />);
+
+    await user.keyboard('{Control>}k{/Control}');
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+  });
+
+  it('leaves an unmodified k alone, so typing is never hijacked', async () => {
+    const user = userEvent.setup();
+    render(<AskAir href="/cv/air/" />);
+
+    await user.keyboard('k');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('describes the shortcut for a screen reader, which cannot read a keycap', () => {
+    render(<AskAir href="/cv/air/" />);
+
+    const link = screen.getByRole('link', { name: /ask A\.I\.R\./i });
+    const describedBy = link.getAttribute('aria-describedby');
+    expect(describedBy).toBeTruthy();
+    expect(document.getElementById(describedBy!)?.textContent).toMatch(
+      /plus K from anywhere/i,
+    );
+  });
+
   it('closes on Escape', async () => {
     const user = userEvent.setup();
     render(<AskAir href="/cv/air/" />);
