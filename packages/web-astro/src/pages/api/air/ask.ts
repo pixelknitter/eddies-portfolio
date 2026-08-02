@@ -105,6 +105,13 @@ export async function POST(context: APIContext): Promise<Response> {
     ({ data }) => reveal || data.draft !== true,
   );
   const projects = await getCollection('projects');
+  // Challenges follow the same draft rule as stories. Nothing renders them —
+  // they exist so a question about gaps has an honest answer instead of a
+  // decline, which on that question reads as evasive.
+  const challenges = await getCollection(
+    'challenges',
+    ({ data }) => reveal || data.draft !== true,
+  );
   // The resume. Its bullets live in the body, which is why the prompt carries
   // bodies at all — before this, A.I.R. could not answer "what was his title at
   // Frontdoor", because the resume existed nowhere it could reach.
@@ -132,6 +139,14 @@ export async function POST(context: APIContext): Promise<Response> {
     })),
     ...projects.map((entry) => ({
       id: entry.id,
+      data: entry.data,
+      content: entry.body?.trim() || undefined,
+    })),
+    // Namespaced so a citation names the collection. An answer drawing a
+    // pattern about a shortcoming has to stay traceable to the entries that
+    // support it — see the note on inference in content.config.ts.
+    ...challenges.map((entry) => ({
+      id: `challenges/${entry.id}`,
       data: entry.data,
       content: entry.body?.trim() || undefined,
     })),
