@@ -218,6 +218,12 @@ test.describe('A.I.R. asking', () => {
       })
     );
 
+    // A stored code, so the question goes straight out. Without one the field
+    // holds it and asks for a code first — correct behaviour, but not what
+    // this test is about.
+    await page.addInitScript(() =>
+      window.localStorage.setItem('air-access-code', 'e2e-code'),
+    );
     await page.goto(AIR);
     await page.locator('#air-input').fill('How does Eddie approach owning a system?');
     await page.locator('#air-input').press('Enter');
@@ -240,6 +246,9 @@ test.describe('A.I.R. asking', () => {
       })
     );
 
+    await page.addInitScript(() =>
+      window.localStorage.setItem('air-access-code', 'e2e-code'),
+    );
     await page.goto(AIR);
     await page.locator('#air-input').fill('What is his favourite restaurant?');
     await page.locator('#air-input').press('Enter');

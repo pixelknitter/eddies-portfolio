@@ -397,12 +397,14 @@ export function AIResume({ variant = 'page', titleId }: Props = {}) {
         </p>
 
         {/*
-          Hidden once a code is stored, so a returning visitor never sees the
-          access machinery. It sits here rather than on /cv/ because this is
-          where a code is actually needed, and "hides when one is stored" only
-          reads correctly beside the field whose mode it describes.
+          Shown whenever no code is stored — not only once one is being asked
+          for. Someone who has no code needs a way to request one *before*
+          committing a question, and gating this on the prompt meant the only
+          route to it was to ask something first and be turned away. It still
+          disappears the moment a code exists, so a returning visitor never
+          meets the access machinery at all.
         */}
-        {askingForCode && (
+        {!hasCode && (
           <button
             type="button"
             onClick={() => setRequesting(true)}

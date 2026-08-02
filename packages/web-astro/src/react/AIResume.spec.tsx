@@ -63,8 +63,10 @@ describe('AIResume', () => {
     render(<AIResume />);
     expect(screen.getByPlaceholderText(/ask about Eddie's work/i)).toBeInTheDocument();
     expect(screen.queryByPlaceholderText(/enter your access code/i)).not.toBeInTheDocument();
-    // The access machinery belongs with the code prompt, which has not happened.
-    expect(screen.queryByRole('button', { name: /ask Eddie for access/i })).not.toBeInTheDocument();
+    // The request link is present, though: someone with no code needs a route
+    // to ask for one *before* committing a question. What must not be present
+    // is the code field itself.
+    expect(screen.getByRole('button', { name: /ask Eddie for access/i })).toBeInTheDocument();
   });
 
   it('keeps the access machinery out of the way when a code is stored', () => {
