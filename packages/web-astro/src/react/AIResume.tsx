@@ -108,10 +108,31 @@ export function AIResume() {
         body: JSON.stringify({ question: trimmed }),
       });
 
-      const body = await response.json();
+      /*
+       * Parsed defensively, and *after* the status is known.
+       *
+       * This used to be a bare `await response.json()` above the `response.ok`
+       * check. An error response with an empty body — which is exactly what
+       * Astro returns when an endpoint throws — made that parse throw, so
+       * control jumped to the `catch` below and the visitor was told to check
+       * their connection. The connection was fine; the server had answered 500
+       * with zero bytes. A server fault reported as the user's network is worse
+       * than an unhelpful error, because it sends them to fix the wrong thing.
+       */
+      const body = await response.json().catch(() => null);
 
       if (!response.ok) {
-        setError(body?.error ?? 'Something went wrong. Try again in a moment.');
+        setError(
+          body?.error ??
+            `A.I.R. couldn't answer that (error ${response.status}). This is a problem on my end, not yours.`,
+        );
+        return;
+      }
+
+      // A 200 that did not parse is still a broken answer, and must not fall
+      // through to render as one.
+      if (!body) {
+        setError('A.I.R. sent a reply I could not read. Try again in a moment.');
         return;
       }
 
