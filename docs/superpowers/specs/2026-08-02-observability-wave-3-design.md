@@ -2,7 +2,7 @@
 
 > **Status:** approved, not yet implemented
 > **Date:** 2026-08-02
-> **Issues:** #67 (Wave 3), #66 (Wave 2 — one addition requested here), #69 (embeddings, downstream consumer of this data)
+> **Issues:** #67 (Wave 3), #66 (Wave 2 — alert addition recorded there), #69 (embeddings, downstream consumer of this data), #77 (automating the dispute→eval-case loop)
 > **Blocked by:** #68 (Wave 1 telemetry seam) must merge first
 > **Deliberately excluded:** cross-page identity, consent UI, session replay — see [Out of scope](#out-of-scope)
 
@@ -126,6 +126,29 @@ render in the Feedback tab of the trace they belong to. An earlier draft used a
 bespoke `air_decline_disputed` event; once the dispute carries free text it *is*
 a survey, and one mechanism is better than two.
 
+#### Provisioned
+
+Both exist in PostHog as **drafts**, type `api` — headless, because we render the
+control ourselves and emit the events. They must be **launched** before responses
+are accepted; that is a step in Sequencing, not an assumption.
+
+Responses are keyed `$survey_response_<question_id>`, so these ids are load-
+bearing and belong in `events.mjs` rather than inline at a call site.
+
+| | `air-answer-quality` | `air-decline-dispute` |
+|---|---|---|
+| `$survey_id` | `019fc122-7de8-0000-7fa8-0bf8842ad239` | `019fc122-9c54-0000-b9ef-9a66c58aef0b` |
+| Q1 | `4c346a19-…` single_choice, Yes/No | `0c0d27ee-…` open, **optional** |
+| Q2 | `a8c1f487-…` open, **optional** | — |
+| shown when | `grounded: true` | `grounded: false` |
+
+`air-answer-quality` branches on Q1: `Yes` ends, `No` continues to Q2. The
+dispute has no branch — sending it *is* the dispute, and its only question is
+optional so a click alone records.
+
+`enable_partial_responses: true` on both, so an answer stored before the optional
+question is still a response.
+
 **Both follow-ups are optional.** A dispute must record on the click alone —
 requiring a sentence would cost most of the signal.
 
@@ -202,10 +225,21 @@ without a second switch.
 
 ### One addition to Wave 2
 
-Route `air-decline-dispute` responses to the Discord alert in #66. It is a small
-addition to that wave's alert list and it stops 30 days becoming the binding
-constraint: a dispute gets read while its question still exists, and the loop
-ends by adding the question to `evals/cases.mjs`, where git keeps it forever.
+Route `air-decline-dispute` responses to the Discord alert in #66 — recorded on
+that issue. It is a small addition to its alert list and it stops 30 days
+becoming the binding constraint: a dispute gets read while its question still
+exists, and the loop ends by adding the question to `evals/cases.mjs`, where git
+keeps it forever.
+
+It sits alongside that wave's existing rule rather than inside it. #66 says
+**never** alert on `no_context`, because a content gap is not a failure. Still
+true. A *disputed* decline is different: a human has looked and said the corpus
+should have covered this.
+
+**#77** tracks turning that alert into a pull request. Its binding constraint is
+worth knowing here too: eval case files are public and `seal-content.mjs` exists
+to keep employers out of them, so no automation may commit stranger-authored
+text without a human reading it first.
 
 ## Verification
 
@@ -234,10 +268,10 @@ Beyond that:
    move unedited. Reviewable as a move.
 3. **Wave 3 on top.**
 
-Two PostHog writes are required before the rating works: the `air-answer-quality`
-and `air-decline-dispute` surveys. The code depends on those objects existing,
-which is a real coupling to a console action and the reason it is listed here
-rather than discovered during implementation.
+Both surveys are **created** (ids above) and still **draft**. Launching them is a
+one-click action in PostHog and should happen when the code that emits their
+events ships, not before — a launched survey with no client is just an empty
+response list.
 
 ## Open questions
 
