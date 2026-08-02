@@ -1,8 +1,8 @@
 {
-  "name": "@eddie/telemetry-core",
+  "name": "@pk/telemetry",
   "version": "0.1.0",
   "private": true,
-  "description": "Telemetry primitives for A.I.R. Pure and dependency-free so the same redactor runs in workerd, in Node, and behind the browser adapter.",
+  "description": "Product and LLM telemetry primitives. No dependencies and no platform assumptions, so the same code runs in workerd, Node, a browser and React Native — the vendor SDK is injected by the consumer, never imported here.",
   "license": "MIT",
   "type": "module",
   "main": "./src/index.mjs",

@@ -2550,12 +2550,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@eddie/telemetry-core@workspace:packages/telemetry-core":
-  version: 0.0.0-use.local
-  resolution: "@eddie/telemetry-core@workspace:packages/telemetry-core"
-  languageName: unknown
-  linkType: soft
-
 "@emmetio/abbreviation@npm:^2.3.3":
   version: 2.3.3
   resolution: "@emmetio/abbreviation@npm:2.3.3"
@@ -4110,6 +4104,12 @@ __metadata:
   checksum: 89003f6d9ac93b770fe7b5271e3a9b6dae122b547934df02202c806cff6e56e9026e48d60d78ac5ce272e2ed1acbc7812ee114cedc9a39e4bc28fba944cb91d7
   languageName: node
   linkType: hard
+
+"@pk/telemetry@workspace:packages/telemetry":
+  version: 0.0.0-use.local
+  resolution: "@pk/telemetry@workspace:packages/telemetry"
+  languageName: unknown
+  linkType: soft
 
 "@pkgjs/parseargs@npm:^0.11.0":
   version: 0.11.0
