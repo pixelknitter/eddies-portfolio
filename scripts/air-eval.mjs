@@ -49,6 +49,7 @@ import {
   diffRuns,
 } from '../packages/web-astro/src/util/air/evals/graders.mjs';
 import { createTelemetry } from '@pk/telemetry';
+import { DEFAULT_MODEL } from '../packages/web-astro/src/util/air/model.mjs';
 
 /*
  * Eval runs emit the same trace shape production emits.
@@ -76,7 +77,14 @@ const flag = (name) => {
   return index === -1 ? undefined : args[index + 1];
 };
 
-const MODELS = (flag('--models') ?? flag('--model') ?? 'claude-opus-5')
+/*
+ * Defaults to whatever production defaults to.
+ *
+ * A bare run should grade the model actually serving visitors, or the report
+ * describes a configuration nobody is using. Kept in step with DEFAULT_MODEL in
+ * util/air/model.mjs — pass --models to compare candidates against it.
+ */
+const MODELS = (flag('--models') ?? flag('--model') ?? DEFAULT_MODEL)
   .split(',')
   .map((model) => model.trim())
   .filter(Boolean);
