@@ -3,6 +3,12 @@ import { join } from 'node:path';
 
 import { parseFrontmatter } from '@eddie/obsidian-publish-core';
 
+import {
+  CORPUS_COLLECTIONS,
+  isAnswerable,
+  shapeEntry,
+} from '../corpus.mjs';
+
 /**
  * Builds the eval corpus from disk, the way `api/air/ask.ts` builds it from
  * collections.
@@ -40,26 +46,6 @@ import { parseFrontmatter } from '@eddie/obsidian-publish-core';
  * narrative. `ask.ts` draws this line where the collection is still known, and
  * so does this; nothing downstream guesses.
  */
-
-/**
- * The collections the endpoint answers from, and how each labels its body.
- *
- * `idPrefix` mirrors `ask.ts`, which namespaces resume ids so a citation is
- * traceable to the collection it came from.
- *
- * @type {ReadonlyArray<{name: string, bodyAs: 'constraints' | 'content', idPrefix?: string}>}
- */
-const COLLECTIONS = Object.freeze([
-  { name: 'star', bodyAs: 'constraints' },
-  { name: 'projects', bodyAs: 'content' },
-  { name: 'resume', bodyAs: 'content', idPrefix: 'resume/' },
-  // Challenges are namespaced for the same reason the resume is: a citation
-  // should name the collection it came from. These carry a different weight
-  // from a highlight — an answer drawing a pattern from one is making a claim
-  // about a shortcoming, and it must stay traceable to the story that supports
-  // it. Nothing renders this collection; only A.I.R. reads it.
-  { name: 'challenges', bodyAs: 'content', idPrefix: 'challenges/' },
-]);
 
 /**
  * Every markdown file under `dir`, as paths relative to it.
@@ -104,8 +90,8 @@ function markdownFilesIn(dir, prefix = '') {
 export function loadEvalCorpus(contentRoot) {
   const corpus = [];
 
-  for (const { name, bodyAs, idPrefix = '' } of COLLECTIONS) {
-    const dir = join(contentRoot, name);
+  for (const spec of CORPUS_COLLECTIONS) {
+    const dir = join(contentRoot, spec.name);
     // A fork pull request has no seal key and so no content at all. That must
     // skip the evals, not crash the suite.
     if (!existsSync(dir)) continue;
@@ -119,13 +105,13 @@ export function loadEvalCorpus(contentRoot) {
       if (id.split('/').pop()?.startsWith('sample-')) continue;
 
       const parsed = parseFrontmatter(readFileSync(join(dir, relative), 'utf8'));
-      const body = parsed.body?.trim() || undefined;
 
-      corpus.push({
-        id: `${idPrefix}${id}`,
-        data: parsed.frontmatter,
-        ...(body ? { [bodyAs]: body } : {}),
-      });
+      // The same visibility rule the endpoint applies, from the same module:
+      // a scheduled post is not public, and grading one would score the
+      // harness against an answer production cannot give.
+      if (!isAnswerable(parsed.frontmatter, spec)) continue;
+
+      corpus.push(shapeEntry({ id, data: parsed.frontmatter, body: parsed.body }, spec));
     }
   }
 

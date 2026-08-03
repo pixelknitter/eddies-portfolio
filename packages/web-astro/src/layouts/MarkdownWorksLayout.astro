@@ -13,7 +13,9 @@ const { frontmatter } = Astro.props;
 // wrapped into an unreadable stack.
 const meta = [
     { label: 'Platform', value: frontmatter.platform },
-    { label: 'Stack', value: frontmatter.stack },
+    // `stack` is an array; joined here rather than stored joined so retrieval
+    // and any future filter can read the items.
+    { label: 'Stack', value: frontmatter.stack.join(', ') },
     { label: 'Website', value: frontmatter.website, href: frontmatter.website },
     { label: 'Source', value: frontmatter.github, href: frontmatter.github },
 ].filter((row) => row.value);

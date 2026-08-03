@@ -1,7 +1,7 @@
 ---
 import { getCollection, render } from 'astro:content';
 import MarkdownWorksLayout from '@layouts/MarkdownWorksLayout.astro';
-import { showProjects } from '@util/visibility.mjs';
+import { showProjects, showUnpublished } from '@util/visibility.mjs';
 
 // build static html for dynamic pages
 export const prerender = true;
@@ -12,7 +12,13 @@ export async function getStaticPaths() {
     // even once the section is switched off.
     if (!showProjects(import.meta.env)) return [];
 
-    const projectEntries = await getCollection('projects');
+    // A draft project emits no path for the same reason the section gate
+    // emits none: a prerendered page cannot 404 at request time, so the only
+    // way to keep it non-public is to never write it to disk.
+    const reveal = showUnpublished(import.meta.env);
+    const projectEntries = await getCollection('projects', ({ data }) =>
+        reveal || data.draft !== true,
+    );
     return projectEntries.map(entry => ({
         params: { slug: entry.id }, props: { entry },
     }));

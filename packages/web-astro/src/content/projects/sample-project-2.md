@@ -10,10 +10,12 @@ worksImage1:
 worksImage2:
   url: 'https://placehold.co/1000x562/2a2740/fdebf3/png?text=Detail+View'
   alt: 'second image of your project.'
-platform: Web
-stack: Astro, JavaScript
+platform: iOS
+stack: ['Swift', 'SwiftUI']
 website: https://eddie.engineering/
 github: https://github.com/pixelknitter/eddies-portfolio
+tags: ['swift', 'ios', 'mobile']
+draft: false
 ---
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras faucibus a tortor at molestie. Sed pellentesque leo auctor, auctor lorem nec, venenatis risus. Vivamus commodo ipsum vitae orci finibus, vel porta nunc viverra. In hac habitasse platea dictumst. Nunc pretium, ligula ultricies consequat sollicitudin, enim ex ullamcorper nisl.
