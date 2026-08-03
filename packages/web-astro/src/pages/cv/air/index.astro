@@ -11,22 +11,25 @@ if (!sections.air) {
   return new Response(null, { status: 404, statusText: 'Not found' });
 }
 
-const pageTitle = "AIR: AI-Powered Resume for Eddie Freeman"
+const pageTitle = "Ask A.I.R. — Eddie Freeman's résumé"
 ---
 <Layout pageTitle={pageTitle}>
-  <AIResume client:load />
-
   {/*
-    A.I.R. needs an invitation; the resume does not. Someone who arrives here
-    without a code currently hits a dead end, so point them at the version they
-    can read right now. Placed after the island rather than before it so the
-    page still opens on A.I.R. itself.
+    The way back to the résumé, above the island rather than below it.
+    It used to sit at the bottom as a consolation for anyone who arrived
+    without an access code and hit a dead end. Now that the résumé is the
+    parent route, this is navigation: A.I.R. is one way to read the CV, and
+    the other way should be reachable without scrolling past a gate to find
+    it. Rendered only when the résumé is actually live, so it can never point
+    at a 404.
   */}
   {
     sections.resume && (
-      <p class="mt-8 text-center font-body">
-        <a href="/cv/">Read the resume instead &rarr;</a>
+      <p class="mt-4 font-body">
+        <a class="nav-link !mx-0" href="/cv/">&larr; Back to the résumé</a>
       </p>
     )
   }
+
+  <AIResume client:load />
 </Layout>

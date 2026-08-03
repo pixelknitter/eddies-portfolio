@@ -107,6 +107,36 @@ const bulletsFor = (role: ResumeRole) =>
     }
   </section>
 
+  {
+    /**
+     * The controls that act on the collapsible sections below, immediately
+     * above the first one they act on.
+     *
+     * `actions` could not serve: it renders inside <header>, above the stats,
+     * which put "Expand all" 372px and a full band of metric cards away from
+     * the first thing it expands — still offering to expand something the
+     * reader has not reached. This is the only position where the control and
+     * its target are adjacent, and a slot is the only way to reach it without
+     * moving web-only chrome into a fingerprinted file.
+     *
+     * Same reasoning as `actions`: filled from the caller, never rendered
+     * here. The hash covers this file's text, so slot *content* can change
+     * freely afterwards — only adding the slot itself costs a regeneration,
+     * and it is paid once.
+     *
+     * `!print` because these toggle <details> elements that print open
+     * regardless; on paper they would be dead buttons.
+     */
+    !print && <slot name="sections-lead" />
+  }
+
+  {
+    /* Paired with `sections-lead`; see the note there. Both sit inside the
+       document card so the two controls align with the sections they act on
+       and with each other — a trailing control placed outside the card lands
+       48px to the left of its own twin. */
+  }
+
   <div data-resume-sections>
     <ResumeSection open={print} title="What I'm good at" id="strengths">
       <div class="resume-strengths">
@@ -331,6 +361,11 @@ const bulletsFor = (role: ResumeRole) =>
       </dl>
     </ResumeSection>
   </div>
+
+  {
+    /* The trailing half of the pair opened above `data-resume-sections`. */
+    !print && <slot name="sections-trail" />
+  }
 </article>
 
 <style>

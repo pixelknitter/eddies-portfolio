@@ -36,9 +36,46 @@ type Answer = {
  */
 // Shared with the decline message in api/air/ask.ts.
 import { SUGGESTED } from '../util/air/suggested.mjs';
+import { readStoredCode, storeCode } from '../util/air/access-code.mjs';
 
-export function AIResume() {
+interface Props {
+  /**
+   * `'dialog'` drops the page heading and lede: inside a modal the dialog's
+   * own title already says what this is, and a second one reads as a page
+   * embedded in a page.
+   */
+  variant?: 'page' | 'dialog';
+  /**
+   * Id for the dialog heading, so the dialog can be `aria-labelledby` it.
+   *
+   * The heading lives here rather than in the caller because it belongs inside
+   * the input's card — a heading floating above two separate cards would be
+   * labelling the gap between them.
+   */
+  titleId?: string;
+}
+
+export function AIResume({ variant = 'page', titleId }: Props = {}) {
   const [accessCode, setAccessCode] = React.useState('');
+  const [draft, setDraft] = React.useState('');
+  /**
+   * A question that has been asked but cannot be sent yet, because no code is
+   * stored. `null` means nothing is waiting.
+   *
+   * ## Why the question comes first
+   *
+   * The gate used to be the front door: with no code stored, the field opened
+   * in code mode and the first thing a visitor met was a password box. That is
+   * the exact complaint the design started from — being asked to authenticate
+   * before being shown what authenticating is *for* — and asking for the code
+   * first reproduced it in a smaller box.
+   *
+   * So the field always accepts a question. The code is asked for at the moment
+   * it is actually needed, with the question held and sent automatically once
+   * the code arrives. The visitor states their intent once; the machinery
+   * arranges itself around it rather than the other way round.
+   */
+  const [heldQuestion, setHeldQuestion] = React.useState<string | null>(null);
   const [requesting, setRequesting] = React.useState(false);
   const [requestEmail, setRequestEmail] = React.useState('');
   const [requestReason, setRequestReason] = React.useState('');
@@ -53,6 +90,27 @@ export function AIResume() {
 
   const inputRef = React.useRef<HTMLInputElement>(null);
   const requestEmailRef = React.useRef<HTMLInputElement>(null);
+
+  // Read storage after mount, not in the state initialiser: this island is
+  // server-rendered, where `window` does not exist, and a first client render
+  // that disagreed with the server's HTML would hydrate wrong.
+  React.useEffect(() => {
+    setAccessCode(readStoredCode());
+  }, []);
+
+  /**
+   * Whether a code is available *right now*, reading storage rather than state
+   * when state has not caught up.
+   *
+   * The effect above runs after mount, so between first paint and that effect
+   * `accessCode` is `''` even for a visitor who has one. That window is small
+   * but reachable — the dialog opens on a click that may land in it, and the
+   * consequence is asking a returning visitor for a code they already gave.
+   * Reading through to storage closes it without moving the read back into
+   * render, where it would break hydration.
+   */
+  const currentCode = accessCode || readStoredCode();
+  const hasCode = currentCode !== '';
 
   // Move focus into the dialog when it opens, so keyboard and screen-reader
   // users land inside it rather than behind it.
@@ -97,7 +155,34 @@ export function AIResume() {
     }
   }
 
-  async function ask(asked: string) {
+  /** True while the field is standing in as the code field. */
+  const askingForCode = heldQuestion !== null;
+
+  /**
+   * Ask, or hold the question and ask for a code first.
+   *
+   * The single entry point for "a visitor wants this answered", whether it came
+   * from the field or from a suggestion. Holding rather than refusing is the
+   * point: the question survives the detour through the gate.
+   */
+  function requestAnswer(asked: string) {
+    const trimmed = asked.trim();
+    if (!trimmed || pending) return;
+    if (!hasCode) {
+      setHeldQuestion(trimmed);
+      setDraft('');
+      inputRef.current?.focus();
+      return;
+    }
+    ask(trimmed);
+  }
+
+  /**
+   * @param withCode A code entered moments ago, for the send that unblocks a
+   *   held question. `accessCode` state has been set but this closure captured
+   *   the previous render's value, so the header would carry the old one.
+   */
+  async function ask(asked: string, withCode?: string) {
     const trimmed = asked.trim();
     if (!trimmed || pending) return;
 
@@ -111,7 +196,9 @@ export function AIResume() {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          'x-air-access': accessCode,
+          // `withCode` when a code was entered a moment ago: this closure
+          // captured the previous render's `accessCode`, which is still ''.
+          'x-air-access': withCode ?? currentCode,
         },
         body: JSON.stringify({ question: trimmed }),
       });
@@ -130,6 +217,36 @@ export function AIResume() {
       const body = await response.json().catch(() => null);
 
       if (!response.ok) {
+        /*
+         * A rejected code is forgotten, not kept.
+         *
+         * 401 means the stored code does not work — expired, mistyped once and
+         * saved, or the event it belonged to is over. Keeping it leaves the
+         * input in question mode asking for questions it will never answer,
+         * with no way back to the field that would fix it: the code UI only
+         * appears when nothing is stored. Clearing it returns the visitor to
+         * the one action that can help.
+         */
+        if (response.status === 401) {
+          /*
+           * Forget the code *and* ask for a new one, holding the question.
+           *
+           * Clearing alone left a dead end: the error said the résumé was by
+           * invitation, the field was still asking for questions, and the code
+           * UI only appears when a question is waiting on one — so there was no
+           * route to the one thing that would help. The visitor had to guess
+           * that asking again would produce the prompt.
+           *
+           * Holding `trimmed` puts the field straight into code mode with the
+           * rejected question named beneath it, so the next code entered sends
+           * it. This is the common case on a preview, where codes rotate on
+           * every deploy and a stored one is stale rather than wrong.
+           */
+          storeCode('');
+          setAccessCode('');
+          setHeldQuestion(trimmed);
+          inputRef.current?.focus();
+        }
         setError(
           body?.error ??
             `A.I.R. couldn't answer that (error ${response.status}). This is a problem on my end, not yours.`,
@@ -145,6 +262,10 @@ export function AIResume() {
       }
 
       setAnswer(body as Answer);
+      // Cleared only now. A question that failed is still wanted — wiping the
+      // field on an error makes the visitor retype it to find out whether the
+      // failure was theirs or ours.
+      setDraft('');
     } catch {
       setError('Could not reach A.I.R. Check your connection and try again.');
     } finally {
@@ -153,78 +274,283 @@ export function AIResume() {
   }
 
   return (
-    <section>
-      <h1>Hello there, Welcome to A.I.R.! 👋</h1>
-      <p className="font-body text-lg">
-        The AI-powered Resume. It answers from Eddie&rsquo;s written work
-        &mdash; and tells you when it can&rsquo;t.
-      </p>
+    /*
+      In the dialog this root is a link in the scroll chain, not a wrapper.
 
-      <div className="surface mt-6 p-4 sm:p-6">
+      The panel is a bounded flex column with `overflow-hidden`; the answer card
+      below carries `flex-1 min-h-0` so it can shrink and scroll inside it. Both
+      of those are inert unless every element between them is also a flex
+      container that can shrink — a plain block here has `min-height: auto`
+      resolving to its content height, so the card grows past the panel and is
+      clipped with nothing to scroll.
+
+      This is one line and it is the whole reason a long answer is reachable.
+    */
+    <section
+      className={
+        variant === 'dialog' ? 'flex min-h-0 flex-1 flex-col' : undefined
+      }
+    >
+      {/*
+        Says what the page does rather than greeting the visitor. A.I.R. is a
+        way to read the résumé now, not a product with its own front door — the
+        route says so too, at /cv/air. The second line stays: naming the limit
+        up front is the most useful thing this page can tell someone, and it is
+        the claim the whole grounding apparatus exists to keep.
+      */}
+      {variant === 'page' && (
+        <>
+          <h1>Ask A.I.R. about Eddie&rsquo;s work</h1>
+          <p className="font-body text-lg">
+            It answers from Eddie&rsquo;s written work &mdash; the résumé, the
+            project write-ups, the stories behind them &mdash; and tells you
+            when it can&rsquo;t.
+          </p>
+        </>
+      )}
+
+      {/*
+        Two containers, not one.
+
+        On the page they are a single card, because the island is the page. In
+        the dialog the input gets its own card and the suggestions/answer get
+        theirs: the field persists across every question while what sits under
+        it is replaced, and one card around both would claim they are one
+        thing. The separation is also what lets the lower card scroll while the
+        field stays put.
+      */}
+      <div
+        className={
+          variant === 'page'
+            ? 'surface mt-6 p-4 sm:p-6'
+            : 'surface shrink-0 p-4 sm:p-6'
+        }
+      >
+        {variant === 'dialog' && (
+          <h2
+            id={titleId}
+            className="mb-4 font-body text-xl leading-snug no-underline decoration-0"
+          >
+            Ask A.I.R.
+          </h2>
+        )}
         <label
-          htmlFor="air-access"
+          htmlFor="air-input"
           className="mb-2 block font-body font-semibold"
         >
-          Access code
+          {askingForCode ? 'Access code' : 'Ask a question'}
         </label>
+        {/*
+          One field. It accepts questions by default and only turns into a code
+          field once a question is waiting on one — never before, so nobody is
+          asked to authenticate before being shown what for.
+        */}
         <input
-          id="air-access"
-          type="password"
-          value={accessCode}
-          onChange={(event) => setAccessCode(event.target.value)}
-          className="w-full rounded-lg border border-hairline bg-surface p-3 text-dark focus:outline-2 focus:outline-offset-2 focus:outline-underline dark:border-hairline-dark dark:bg-surface-dark dark:text-light dark:focus:outline-link"
-          placeholder="The code from the card"
-          autoComplete="off"
-        />
-
-        <button
-          type="button"
-          onClick={() => setRequesting(true)}
-          className="mt-2 font-body text-sm underline decoration-underline underline-offset-4 dark:decoration-link"
-        >
-          Don&rsquo;t have one? Ask Eddie for access
-        </button>
-
-        <label
-          htmlFor="air-question"
-          className="mt-6 mb-2 block font-body font-semibold"
-        >
-          Ask a question
-        </label>
-        <input
-          id="air-question"
+          id="air-input"
+          /* The element the dialog aligns to its trigger — see Modal's anchorTop. */
+          data-anchor-align
           ref={inputRef}
-          className="w-full rounded-lg border border-hairline bg-surface p-3 text-dark focus:outline-2 focus:outline-offset-2 focus:outline-underline dark:border-hairline-dark dark:bg-surface-dark dark:text-light dark:focus:outline-link"
-          placeholder="What's something you want to know about Eddie?"
+          type={askingForCode ? 'password' : 'text'}
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          className={`w-full rounded-lg border p-3 text-dark focus:outline-2 focus:outline-offset-2 focus:outline-underline dark:text-light dark:focus:outline-link ${
+            askingForCode
+              ? 'border-underline bg-surface dark:border-link dark:bg-surface-dark'
+              : 'border-hairline bg-surface dark:border-hairline-dark dark:bg-surface-dark'
+          }`}
+          placeholder={
+            askingForCode ? 'Enter your access code' : "Ask about Eddie's work…"
+          }
+          autoComplete="off"
           onKeyDown={(event) => {
-            if (event.key === 'Enter') ask(event.currentTarget.value);
+            if (event.key !== 'Enter') return;
+            // `ask` refuses while a question is in flight, and clearing the
+            // field regardless would erase the second of two quick presses
+            // without ever sending it.
+            if (pending) return;
+
+            if (askingForCode) {
+              const code = draft.trim();
+              if (!code) return;
+              storeCode(code);
+              setAccessCode(code);
+              setDraft('');
+              // The question that prompted this, sent now rather than retyped.
+              const held = heldQuestion;
+              setHeldQuestion(null);
+              if (held) ask(held, code);
+              return;
+            }
+
+            requestAnswer(draft);
           }}
         />
-        <p className="mt-2 font-body text-sm opacity-70">Press Enter to ask.</p>
+        {/*
+          `aria-live` so a screen reader hears the mode change: the field's
+          purpose has just changed under the cursor, and a border colour and a
+          placeholder are both invisible to it.
+        */}
+        <p className="mt-2 font-body text-sm opacity-70" aria-live="polite">
+          {askingForCode
+            ? `Enter your code and I’ll ask “${heldQuestion}”`
+            : 'Press Enter to ask.'}
+        </p>
 
-        <div className="mt-6">
-          <p className="mb-2 font-body text-sm font-semibold">
-            Not sure where to start?
-          </p>
-          <ul className="flex list-none flex-col gap-2 pl-0">
-            {SUGGESTED.map((item) => (
-              <li key={item.question}>
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => {
-                    if (inputRef.current)
-                      inputRef.current.value = item.question;
-                    ask(item.question);
-                  }}
-                  className="w-full rounded-lg border border-hairline p-3 text-left transition-colors hover:border-underline disabled:opacity-50 dark:border-hairline-dark dark:hover:border-link"
-                >
-                  <span className="badge">{item.audience}</span>
-                  <span className="mt-2 block font-body">{item.question}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+        {/*
+          Shown whenever no code is stored — not only once one is being asked
+          for. Someone who has no code needs a way to request one *before*
+          committing a question, and gating this on the prompt meant the only
+          route to it was to ask something first and be turned away. It still
+          disappears the moment a code exists, so a returning visitor never
+          meets the access machinery at all.
+        */}
+        {!hasCode && (
+          <button
+            type="button"
+            onClick={() => setRequesting(true)}
+            className="mt-2 font-body text-sm underline decoration-underline underline-offset-4 dark:decoration-link"
+          >
+            Don&rsquo;t have a code? Ask Eddie for access
+          </button>
+        )}
+      </div>
+
+      {/*
+        The second container. In the dialog it is a card of its own, separated
+        from the field above; on the page the two are one card and this is just
+        the region inside it.
+      */}
+      <div
+        className={
+          variant === 'page'
+            ? 'contents'
+            : 'surface mt-3 flex min-h-0 flex-1 flex-col p-4 sm:p-6'
+        }
+      >
+        {/*
+          One container, two contents. Picking a suggestion or asking a question
+          swaps what is inside it rather than revealing a second panel below.
+
+          `sm:min-h-80` is the floor: it fits the suggestions, so the swap does
+          not resize the dialog under the reader's cursor. It starts at `sm`
+          deliberately — a 320px floor inside a panel that cannot scroll would
+          push content past the bottom of a landscape phone with no way to
+          reach it, and a floor exists only to stop a jump, while a ceiling
+          keeps content reachable. Reachability wins where they conflict.
+
+          `max-h-[50dvh]` with `overflow-y-auto` is the ceiling: a long answer
+          with sources grows the box until it reaches the available screen
+          height and then scrolls inside itself. Only this region scrolls — the
+          input above stays put, so a follow-up question never requires
+          scrolling back to find the field.
+
+          `flex-1 min-h-0` is what makes that possible at all. The dialog panel
+          is a flex column with `overflow-hidden`; a flex child's default
+          `min-height: auto` refuses to shrink below its content, so without
+          `min-h-0` this box would grow past the panel and be clipped rather
+          than scroll.
+        */}
+        <div
+          data-testid="air-body"
+          aria-live="polite"
+          aria-busy={pending}
+          className={`min-h-0 flex-1 overflow-y-auto sm:min-h-80 ${
+            variant === 'page' ? 'mt-6 max-h-[50dvh]' : ''
+          }`}
+        >
+          {pending && (
+            <p className="font-body opacity-70">Reading through Eddie&rsquo;s work&hellip;</p>
+          )}
+
+          {!pending && error && <p className="font-body">{error}</p>}
+
+          {!pending && !error && !answer && (
+            <>
+              <p className="mb-2 font-body text-sm font-semibold">Not sure where to start?</p>
+              <ul className="flex list-none flex-col gap-2 pl-0">
+                {SUGGESTED.map((item) => (
+                  <li key={item.question}>
+                    {/*
+                      Live without a code, not disabled.
+
+                      A disabled suggestion is a dead end: it explains nothing
+                      about why it will not respond, and the field that would
+                      unlock it is a separate control the visitor has no reason
+                      to connect it to. Picking one now holds the question and
+                      asks for a code, then sends it — same route as typing one,
+                      because it is the same intent.
+                    */}
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => requestAnswer(item.question)}
+                      className="w-full rounded-lg border border-hairline p-3 text-left transition-colors hover:border-underline disabled:opacity-50 dark:border-hairline-dark dark:hover:border-link"
+                    >
+                      <span className="badge">{item.audience}</span>
+                      <span className="mt-2 block font-body">{item.question}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          {!pending && answer && (
+            <div>
+              <h2 className="mb-4 font-body text-xl leading-snug no-underline decoration-0">{question}</h2>
+
+              {answer.answer
+                .split('\n')
+                .filter(Boolean)
+                .map((paragraph, index) => (
+                  <p key={index} className="mb-3 font-body leading-relaxed">
+                    {paragraph}
+                  </p>
+                ))}
+
+              {answer.grounded && answer.sources && answer.sources.length > 0 && (
+                <div className="mt-4 border-t border-hairline pt-4 dark:border-hairline-dark">
+                  <p className="mb-2 font-body text-sm font-semibold">Drawn from</p>
+                  <ul className="flex list-none flex-wrap gap-2 pl-0">
+                    {answer.sources.map((source) => (
+                      <li key={source.id}>
+                        <span className="badge">{source.title}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {!answer.grounded && (
+                <p className="mt-4 border-t border-hairline pt-4 font-body text-sm opacity-70 dark:border-hairline-dark">
+                  No sources &mdash; this answer isn&rsquo;t grounded in Eddie&rsquo;s written
+                  work, so treat it as a gap rather than an assessment.
+                </p>
+              )}
+
+              {/* Rating on a grounded answer, dispute on a decline — the
+                component picks, so the two signals never share a control.
+                Absent without a trace id, since feedback with nothing to
+                attach to is worse than none. */}
+              {answer.traceId && (
+                <AnswerFeedback
+                  grounded={answer.grounded}
+                  traceId={answer.traceId}
+                />
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setAnswer(null);
+                  setError(null);
+                }}
+                className="mt-4 font-body text-sm underline decoration-underline underline-offset-4 dark:decoration-link"
+              >
+                Ask something else
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -325,8 +651,6 @@ export function AIResume() {
               up. The 503 from an unconfigured environment returns in well under
               a second, and the shift as "Sending…" swapped back while this
               paragraph mounted was the flicker. */}
-            {/* Height reserved so an arriving message does not shift the buttons —
-              that shift was visible as a flicker on fast rejections. */}
             <div aria-live="polite" className="mt-4 min-h-6">
               {requestState.status === 'failed' && (
                 <p className="font-body">{requestState.message}</p>
@@ -335,72 +659,6 @@ export function AIResume() {
           </div>
         )}
       </Modal>
-
-      {/* aria-live so an arriving answer is announced, not just painted. */}
-      <div aria-live="polite" aria-busy={pending}>
-        {pending && (
-          <p className="mt-6 font-body opacity-70">
-            Reading through Eddie&rsquo;s work&hellip;
-          </p>
-        )}
-
-        {error && (
-          <div className="surface mt-6 p-4 sm:p-6">
-            <p className="font-body">{error}</p>
-          </div>
-        )}
-
-        {answer && (
-          <div className="surface mt-6 p-4 sm:p-6">
-            <h2 className="mb-3 font-body text-xl no-underline decoration-0">
-              {question}
-            </h2>
-
-            {answer.answer
-              .split('\n')
-              .filter(Boolean)
-              .map((paragraph, index) => (
-                <p key={index} className="mb-3 font-body leading-relaxed">
-                  {paragraph}
-                </p>
-              ))}
-
-            {answer.grounded && answer.sources && answer.sources.length > 0 && (
-              <div className="mt-4 border-t border-hairline pt-4 dark:border-hairline-dark">
-                <p className="mb-2 font-body text-sm font-semibold">
-                  Drawn from
-                </p>
-                <ul className="flex list-none flex-wrap gap-2 pl-0">
-                  {answer.sources.map((source) => (
-                    <li key={source.id}>
-                      <span className="badge">{source.title}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {!answer.grounded && (
-              <p className="mt-4 border-t border-hairline pt-4 font-body text-sm opacity-70 dark:border-hairline-dark">
-                No sources &mdash; this answer isn&rsquo;t grounded in
-                Eddie&rsquo;s written work, so treat it as a gap rather than an
-                assessment.
-              </p>
-            )}
-
-            {/* Rating on a grounded answer, dispute on a decline — the
-              component picks, so the two signals never share a control. Absent
-              without a trace id, since feedback with nothing to attach to is
-              worse than none. */}
-            {answer.traceId && (
-              <AnswerFeedback
-                grounded={answer.grounded}
-                traceId={answer.traceId}
-              />
-            )}
-          </div>
-        )}
-      </div>
     </section>
   );
 }

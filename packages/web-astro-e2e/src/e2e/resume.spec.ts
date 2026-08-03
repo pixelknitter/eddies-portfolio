@@ -54,20 +54,39 @@ test.describe('the resume pages', () => {
     expect(await sections.locator('[open]').count()).toBe(0);
   });
 
-  test('expands and collapses every section from one control', async ({
+  test('expands and collapses every section, from either control', async ({
     page,
   }) => {
     await page.goto('/cv/');
 
-    const toggle = page.locator('[data-resume-expand]');
-    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    // Two controls now — one above the sections, one at their foot. The foot
+    // one is hidden while everything is collapsed, so that two buttons reading
+    // "Expand all" are never on screen together.
+    const controls = page.locator('[data-resume-expand]');
+    await expect(controls).toHaveCount(2);
 
-    await toggle.click();
-    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    await expect(toggle).toHaveText(/collapse all/i);
+    const lead = controls.first();
+    const foot = controls.last();
 
-    await toggle.click();
-    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(lead).toHaveAttribute('aria-expanded', 'false');
+    await expect(foot).toBeHidden();
+
+    await lead.click();
+    await expect(lead).toHaveAttribute('aria-expanded', 'true');
+    await expect(lead).toHaveText(/collapse all/i);
+
+    // The pair reports one state, so the foot control appears already saying
+    // "Collapse all" rather than offering to expand what is open.
+    await expect(foot).toBeVisible();
+    await expect(foot).toHaveText(/collapse all/i);
+    await expect(foot).toHaveAttribute('aria-expanded', 'true');
+
+    // Closing from the foot must drive the lead control too — the failure this
+    // guards is two controls each tracking their own idea of the state.
+    await foot.click();
+    await expect(lead).toHaveAttribute('aria-expanded', 'false');
+    await expect(lead).toHaveText(/expand all/i);
+    await expect(foot).toBeHidden();
   });
 
   // The premise of the whole feature: the page publishes no way to contact him
