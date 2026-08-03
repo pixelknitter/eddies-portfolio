@@ -3,6 +3,7 @@ import { ClientRouter } from 'astro:transitions';
 import { fade } from 'astro:transitions';
 import Header from '@components/Header.astro';
 import Footer from '@components/Footer.astro';
+import { resolveSections } from '@util/flags/sections.mjs';
 import '../styles/global.css';
 import '../styles/motion.css';
 
@@ -25,6 +26,25 @@ const SITE_DESCRIPTION =
   'A portfolio of Eddie Freeman containing projects ranging from mobile (react native), nextjs, astro, and LLMs';
 
 const { pageTitle, description = SITE_DESCRIPTION } = Astro.props;
+
+/*
+ * Whether analytics loads on this page at all, and how widely.
+ *
+ * Resolved here — server-side, at render time — so the decision is made before
+ * a byte ships. A client-side check would have downloaded the SDK and then
+ * decided not to use it, which is the expensive way to say no.
+ *
+ * `analytics` is derived from the key existing; `analyticsSiteWide` is the
+ * scope switch, flag-controlled so it can move without a deploy. Feedback-only
+ * is the default, in which case nothing loads here and the A.I.R. island
+ * imports the SDK itself when someone actually asks a question.
+ */
+const sections = await resolveSections(import.meta.env);
+/** Is there a key to send to at all. Publishes the config for islands. */
+const analyticsOn = sections.analytics;
+/** Does *this* page load the SDK, or does it wait for an island to ask. */
+const loadAnalytics = analyticsOn && sections.analyticsSiteWide;
+const posthogKey = import.meta.env.PUBLIC_POSTHOG_KEY;
 
 // Identifies which build is live. The deploy pipeline polls this to confirm
 // the new Worker version is actually serving before it smoke-tests, and it
@@ -98,5 +118,41 @@ const buildSha = import.meta.env.PUBLIC_BUILD_SHA ?? 'dev';
         }
       });
     </script>
+    {
+      analyticsOn && (
+        <script define:vars={{ posthogKey, loadAnalytics }}>
+          {/*
+            Published whenever analytics is on at all, not only site-wide.
+
+            In feedback-only mode — the default — nothing here loads the SDK,
+            but the A.I.R. island still needs to know the token so it can load
+            it when someone actually asks a question. Without this the island
+            had no way to reach one, and every rating silently went nowhere.
+
+            The pageview binding is separate, and gated on the scope flag.
+          */}
+          globalThis.__PK_TELEMETRY__ = { token: posthogKey };
+
+          {/*
+            Bound to astro:page-load rather than run at module scope: a view
+            transition swaps the document without a page load, so module-scope
+            code runs once and every navigation after the first would go
+            uncounted. That is also why the adapter turns the SDK's own
+            capture_pageview off.
+
+            loadClient is single-flight, so the repeat firings cost nothing.
+          */}
+          if (loadAnalytics) {
+            document.addEventListener('astro:page-load', async () => {
+              const { ensureClient, getClient } = await import(
+                '../util/telemetry/client.mjs'
+              );
+              await ensureClient();
+              getClient().pageview(window.location.pathname);
+            });
+          }
+        </script>
+      )
+    }
   </body>
 </html>

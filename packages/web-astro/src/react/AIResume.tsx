@@ -1,6 +1,7 @@
 import React from 'react';
 
 import Modal from './Modal';
+import AnswerFeedback from './AnswerFeedback';
 
 /**
  * A.I.R. — the interactive resume.
@@ -20,6 +21,13 @@ type Answer = {
   answer: string;
   citations: string[];
   sources?: Source[];
+  /**
+   * Ties feedback to the trace that produced this answer. The endpoint has
+   * returned it since Wave 1; nothing read it until there was something to
+   * attach. Optional because an older cached response may not carry one, and a
+   * missing id means no feedback control rather than a broken render.
+   */
+  traceId?: string;
 };
 
 /**
@@ -378,6 +386,17 @@ export function AIResume() {
                 Eddie&rsquo;s written work, so treat it as a gap rather than an
                 assessment.
               </p>
+            )}
+
+            {/* Rating on a grounded answer, dispute on a decline — the
+              component picks, so the two signals never share a control. Absent
+              without a trace id, since feedback with nothing to attach to is
+              worse than none. */}
+            {answer.traceId && (
+              <AnswerFeedback
+                grounded={answer.grounded}
+                traceId={answer.traceId}
+              />
             )}
           </div>
         )}

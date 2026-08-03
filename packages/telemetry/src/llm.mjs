@@ -89,6 +89,7 @@ export function buildTrace(input) {
  *   topScore?: number,
  *   floorCleared?: boolean,
  *   overviewFallback?: boolean,
+ *   question?: string,
  * }} input
  */
 export function buildRetrievalSpan(input) {
@@ -105,6 +106,22 @@ export function buildRetrievalSpan(input) {
       top_score: input.topScore,
       floor_cleared: input.floorCleared,
       overview_fallback: input.overviewFallback,
+      /*
+       * Only when nothing was retrieved.
+       *
+       * A decline calls no model, so no generation exists — which made the
+       * questions the corpus cannot reach the only ones recorded nowhere, and
+       * those are precisely the ones worth reading. A grounded question already
+       * rides on the generation, so recording it here too would write the same
+       * content twice for one dataset.
+       *
+       * This is a `$ai_span`, so it lands in `ai_events` under the same 30-day
+       * content retention as every other question. Redaction happens in the
+       * transport, which wraps the whole batch.
+       */
+      ...(input.retrievedIds.length === 0 && input.question
+        ? { question: input.question }
+        : {}),
     },
   };
 }

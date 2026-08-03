@@ -171,3 +171,49 @@ describe('buildGeneration', () => {
     expect(properties.cache_read_input_tokens).toBe(0);
   });
 });
+
+describe('a declined retrieval records what was asked', () => {
+  /*
+   * A decline never calls the model, so no generation exists — which meant the
+   * questions the corpus *cannot* reach were the only ones recorded nowhere.
+   *
+   * On the span it lands in `ai_events`, under the same 30-day content
+   * retention as every other question A.I.R. has seen. No new retention
+   * category, and the permanent `events` table stays free of anyone's prose.
+   * Redaction is the transport's job, applied to the whole batch on the way out.
+   */
+
+  it('carries the question when nothing was retrieved', () => {
+    const { properties } = buildRetrievalSpan({
+      traceId: 't1',
+      retrievedIds: [],
+      floorCleared: false,
+      question: 'How does he handle incidents?',
+    });
+
+    expect(properties.question).toBe('How does he handle incidents?');
+  });
+
+  it('omits the question when retrieval succeeded', () => {
+    // A grounded question already rides on the generation. Recording it here
+    // too would write the same content twice for one dataset.
+    const { properties } = buildRetrievalSpan({
+      traceId: 't1',
+      retrievedIds: ['platform-migration'],
+      floorCleared: true,
+      question: 'How does he handle incidents?',
+    });
+
+    expect(properties.question).toBeUndefined();
+  });
+
+  it('omits the question when the caller did not supply one', () => {
+    const { properties } = buildRetrievalSpan({
+      traceId: 't1',
+      retrievedIds: [],
+      floorCleared: false,
+    });
+
+    expect(properties.question).toBeUndefined();
+  });
+});

@@ -2,7 +2,7 @@
   "name": "@pk/telemetry",
   "version": "0.1.0",
   "private": true,
-  "description": "Product and LLM telemetry primitives. No dependencies and no platform assumptions, so the same code runs in workerd, Node, a browser and React Native — the vendor SDK is injected by the consumer, never imported here.",
+  "description": "Product and LLM telemetry primitives. No dependencies and no platform assumptions, so the same code runs in workerd, Node, a browser and React Native \u2014 the vendor SDK is injected by the consumer, never imported here.",
   "license": "MIT",
   "type": "module",
   "main": "./src/index.mjs",
@@ -12,7 +12,8 @@
     "./llm": "./src/llm.mjs",
     "./transport": "./src/transport.mjs",
     "./client": "./src/client.mjs",
-    "./posthog": "./src/posthog.mjs"
+    "./posthog": "./src/posthog.mjs",
+    "./events": "./src/events.mjs"
   },
   "files": [
     "src"

@@ -145,7 +145,7 @@ not appear at all, a tracker blocker will stop them and the site works perfectly
 well without them. Nothing on this site requires analytics to function.
 
 **Want your details removed?** Email me at
-[connect@eddie.engineering](mailto:connect@eddie.engineering) and I'll delete
+[privacy@eddie.engineering](mailto:privacy@eddie.engineering) and I'll delete
 what I have and tell you what it was. Since almost nothing is stored, this is
 usually a short conversation.
 
@@ -170,7 +170,7 @@ quiet edit.
 ## Contact
 
 Questions, corrections, or a request about your data:
-[connect@eddie.engineering](mailto:connect@eddie.engineering).
+[privacy@eddie.engineering](mailto:privacy@eddie.engineering).
 
 If something on this page doesn't match what the site actually does, that's a bug
 and I'd like to know about it.
