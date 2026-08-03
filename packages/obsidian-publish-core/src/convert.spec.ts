@@ -26,6 +26,36 @@ describe('parseFrontmatter', () => {
     expect(frontmatter.tags).toEqual(['one', 'two']);
   });
 
+  // Prettier reflows a long inline array across lines, so real content ends up
+  // in this shape whether or not it was authored that way. Reading only the
+  // first line yielded an empty value and silently dropped every tag.
+  it('parses a flow list that Prettier has wrapped across lines', () => {
+    const { frontmatter } = parseFrontmatter(
+      [
+        '---',
+        'title: A Project',
+        'tags:',
+        '  [',
+        "    'multi-agent',",
+        "    'payroll compliance',",
+        '  ]',
+        'draft: true',
+        '---',
+        'body',
+      ].join('\n')
+    );
+    expect(frontmatter.tags).toEqual(['multi-agent', 'payroll compliance']);
+    expect(frontmatter.draft).toBe(true);
+  });
+
+  it('parses a YAML block list', () => {
+    const { frontmatter } = parseFrontmatter(
+      ['---', 'tags:', '  - one', '  - two', 'draft: false', '---', 'body'].join('\n')
+    );
+    expect(frontmatter.tags).toEqual(['one', 'two']);
+    expect(frontmatter.draft).toBe(false);
+  });
+
   it('does not treat body content as frontmatter', () => {
     const { body } = parseFrontmatter('---\ntitle: X\n---\nnot: frontmatter');
     expect(body).toBe('not: frontmatter');

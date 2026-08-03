@@ -28,11 +28,51 @@ export function parseFrontmatter(raw) {
   const frontmatter = {};
   // Deliberately minimal: Obsidian frontmatter is flat key/value plus simple
   // lists. Anything richer should be normalised by hand rather than guessed at.
-  for (const line of match[1].split(/\r?\n/)) {
+  //
+  // A list may still arrive on the lines *after* its key, in two shapes: a
+  // YAML block list (`- item`), and a flow array wrapped across lines, which
+  // is what Prettier turns a long `tags: [...]` into. Reading only the key's
+  // own line yielded an empty value for both and silently dropped every item —
+  // and a silently empty `tags` costs retrieval scoring rather than failing.
+  const lines = match[1].split(/\r?\n/);
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
     const kv = /^([A-Za-z0-9_-]+):\s*(.*)$/.exec(line);
     if (!kv) continue;
     const [, key, rawValue] = kv;
-    const value = rawValue.trim();
+    let value = rawValue.trim();
+
+    if (value === '' || (value.startsWith('[') && !value.endsWith(']'))) {
+      const gathered = [];
+      let cursor = index + 1;
+
+      // Consume indented continuation lines. An unindented line is the next
+      // key, so the list ends there whether or not it was closed as expected.
+      while (cursor < lines.length && /^\s+\S/.test(lines[cursor])) {
+        gathered.push(lines[cursor].trim());
+        cursor += 1;
+      }
+
+      if (gathered.length > 0) {
+        const joined = gathered.join(' ');
+        const isBlockList = gathered.every((item) => item.startsWith('- '));
+
+        if (isBlockList) {
+          frontmatter[key] = gathered
+            .map((item) => item.slice(2).trim().replace(/^["']|["']$/g, ''))
+            .filter(Boolean);
+          index = cursor - 1;
+          continue;
+        }
+
+        // A wrapped flow array: re-join and fall through to the inline branch.
+        if (value.startsWith('[') || joined.startsWith('[')) {
+          value = `${value}${joined}`.replace(/,\s*\]$/, ']');
+          index = cursor - 1;
+        }
+      }
+    }
 
     if (value === '') {
       frontmatter[key] = '';

@@ -93,10 +93,10 @@ Two mechanics worth knowing:
 
 - A **compound tag** matched in full scores as a whole tag even out of order,
   so `build-vs-buy` is hit by "decide whether to build or buy".
-- Tags must be a **single-line inline array** (`tags: ['a', 'b']`) for
-  `scripts/air-eval.mjs`, whose lightweight frontmatter parser does not read
-  YAML list form. Astro parses either, so list form fails only in eval
-  scoring — quietly.
+- Inline arrays, wrapped inline arrays and YAML block lists all parse. Astro
+  reads any of them, and `parseFrontmatter` (used by `scripts/air-eval.mjs`)
+  now does too — it previously read only the key's own line, so a list Prettier
+  had wrapped across lines became an empty value and dropped every tag.
 
 Add a tag only where the claim is true. A three-day hackathon lead is not a
 manager.
