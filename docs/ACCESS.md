@@ -125,7 +125,7 @@ application to the paths and give it a Bypass policy:
 ```
 App A:  staging.eddie.engineering            Allow (you) + Service Auth (CI)
 App B:  staging.eddie.engineering/api/air/   Bypass (everyone)
-App C:  staging.eddie.engineering/air        Bypass (everyone)
+App C:  staging.eddie.engineering/cv/air     Bypass (everyone)
 ```
 
 Overlapping applications resolve by specificity — [the more specific path

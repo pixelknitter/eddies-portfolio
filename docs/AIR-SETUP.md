@@ -4,8 +4,9 @@ Everything that lives outside the codebase: secrets, DNS, a Discord webhook.
 
 ## 0. Point wrangler at the right account
 
-`eddie.engineering` is in `Eddie@ninjasudo.com's Account`. Wrong account gives a
-misleading error — *"Could not find a zone"* when it's looking in the other one.
+The zone may live in a different Cloudflare account than the one wrangler is
+logged into. The wrong account gives a misleading error — *"Could not find a
+zone"* when it's looking in the other one.
 
 `wrangler login` stores **one** credential, so it logs you out of other projects.
 Use a scoped token instead; `CLOUDFLARE_API_TOKEN` takes precedence over the

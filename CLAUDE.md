@@ -1,14 +1,39 @@
 # CLAUDE.md - AI Assistant Guide for Eddie's Portfolio
 
-> **Version:** 0.4.0
-> **Last Updated:** 2026-07-25
-> **Purpose:** This document provides comprehensive guidance for AI assistants working with Eddie Freeman's portfolio codebase.
+> **Version:** 0.5.0
+> **Last Updated:** 2026-08-02
+> **Purpose:** Codebase structure and conventions, for AI assistants and
+> anyone new to the repo.
 
-> **Note:** The tech stack was modernized in July 2026 (Astro 7, React 19,
-> Tailwind 4, Nx 23, ESLint 9 flat config, Node 22, Vitest). Sections below
-> reflect the current state; see the git history for the migration commits.
+> **Scope.** This file covers *how the code is written*. Operational and
+> content procedures live in `docs/` — see `docs/README.md` for the index,
+> and `docs/DECISIONS.md` for why things are the way they are.
 
 ---
+
+## Where things are documented
+
+This file is the **code** reference: structure, conventions, and the traps
+that live in the source. Everything else has a home in `docs/`, and those
+files are maintained. **Prefer linking to them over restating them here** —
+a duplicated fact is a fact that will be wrong later.
+
+| You need | Go to |
+|----------|-------|
+| Why something is built this way | [docs/DECISIONS.md](./docs/DECISIONS.md) |
+| What a capability does, and the problem it solves | [docs/FEATURES.md](./docs/FEATURES.md) |
+| A deploy, CI, or hostname failure | [docs/RUNBOOK.md](./docs/RUNBOOK.md) |
+| Writing or publishing content | [docs/CONTENT.md](./docs/CONTENT.md) |
+| Every content field and how collections align | [docs/CONTENT-MODEL.md](./docs/CONTENT-MODEL.md) |
+| Environments, secrets, pipelines | [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) |
+| Cloudflare Access on gated tiers | [docs/ACCESS.md](./docs/ACCESS.md) |
+| A.I.R. setup: secrets, DNS, evals | [docs/AIR-SETUP.md](./docs/AIR-SETUP.md) |
+| The resume: sealing, PDFs, watermarking | [docs/RESUME.md](./docs/RESUME.md) |
+| Branching and landing PRs | [docs/WORKFLOW.md](./docs/WORKFLOW.md) |
+| Writing voice for posts | [docs/VOICE.md](./docs/VOICE.md) |
+
+`docs/README.md` is the index; `docs/observability/` and `docs/superpowers/`
+preserve the reasoning behind past design decisions.
 
 ## Table of Contents
 
@@ -28,23 +53,13 @@
 
 ## Project Overview
 
-**Project Name:** eddies-portfolio
-**Type:** Personal Portfolio Website
-**Architecture:** Nx Monorepo with Astro Static Site Generator
-**Owner:** Eddie Freeman
-**License:** MIT
+A personal portfolio and the production pipeline behind it: an Astro 7 site
+with React islands, rendered per request on Cloudflare Workers, in an Nx
+monorepo. Sections are gated by build-time flags, so production shows only
+finished work while staging and per-PR previews show everything.
 
-### Purpose
-A professional portfolio website showcasing Eddie's work, blog posts, projects, and skills. The site features a modern design with dark/light theme support, interactive components, and optimized performance for Cloudflare Workers deployment.
-
-### Key Features
-- Personal about section with skills/tech stack display
-- Blog with markdown content (draft support)
-- Project showcase with detailed case studies
-- AI Resume interactive component (in development)
-- Dark/light theme with persistence and cross-tab sync
-- Responsive design with mobile-first approach
-- Server-side rendering on Cloudflare Workers
+Capabilities and the problems they solve are in
+[docs/FEATURES.md](./docs/FEATURES.md).
 
 ---
 
@@ -52,18 +67,30 @@ A professional portfolio website showcasing Eddie's work, blog posts, projects, 
 
 ### Monorepo Structure
 
-This is an **Nx v19 monorepo** with Yarn 3 workspaces:
+This is an **Nx 23 monorepo** with Yarn 3 workspaces:
 
 ```
 eddies-portfolio/
 ├── packages/
-│   ├── web-astro/          # Main Astro application
-│   └── web-astro-e2e/      # Cypress E2E tests
+│   ├── web-astro/               # Main Astro application
+│   ├── web-astro-e2e/           # Playwright E2E tests
+│   ├── telemetry/               # @pk/telemetry — product/LLM telemetry
+│   │                            #   primitives; no deps, no platform
+│   │                            #   assumptions, vendor SDK injected
+│   └── obsidian-publish-core/   # @eddie/obsidian-publish-core — Obsidian
+│                                #   note → content entry; pure, dep-free
+├── scripts/                # Pipeline tooling (smoke test, sealing, PDFs…)
+├── docs/                   # See docs/README.md for the index
 ├── nx.json                 # Nx workspace configuration
 ├── package.json            # Root workspace dependencies
 ├── tsconfig.base.json      # Shared TypeScript config
 └── [config files]          # ESLint, Prettier, etc.
 ```
+
+The two extracted packages are dependency-free on purpose: `telemetry` runs
+the same redaction code in workerd, Node and the browser, and
+`obsidian-publish-core` runs in both Node and workerd. Neither imports a
+vendor SDK.
 
 ### Web-Astro Application Structure
 
@@ -74,16 +101,24 @@ src/
 ├── pages/                  # File-based routing (Astro convention)
 │   ├── index.astro        # Home page (about section)
 │   ├── blog.astro         # Blog listing
-│   ├── blog/[...slug].astro    # Dynamic blog posts
+│   ├── blog/[...slug].astro     # Dynamic blog posts
 │   ├── works.astro        # Projects listing
-│   ├── projects/[...slug].astro # Dynamic project pages
-│   ├── air/index.astro    # AI Resume page
+│   ├── projects/[...slug].astro # Dynamic project pages (prerendered)
+│   ├── cv/                # Resume surfaces + A.I.R.
+│   │   ├── index.astro    #   Visual resume
+│   │   ├── for-bots.astro #   Complete resume + JSON-LD graph
+│   │   ├── air/           #   AI Resume (A.I.R.) chat page
+│   │   └── print/         #   Print-only routes the PDF generator prints
+│   ├── api/               # SSR endpoints (air/*, resume/*)
+│   ├── privacy.astro      # Privacy notice
+│   ├── robots.txt.ts      # Per-tier robots policy
 │   └── 404.astro          # Error page
 │
 ├── layouts/               # Reusable page layouts
 │   ├── Layout.astro       # Base layout (header, footer, theme)
 │   ├── MarkdownBlogLayout.astro   # Blog post template
-│   └── MarkdownWorksLayout.astro  # Project detail template
+│   ├── MarkdownWorksLayout.astro  # Project detail template
+│   └── PrintLayout.astro  # Print/PDF layout (fingerprinted — see below)
 │
 ├── components/            # Astro components (server-side)
 │   ├── Header.astro       # Navigation container
@@ -94,31 +129,46 @@ src/
 │   ├── MyBlocksSection.astro # Skill categories
 │   ├── Hero.astro         # Hero image sections
 │   ├── Prose.astro        # Markdown wrapper
+│   ├── LatestWork.astro   # GitHub activity (build-time loader)
+│   ├── StarSpotlight.astro # Rotating STAR highlight
 │   ├── AnimateOnScroll.astro # Scroll animations
-│   └── ThemeIcon.astro    # Theme toggle button
+│   ├── ThemeIcon.astro    # Theme toggle button
+│   └── resume/            # Resume rendering components
 │
 ├── content.config.ts      # Content Layer schemas + glob loaders
 │                          #   (NOT src/content/config.ts)
 ├── content/               # Content collection sources
-│   ├── blog/              # Blog markdown files
-│   ├── projects/          # Project markdown files
-│   └── authors/           # Author data (JSON)
+│   ├── blog/  projects/  authors/
+│   ├── star/              # STAR career highlights (also A.I.R.'s corpus)
+│   ├── resume/            # Sealed resume content, one dir per section
+│   └── challenges/
 │
 ├── react/                 # React components (islands)
-│   ├── AIResume.tsx       # Interactive AI resume
-│   └── AIResume.spec.tsx  # Vitest render/interaction test
+│   ├── AIResume.tsx       # A.I.R. — ask/answer, page or dialog variant
+│   ├── AskAir.tsx         # Quick-ask trigger that lifts into the dialog
+│   ├── AnswerFeedback.tsx # Was the answer any good
+│   ├── ResumeDownload.tsx # Lead capture + gated download
+│   └── Modal.tsx
 │
 ├── static/                # Static markdown files
-│   └── about.md           # Home page about content
+│   ├── about.md           # Home page about content
+│   └── privacy.md
 │
 ├── styles/
 │   ├── global.css         # @import "tailwindcss" + @theme tokens
-│   └── motion.css         # Motion/animation variables
+│   ├── motion.css         # Motion/animation variables
+│   ├── print.css  resume-organic.css   # Both fingerprinted
 │
 └── util/
     ├── constants.ts       # Environment vars, tech stack data
-    └── constants.spec.ts  # Vitest data-integrity test
+    ├── flags/             # Section gating (build-time + client)
+    ├── air/               # A.I.R. retrieval, prompt, model resolution
+    ├── resume/            # Resume loading, markup, PDF fingerprint
+    ├── telemetry/         # Vendor wiring for @pk/telemetry
+    └── posts.mjs          # Draft/publishDate visibility rules
 ```
+
+Specs live next to the code they cover (`*.spec.ts(x)`).
 
 > Tailwind 4 has **no** `tailwind.config.cjs`. ESLint uses a flat config
 > (`eslint.config.mjs` at the root, extended per package). Vitest config is
@@ -166,8 +216,8 @@ import { TECH_STACK } from '@util/constants';
 ### Testing
 - **Vitest** - Unit/integration tests (jsdom + Testing Library); Nx `test`
   target. Specs live next to source as `*.spec.ts(x)`
-- **Cypress** - E2E scaffold (placeholder; its binary does not build in all
-  sandboxes — prefer Vitest for new coverage)
+- **Playwright** - E2E against the built Worker (`packages/web-astro-e2e`);
+  a required check in CI
 
 ### Code Quality
 - **ESLint 9** - Flat config (`eslint.config.mjs`), typescript-eslint v8
@@ -224,9 +274,10 @@ nx lint web-astro
 yarn ci   # -> nx run-many --targets=check,lint,test,build --projects=web-astro
 ```
 
-> **CI parity:** the GitHub Actions workflow runs `check`, `lint`, `test`,
-> and `build`. Cypress's binary is skipped in install (`CYPRESS_INSTALL_BINARY=0`)
-> and the Nx daemon is disabled (`NX_DAEMON=false`).
+> **CI parity:** `yarn ci` covers the `tests` job (`check`, `lint`, `test`,
+> `build`). CI additionally runs the **`e2e`** job (Playwright, also a
+> required check) and scans the build output for secrets and gated assets.
+> The Nx daemon is disabled in CI (`NX_DAEMON=false`) for deterministic runs.
 
 ### Nx Caching
 
@@ -422,81 +473,55 @@ import { SITE_TITLE } from '@util/constants';
 
 ## Content Management
 
-### Content Collections Overview
+Seven collections are defined in `src/content.config.ts`: `blog`, `projects`,
+`star`, `challenges`, `resume`, `authors`, and `latestWork`.
 
-Three collections defined in `src/content.config.ts`:
+**Do not copy frontmatter examples from here.** Two references exist and both
+stay current with the schema:
 
-1. **Blog** - Blog posts (markdown with frontmatter)
-2. **Projects** - Project showcases (markdown with frontmatter)
-3. **Authors** - Author data (JSON files)
+| For | Read |
+|-----|------|
+| Every field, who reads it, how collections align | [docs/CONTENT-MODEL.md](./docs/CONTENT-MODEL.md) |
+| How to add or publish a piece of content | [docs/CONTENT.md](./docs/CONTENT.md) |
 
-### Adding a New Blog Post
+The three things worth knowing before touching content code:
 
-1. Create file: `src/content/blog/my-post.md`
-2. Add frontmatter:
+1. **A.I.R. retrieval indexes frontmatter only, by field name.** The index
+   reads `title`, `org`, `role`, `tags`, `result`, `summary`, `situation`,
+   `task`, `action` — nothing else. A `description`, a `blurb`, a `stack` or
+   a body contributes nothing to *finding* an entry, which is why the corpus
+   builder mirrors display summaries into `summary`. See
+   [the retrieval contract](./docs/CONTENT-MODEL.md#what-air-actually-retrieves).
+2. **One list defines the corpus.** `CORPUS_COLLECTIONS` in
+   `util/air/corpus.mjs` is read by both `ask.ts` and the eval harness. Add a
+   collection there, never in one consumer — that drift once had the harness
+   grading a prompt the site does not build.
+3. **`star` bodies are guardrails, not prose.** `buildCorpus` labels them
+   `constraints` and `prompt.mjs` hoists them outside the story tags. Every
+   other collection's body is `content`.
+4. **Draft visibility is a flag, not `import.meta.env.PROD`.** Use
+   `showUnpublished` from `util/visibility.mjs` — the review tiers build in
+   production mode, so a `PROD` check would leave them looking empty. For
+   posts the rule is `isPublished`: a **scheduled** post is not public either.
 
-```markdown
----
-title: "My Blog Post Title"
-author: eddie-freeman
-tags: ["typescript", "astro"]
-blurb: "A short description"
-heroImage: "/images/hero.webp"
-draft: false
-relatedPosts: ["other-post-slug"]
----
-
-Your markdown content here...
+```typescript
+import { showUnpublished } from '@util/visibility.mjs';
+const reveal = showUnpublished(import.meta.env);
+const posts = await getCollection('blog', ({ data }) => reveal || !data.draft);
 ```
-
-3. The post automatically appears on `/blog` (unless `draft: true` in production)
-4. Dynamic route `/blog/my-post` is generated
-
-### Adding a New Project
-
-1. Create file: `src/content/projects/project-name.md`
-2. Add frontmatter:
-
-```markdown
----
-title: "Project Name"
-description: "Project description"
-image: "/project-card.webp"
-worksImage1: "/detail-image-1.webp"
-worksImage2: "/detail-image-2.webp"
-platform: "Web"
-stack: ["React", "TypeScript", "Tailwind"]
-website: "https://example.com"
-github: "https://github.com/user/repo"
----
-
-Project details in markdown...
-```
-
-3. Project appears on `/works` and generates `/projects/project-name`
 
 ### Static Assets
 
-Place in `public/` directory:
-- Images: `public/image.webp`
-- Icons: `public/favicon.svg`
-- Other assets: `public/file.pdf`
+Place in `public/`, reference without the prefix:
 
-Reference without `/public` prefix:
 ```astro
 <img src="/image.webp" alt="Description" />
 ```
 
-### Environment-Based Content
-
-Draft posts are hidden in production:
-
-```typescript
-// Automatically filtered in production
-const posts = await getCollection('blog', ({ data }) => {
-  return import.meta.env.PROD ? !data.draft : true;
-});
-```
+> Anything in `public/` is served by Cloudflare **before the Worker runs**,
+> at a guessable URL. Never put gated content there — that is why the resume
+> PDFs are compiled into the bundle instead. `check-gated-assets.mjs`
+> enforces it in CI.
 
 ---
 
@@ -640,11 +665,23 @@ describe('buildingBlocks', () => {
 });
 ```
 
-### E2E Testing with Cypress
+### E2E Testing with Playwright
 
-**Location:** `packages/web-astro-e2e/` — placeholder scaffold only. The
-Cypress binary does not build in all sandboxes; prefer Vitest for new
-coverage until E2E is revisited (consider Playwright).
+**Location:** `packages/web-astro-e2e/` — a real suite, and a **required
+check** in CI. Specs cover navigation, content, theme, A.I.R. and the resume.
+
+```bash
+nx e2e web-astro-e2e                      # against a locally built Worker
+nx e2e web-astro-e2e --configuration=ui   # Playwright UI mode
+```
+
+The suite runs against the **built Worker** (`serve-worker.mjs`), not
+`astro dev`, so it exercises the same runtime production uses. Two failure
+modes here are known and documented rather than mysterious: a wall of
+`ERR_CONNECTION_REFUSED` is a wrangler flake, and a job that hangs with no
+output is a teardown wedge. Both are in
+[docs/RUNBOOK.md](./docs/RUNBOOK.md#known-failure-modes) before you start
+debugging your change.
 
 ### Type Checking
 
@@ -707,37 +744,14 @@ export default defineConfig({
 
 ### CI/CD (GitHub Actions)
 
-- **`.github/workflows/ci.yml`** — runs `check`, `lint`, `test`, `build` on
-  push/PR.
-- **`.github/workflows/preview.yml`** — per-PR **dev** Worker on
-  `<branch>-dev.eddie.engineering`, smoke-tested, URL commented on the PR.
-- **`.github/workflows/preview-cleanup.yml`** — tears that Worker down when
-  the PR closes.
-- **`.github/workflows/deploy.yml`** — on green `master`: deploys **staging**
-  (`staging.eddie.engineering`) automatically, then **production**
-  (`eddie.engineering`) after approval, in one run.
+Four workflows: `ci.yml` (checks + e2e), `preview.yml` (per-PR dev Worker),
+`preview-cleanup.yml` (tears it down on close), and `deploy.yml` (staging,
+then production after approval, in one run). Three tiers, each its own Worker
+so a lower tier can never claim the production hostname.
 
-Three tiers, each its own Worker so a lower tier can never claim the
-production hostname:
-
-| Tier | Hostname | Worker | GitHub environment |
-|------|----------|--------|--------------------|
-| Production | `eddie.engineering` | `eddies-portfolio` | `production` |
-| Staging | `staging.eddie.engineering` | `eddies-portfolio-staging` | `staging` |
-| Dev (per PR) | `<branch>-dev.eddie.engineering` | `eddies-portfolio-pr-<N>` | `development` |
-
-Cloudflare credentials and Discord webhooks are **repo-level secrets**;
-environments are declared for deployment tracking and the production
-approval gate.
-
-Documentation lives in `docs/`:
-
-| Doc | Purpose |
-|-----|---------|
-| `docs/FEATURES.md` | What each capability does and which problem it solves |
-| `docs/RUNBOOK.md` | Known failure modes and operational procedures |
-| `docs/DEPLOYMENT.md` | Environment/deploy reference: hostnames, secrets, Access |
-| `docs/VOICE.md` | Writing voice for posts |
+**[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) is the reference** — hostnames,
+Worker names, secrets, API-token scopes, Access setup, and the promotion
+flow. It is maintained; do not restate it here.
 
 ### Build Process
 
@@ -751,20 +765,31 @@ packages/web-astro/dist/
 
 ### Environment Variables
 
-Define in the Cloudflare Workers dashboard or `.env`:
+Two kinds, and the distinction is load-bearing:
+
+**Build-time flags** (`PUBLIC_SHOW_*`) decide which routes exist. They are
+read during `astro build`, so they are set by the workflow, not at runtime.
+Each requires the exact string `"true"` — env vars arrive as strings, and a
+loose check would treat `"false"` as enabled.
 
 ```bash
-OPEN_AI_TOKEN=your_token_here
-SHOW_BLOG=true
-SHOW_PROJECTS=true
-SHOW_AIR=false
+PUBLIC_SHOW_BLOG=true PUBLIC_SHOW_PROJECTS=true yarn astro:build
 ```
 
-Access in code:
 ```typescript
-const apiToken = import.meta.env.OPEN_AI_TOKEN;
-const showBlog = import.meta.env.SHOW_BLOG === 'true';
+// via src/util/flags/sections.mjs — don't read import.meta.env directly
+import { sectionFlags } from '@util/flags/sections.mjs';
 ```
+
+**Runtime secrets** (`ANTHROPIC_API_KEY`, `AIR_ACCESS_CODE`,
+`AIR_SIGNING_SECRET`, `DISCORD_ACCESS_WEBHOOK_URL`) are set with
+`wrangler secret put` and read through `readSecret` from
+`cloudflare:workers`. They apply without a redeploy.
+
+> **Never put a runtime secret in a build step's `env:`.** Astro serialises
+> the build machine's whole `process.env` into the server bundle, so it would
+> ship inside the Worker. `scripts/check-bundle-secrets.mjs` enforces this
+> after every build. Locally, use `.dev.vars` (gitignored).
 
 ---
 
@@ -884,62 +909,27 @@ Edit `src/styles/global.css`:
 
 ### Editing the resume, or anything the PDFs are built from
 
-The two downloadable PDFs are build artifacts committed into the repo, and a
-spec (`src/util/resume/pdfs.spec.ts`) hashes the files they are generated from.
-Touch any file on that list and the spec fails until the PDFs are rebuilt —
-**including a pure styling change**, because the hash covers the print layout and
-the stylesheets, not just the resume data.
+**The trap:** the two downloadable PDFs are build artifacts committed into the
+repo, and `src/util/resume/pdfs.spec.ts` hashes every file they are generated
+from. Touch one and the spec fails until the PDFs are rebuilt — **including a
+pure styling change**, because the hash covers the print layout and the
+stylesheets, not just the resume data.
 
-The list lives in `src/util/resume/fingerprint.mjs` (`FINGERPRINTED_FILES`). As of
-this writing: `resume.data.ts`, `markup.ts`, `watermark.mjs`, `ResumeVisual.astro`,
-`ResumeFull.astro`, `ResumeSection.astro`, `PrintContact.astro`,
-`PrintLayout.astro`, `print.css`, **`resume-organic.css`**, and both
-`pages/air/resume/print/*.astro`. Read the list rather than trusting this copy.
-
-`global.css` is **not** on it — site-wide theme changes do not force a rebuild.
-Worth splitting a resume change from a site change into separate commits for
-exactly this reason.
-
-Regenerating needs the real resume, which is sealed:
+The authoritative list is `FINGERPRINTED_FILES` in
+`src/util/resume/fingerprint.mjs`. Read it there. `global.css` is *not* on it,
+which is a reason to split a resume change and a site change into separate
+commits.
 
 ```bash
-# 1. Materialise the real content. Requires the key — see below.
-CONTENT_SEAL_KEY=… node scripts/seal-content.mjs unseal-all
-
-# 2. Rebuild both PDFs and pdfs.generated.mjs
-yarn resume:pdf
-
-# 3. Commit the regenerated module
-git add packages/web-astro/src/util/resume/pdfs.generated.mjs
+yarn resume:pdf     # then commit src/util/resume/pdfs.generated.mjs
 ```
 
-**The key is the gate, not the procedure.** `CONTENT_SEAL_KEY` is a secret; without
-it `unseal-all` cannot run, the collection loads zero entries, and every resume
-route 404s — so `yarn resume:pdf` fails with a 404 on the print route rather than
-anything that names the real cause. Plaintext otherwise lives in gitignored
-`.local-<section>/` directories; if those are present locally, step 1 is unnecessary.
-
-For a **remote/Cloud session** (claude.ai/code) the key is absent by default, so a
-styling change to the resume can be authored and verified there but the PDFs cannot
-be rebuilt. Add `CONTENT_SEAL_KEY` to the environment's variables to make it
-possible; otherwise regenerate on a local machine before merging. CI unseals but
-never runs `resume:pdf`, so a stale hash does not self-heal — it just fails.
-
-Verifying resume rendering without the key is still possible via the fixtures:
-
-```bash
-PUBLIC_SHOW_RESUME=true PUBLIC_SHOW_AIR=true PUBLIC_SHOW_FIXTURES=true \
-  npx astro dev          # /air/resume/ renders sample-*.md content
-```
-
-Full detail — sealing model, watermarking, why the hash covers inputs not output —
-is in `docs/RESUME.md`. That file is the source of truth; this section exists so the
-constraint is discoverable before a change is made rather than after CI rejects it.
-
-> **Sandbox note:** `yarn resume:pdf` drives Playwright. If it reports a missing
-> `chrome-headless-shell`, the image's browser build predates the pinned Playwright
-> version; point it at the installed binary (`/opt/pw-browsers/chromium`) rather
-> than running `playwright install`.
+Regenerating needs `CONTENT_SEAL_KEY`; without it the run fails with a 404 on
+`/cv/print/human` rather than naming the missing key.
+**[docs/RESUME.md](./docs/RESUME.md) is the source of truth** for the sealing
+model, fixtures, watermarking, and the remote-session and sandbox caveats.
+This entry exists only so the constraint is discoverable before a change, not
+after CI rejects it.
 
 ---
 
@@ -1024,7 +1014,7 @@ constraint is discoverable before a change is made rather than after CI rejects 
 and **rebased** onto it.
 
 > **Rebase feature branches onto `master`. Never merge `master` into a
-> feature branch.** Merge commits obscure history and topology.
+> feature branch.**
 
 ```bash
 git fetch origin master
@@ -1032,28 +1022,24 @@ git rebase origin/master
 git push --force-with-lease      # never plain --force
 ```
 
-Merge commits are disabled on the repository — land PRs with squash or
-rebase merge.
+- **Branches:** `type/short-description` — `feat/`, `fix/`, `ci/`, `docs/`,
+  `test/`, `content/`. Keep unrelated work on separate branches.
+- **Commits:** imperative subject, then the *why* in the body.
+- **Before pushing:** `yarn ci` must be green.
 
-This is not only aesthetic: `pull_request` workflows run the workflow file
-from **the PR's own branch**, so a branch cut before a pipeline fix keeps
-running the broken pipeline until it is rebased. If a PR fails in a way that
-looks environmental, rebase before investigating.
-
-1. **Branches:** `type/short-description` — `feat/`, `fix/`, `ci/`, `docs/`,
-   `test/`, `content/`. Keep unrelated work on separate branches.
-2. **Commits:** imperative subject, then the *why* in the body.
-   - Good: "add dark mode toggle to navigation"
-   - Bad: "fix stuff"
-3. **Before pushing:** `yarn ci` (check, lint, test, build) must be green.
-
-See `docs/WORKFLOW.md` for the full convention.
+**[docs/WORKFLOW.md](./docs/WORKFLOW.md) is the full convention**, including
+why a stale branch keeps failing CI until it is rebased — `pull_request`
+workflows run the workflow file from the PR's own branch, so a failure that
+looks environmental usually means rebase first, investigate second.
 
 ---
 
 ## Troubleshooting
 
-### Common Issues
+**Scope: the local dev loop.** Anything involving a deploy, CI, a preview
+Worker, or a hostname is in
+[docs/RUNBOOK.md](./docs/RUNBOOK.md#known-failure-modes), which records real
+failures with symptom, cause, and fix.
 
 **Issue:** Tailwind classes not applying
 - **Solution:** Tailwind 4 auto-detects content — restart the dev server after
@@ -1083,19 +1069,10 @@ See `docs/WORKFLOW.md` for the full convention.
 
 **Issue:** `pdfs.spec.ts` fails — "Resume data or print layout changed since the
 PDFs were generated"
-- **Cause:** A fingerprinted file was edited. Styling counts; `resume-organic.css`
-  and the print layout are on the list.
-- **Solution:** `yarn resume:pdf` and commit `pdfs.generated.mjs` — see
-  [Editing the resume](#editing-the-resume-or-anything-the-pdfs-are-built-from).
-- **Blocked without `CONTENT_SEAL_KEY`:** the run fails with a 404 on
-  `/air/resume/print/human` instead of naming the missing key. That 404 means the
-  content could not be unsealed, not that the route is broken.
-
-**Issue:** `yarn resume:pdf` fails with a missing `chrome-headless-shell`
-- **Cause:** The sandbox image's Playwright browser build is older than the pinned
-  `@playwright/test`.
-- **Solution:** Launch with `executablePath: '/opt/pw-browsers/chromium'`. Do **not**
-  run `playwright install` — see the remote-environment notes.
+- **Cause:** A fingerprinted file was edited. Styling counts.
+- **Solution:** `yarn resume:pdf`, commit `pdfs.generated.mjs`. Blocked without
+  `CONTENT_SEAL_KEY`, and the sandbox needs a Playwright flag — both in
+  [docs/RESUME.md](./docs/RESUME.md#regenerating-the-pdfs).
 
 ---
 
@@ -1112,27 +1089,19 @@ PDFs were generated"
 ## Maintenance Notes
 
 ### Known TODOs
-- Connect blog to Medium/Substack integration
-- Complete AI Resume functionality (state sharing with nanostores)
-- Implement E2E test coverage
 - Optimize Lighthouse scores
-- Add mobile app version
-- Create portfolio analytics dashboard
+- Turn on production flags as sections finish (`PUBLIC_SHOW_RESUME` first)
+- Emailed resume download links (needs Cloudflare Email Sending, Workers Paid)
 
-### Recent Changes
-- **Major stack upgrade (July 2026):** Node 18→22, TypeScript 5.4→5.7,
-  Nx 19→23, Astro 4→7 (+ Content Layer), React 18→19, Tailwind 3→4
-  (CSS-first), ESLint 8→9 (flat config), Prettier 2→3.
-- Removed the abandoned `@nxtensions/astro` plugin; Astro CLI now runs via
-  Nx `run-commands`.
-- Added a Vitest test suite, GitHub Actions CI + Cloudflare deploy workflows.
-- Removed the committed Nx Cloud token from `nx.json` (**it was a plaintext
-  read-write token and should be rotated**); Nx now uses local caching.
-- Build output moved to `packages/web-astro/dist` (workerd sandbox
-  constraint).
+### Keeping this file honest
 
----
+This file drifts faster than `docs/` because it describes structure, and
+structure changes with every feature. When a change moves a route, renames a
+directory, adds a package, or changes a schema, update the affected section
+in the same commit — a wrong path here costs more than a missing one, since
+it sends readers confidently to the wrong place.
 
-**Last Updated:** 2026-07-25
+Anything that outgrows "how the code is written" belongs in `docs/`:
+procedures in `RUNBOOK.md` or `CONTENT.md`, rationale in `DECISIONS.md`.
+
 **Maintainer:** Eddie Freeman
-**For Questions:** Refer to README.md or codebase comments

@@ -1,8 +1,24 @@
 # Runbook
 
-Operational procedures and known failure modes. **Every entry below is a
-failure this project actually hit**, with the symptom that appeared, the real
-cause, and the fix — not hypotheticals.
+Known failure modes and infrastructure procedures. **Every failure entry
+below is one this project actually hit** — the symptom that appeared, the
+real cause, and the fix — not hypotheticals.
+
+Two runbooks exist, split by what you're doing:
+
+- **This file** — something is broken, or you're deliberately changing
+  infrastructure: domains, Workers, deploys, CI.
+- **[CONTENT.md](./CONTENT.md)** — you're writing or publishing: posts,
+  projects, STAR stories, sealed content, the resume.
+
+How this file is organized:
+
+| Section | Use it when |
+|---------|-------------|
+| [Triage](#triage-a-deploy-went-red) | A deploy went red — start here, in order |
+| [Known failure modes](#known-failure-modes) | Match your symptom to a diagnosed cause |
+| [Procedures](#procedures) | Planned infrastructure changes: domains, rollback, cleanup |
+| [Standing risks](#standing-risks) | Sharp edges to check before domain work |
 
 Reference for hostnames, secrets and Access setup: [DEPLOYMENT.md](./DEPLOYMENT.md).
 
@@ -315,49 +331,12 @@ A run that ends at either ceiling has hit something new, not a slow suite — a
 clean pass is well under a minute. Record it on
 [#73](https://github.com/pixelknitter/eddies-portfolio/issues/73).
 
-**`Cleaning up orphan processes` is not the tell, and this is worth knowing.**
+**`Cleaning up orphan processes` is not the tell.**
 The first green run after the fix still listed all seven — `npm exec wrangler`,
 two `workerd`, the rest — and finished in 38 seconds. Reaping is still
 incomplete; it simply stopped mattering, because the survivors no longer hold
 anything Playwright waits on. That is the clearest confirmation of the cause
 available: the orphans were never what hung the job, the inherited fds were.
-
----
-
-### Working on sealed content
-
-The markdown is the source you edit; the blob is what gets committed. `seal`
-keeps your file — it used to delete it, which made the blob the only copy and
-turned your own draft into something you had to decrypt to read.
-
-```bash
-# write it, seal it, keep editing
-node scripts/seal-content.mjs seal packages/web-astro/src/content/blog/my-post.md
-
-# what is sealed, and has anything drifted?
-node scripts/seal-content.mjs status
-
-# after editing — the pre-commit hook also does this automatically
-node scripts/seal-content.mjs reseal-if-changed
-```
-
-`status` reports three states per file:
-
-| State | Meaning |
-|---|---|
-| `sealed only` | No local copy. `unseal <path>` to get one. |
-| `local copy matches` | Blob is current. |
-| `LOCAL COPY MODIFIED` | The blob is stale — a deploy would publish the **old** text. Reseal. |
-
-The plaintext is never committed, but that is enforced rather than achieved by
-deleting it: the pre-commit hook refuses it, and `audit` fails CI if it slips
-through. It is deliberately not gitignored — an ignore list would have to name
-the files, which leaks exactly what the opaque blob names hide.
-
-**A fresh clone has blobs and no markdown.** Run `unseal-all` to get working
-copies. CI does this at build time.
-
----
 
 ---
 
@@ -438,15 +417,8 @@ production in agreement.
 
 ### Publish or unpublish a post now
 
-```bash
-yarn posts:queue          # current state
-```
-
-- Publish immediately: set `draft: false` and remove `publishDate` (or set it
-  to the past).
-- Schedule: `draft: false` + a future `publishDate`.
-- Pull a live post: set `draft: true` — it 404s on the next request, no deploy
-  needed.
+Moved to [CONTENT.md](./CONTENT.md#schedule-publish-now-or-pull-a-post) with
+the rest of the content workflows.
 
 ### Clean up an orphaned preview Worker
 
