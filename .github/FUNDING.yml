@@ -1,5 +1,4 @@
 # Renders the "Sponsor" button on the repo page.
 # Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/displaying-a-sponsor-button-in-your-repository
 github: pixelknitter
-# TODO: uncomment with the real Ko-fi page name before announcing donations.
-# ko_fi: <ko-fi-page-name>
+ko_fi: pixelknitter

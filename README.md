@@ -111,7 +111,7 @@ leave `yarn ci` green.
 If this project helped you, whether a runbook entry saved your afternoon or
 the pipeline became your template, you can support the work:
 
-- **Ko-fi:** <!-- TODO: add ko-fi URL -->
+- **Ko-fi:** [ko-fi.com/pixelknitter](https://ko-fi.com/pixelknitter)
 - **GitHub Sponsors:** via the Sponsor button on this repo
 
 ## License
