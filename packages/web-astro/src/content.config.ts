@@ -20,6 +20,19 @@ const CONTENT_GLOB = SHOW_FIXTURES
   ? '**/[!_]*.md'
   : ['**/[!_]*.md', '!**/sample-*.md'];
 
+/**
+ * A project case study.
+ *
+ * Shares `title`, `tags` and `draft` with every other collection A.I.R. reads,
+ * because retrieval indexes a fixed set of field *names* — a project carrying
+ * its vocabulary under a name of its own is a project nothing can find. Before
+ * `tags` existed here, a project was reachable only by words in its title:
+ * "what has he built with Astro" retrieved nothing from an entry whose stack
+ * said Astro.
+ *
+ * `description` is mirrored to `summary` when the corpus is built rather than
+ * renamed, so the page keeps the name it renders. See `util/air/corpus.mjs`.
+ */
 const ProjectSchema = z.object({
   title: z.string(),
   description: z.string(),
@@ -36,9 +49,25 @@ const ProjectSchema = z.object({
     alt: z.string(),
   }),
   platform: z.string(),
-  stack: z.string(),
+  /**
+   * An array, not a comma-joined string: `buildUserMessage` renders it with
+   * `Array.isArray`, so as a string it never reached the model at all, and
+   * nothing could enumerate it for a filter or a chip list.
+   */
+  stack: z.array(z.string()),
   website: z.string(),
   github: z.string(),
+  /**
+   * Retrieval vocabulary, in the words a question arrives in — not a second
+   * copy of `stack`. Never rendered.
+   */
+  tags: z.array(z.string()).default([]),
+  /**
+   * Hidden from the listing, the detail page and A.I.R. unless the tier
+   * reveals unpublished work. The section flag gates the whole route; this
+   * gates one entry, the same way `draft` does for a post or a STAR story.
+   */
+  draft: z.boolean().default(false),
 });
 
 const projects = defineCollection({

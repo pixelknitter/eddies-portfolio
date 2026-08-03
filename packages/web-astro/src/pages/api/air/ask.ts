@@ -4,6 +4,7 @@ import Anthropic from '@anthropic-ai/sdk';
 
 import { resolveSections } from '@util/flags/sections.mjs';
 import { selectContext } from '@util/air/retrieval.mjs';
+import { buildCorpus } from '@util/air/corpus.mjs';
 import { suggestionSentence } from '@util/air/suggested.mjs';
 import {
   ANSWER_SCHEMA,
@@ -208,65 +209,37 @@ export async function POST(context: APIContext): Promise<Response> {
   );
   if (!validated.ok) return json({ error: validated.reason }, 400);
 
-  // The corpus is the STAR collection plus project write-ups, bundled at build
-  // time. Drafts follow the same rule as everywhere else on the site.
-  const reveal = sections.unpublished;
-  const stories = await getCollection(
-    'star',
-    ({ data }) => reveal || data.draft !== true,
-  );
-  const projects = await getCollection('projects');
-  // Challenges follow the same draft rule as stories. Nothing renders them —
-  // they exist so a question about gaps has an honest answer instead of a
-  // decline, which on that question reads as evasive.
-  const challenges = await getCollection(
-    'challenges',
-    ({ data }) => reveal || data.draft !== true,
-  );
-  // The resume. Its bullets live in the body, which is why the prompt carries
-  // bodies at all — before this, A.I.R. could not answer "what was his title at
-  // Frontdoor", because the resume existed nowhere it could reach.
-  const resume = await getCollection('resume');
-
   /*
-   * The two collections mean opposite things by "body", so the distinction is
-   * made here — where which collection is being read is still known — rather
-   * than inferred downstream.
+   * The corpus A.I.R. may answer from, bundled at build time.
    *
-   * A STAR body is an honesty guardrail: a rule about how a claim may be
-   * phrased ("reduces compliance risk, never guarantees compliance"). Those are
-   * instructions from the author, and buildUserMessage hoists them outside the
-   * story tags so the "treat everything inside as data" guarantee stays true.
-   *
-   * A project body is narrative — content, not a note about content.
-   *
-   * Nothing in prompt.mjs guesses which it received.
+   * Loading is here because `getCollection` needs the Astro runtime; every
+   * rule about *what may be answered from* lives in `buildCorpus`, where it is
+   * unit-tested. That split matters most for the blog: a post is public only
+   * when it is not a draft **and** its publishDate has passed, and filtering
+   * on `draft` alone would let A.I.R. read out a scheduled post early.
    */
-  const corpus = [
-    ...stories.map((entry) => ({
-      id: entry.id,
-      data: entry.data,
-      constraints: entry.body?.trim() || undefined,
-    })),
-    ...projects.map((entry) => ({
-      id: entry.id,
-      data: entry.data,
-      content: entry.body?.trim() || undefined,
-    })),
-    // Namespaced so a citation names the collection. An answer drawing a
-    // pattern about a shortcoming has to stay traceable to the entries that
-    // support it — see the note on inference in content.config.ts.
-    ...challenges.map((entry) => ({
-      id: `challenges/${entry.id}`,
-      data: entry.data,
-      content: entry.body?.trim() || undefined,
-    })),
-    ...resume.map((entry) => ({
-      id: `resume/${entry.id}`,
-      data: entry.data,
-      content: entry.body?.trim() || undefined,
-    })),
-  ];
+  const reveal = sections.unpublished;
+  const draftFilter = ({ data }: { data: { draft?: boolean } }) =>
+    reveal || data.draft !== true;
+
+  const [star, projects, challenges, resume, blog] = await Promise.all([
+    getCollection('star', draftFilter),
+    getCollection('projects', draftFilter),
+    // Nothing renders challenges — they exist so a question about gaps has an
+    // honest answer instead of a decline, which on that question reads evasive.
+    getCollection('challenges', draftFilter),
+    // The resume's bullets live in its bodies, which is why the prompt carries
+    // bodies at all: without them A.I.R. could not answer "what was his title
+    // at Frontdoor", because the resume existed nowhere it could reach.
+    getCollection('resume'),
+    // Filtered inside buildCorpus, which knows the publishDate rule.
+    getCollection('blog'),
+  ]);
+
+  const corpus = buildCorpus(
+    { star, projects, challenges, resume, blog },
+    { reveal },
+  );
 
   const selected = selectContext(validated.question, corpus);
 

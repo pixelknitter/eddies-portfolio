@@ -59,6 +59,19 @@ beforeAll(() => {
     'resume/skills/skills.md',
     '---\ntitle: Skills\n---\nTypeScript, Swift, Kotlin.\n',
   );
+
+  write(
+    'blog/smoke-tests.md',
+    "---\ntitle: Why smoke tests\nblurb: Status checks lie.\ndraft: false\n---\nThe post body.\n",
+  );
+  write(
+    'blog/not-yet.md',
+    "---\ntitle: Not yet\ndraft: false\npublishDate: 2099-01-01T00:00:00Z\n---\nUnpublished.\n",
+  );
+  write(
+    'blog/in-progress.md',
+    "---\ntitle: In progress\ndraft: true\n---\nStill writing.\n",
+  );
 });
 
 afterAll(() => {
@@ -134,5 +147,30 @@ describe('loadEvalCorpus', () => {
     } finally {
       rmSync(empty, { recursive: true, force: true });
     }
+  });
+});
+
+describe('loadEvalCorpus and the blog', () => {
+  it('grades published posts, which the endpoint now answers from', () => {
+    const ids = loadEvalCorpus(root).map((entry) => entry.id);
+
+    expect(ids).toContain('blog/smoke-tests');
+  });
+
+  it('excludes a scheduled post the site itself would not serve', () => {
+    const ids = loadEvalCorpus(root).map((entry) => entry.id);
+
+    // Grading a post that is not live would score the harness against an
+    // answer production cannot give — and would reward leaking it early.
+    expect(ids).not.toContain('blog/not-yet');
+    expect(ids).not.toContain('blog/in-progress');
+  });
+
+  it('mirrors a blurb to summary so retrieval indexes it', () => {
+    const entry = loadEvalCorpus(root).find(
+      (item) => item.id === 'blog/smoke-tests',
+    );
+
+    expect(entry?.data.summary).toBe('Status checks lie.');
   });
 });

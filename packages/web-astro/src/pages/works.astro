@@ -3,7 +3,7 @@ import { getCollection } from "astro:content";
 import Layout from '@layouts/Layout.astro';
 import Card from '@components/Card.astro';
 import Hero from "@components/Hero.astro";
-import { showProjects } from "@util/visibility.mjs";
+import { showProjects, showUnpublished } from "@util/visibility.mjs";
 
 // Gate the route, not just the nav link — an unlisted page is still a public
 // page if it responds. Production was serving the placeholder fixtures to
@@ -12,7 +12,12 @@ if (!showProjects(import.meta.env)) {
     return new Response(null, { status: 404, statusText: 'Not found' });
 }
 
-const allProjects = await getCollection("projects");
+// Drafts follow the same rule as posts: hidden in production, visible on the
+// review tiers so an unfinished case study can be looked at before it lands.
+const reveal = showUnpublished(import.meta.env);
+const allProjects = await getCollection("projects", ({ data }) =>
+    reveal || data.draft !== true,
+);
 const pageTitle = "Works";
 ---
 <Layout pageTitle={pageTitle}>
