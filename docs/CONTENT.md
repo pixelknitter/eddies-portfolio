@@ -20,6 +20,19 @@ reachable by direct URL regardless of its date — see
 yarn posts:queue     # what's live, scheduled, drafted — start here
 ```
 
+**Start from a template.** Every collection ships a `_template.md` carrying
+the field shapes and the reason each field matters. Copy it rather than an
+existing entry — the loader's `[!_]` glob keeps templates out of the
+collection, so they can explain themselves at length without rendering
+anywhere.
+
+| Collection   | Template                              |
+| ------------ | ------------------------------------- |
+| `blog`       | `src/content/blog/_template.md`       |
+| `projects`   | `src/content/projects/_template.md`   |
+| `star`       | `src/content/star/_template.md`       |
+| `challenges` | `src/content/challenges/_template.md` |
+
 ---
 
 ## Add a blog post

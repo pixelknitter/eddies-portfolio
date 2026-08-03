@@ -103,14 +103,10 @@ manager.
 
 ### One corpus definition, two consumers
 
-`util/air/corpus.mjs` exports `CORPUS_COLLECTIONS`, and both the endpoint
-(`ask.ts`) and the eval harness build from it. That list is the only place a
-collection is added.
-
-This is not tidiness. The three corpus implementations that existed before
-drifted: the resume was added to the endpoint and to neither eval layer, so
-the harness graded a prompt the site does not build — silently, for as long
-as it took to notice. Each entry declares:
+`util/air/corpus.mjs` exports `CORPUS_COLLECTIONS`, read by both the endpoint
+(`ask.ts`) and the eval harness. **It is the only place a collection is
+added** — wiring one consumer and not the other lets the harness grade a
+prompt the site does not build, which has happened. Each entry declares:
 
 | Key           | Meaning                                                |
 | ------------- | ------------------------------------------------------ |
@@ -119,10 +115,8 @@ as it took to notice. Each entry declares:
 | `summaryFrom` | Display field mirrored into `summary` for indexing     |
 | `scheduled`   | Visibility depends on `publishDate`, not `draft` alone |
 
-That last key is a correctness rule, not a convenience: **a scheduled post is
-not public.** Filtering on `draft` alone would let A.I.R. read out a post the
-site itself refuses to serve, publishing it early, in prose, to anyone who
-asked the right question.
+`scheduled` is a correctness rule: **a scheduled post is not public**, and
+filtering on `draft` alone would let A.I.R. answer from one.
 
 ---
 
@@ -295,19 +289,10 @@ collection, and the section simply doesn't render.
 
 ## Known divergence
 
-One gap is left, and it is a judgement call rather than an oversight.
-
-**Blog bodies are long, and `MAX_ENTRIES` is 4.** Posts are now in the corpus,
-which makes "has he written about X" answerable, but a long post competes for
-the same four slots as a STAR story that might answer more directly. BM25
-normalises for field length, so this is not as lopsided as it looks, and no
-crowding has been observed against the current corpus. If it appears, the fix
-is a per-collection cap rather than removing the collection again.
-
-Two gaps recorded in earlier revisions of this document are now closed:
-`projects` carries `tags` and `draft`, and `stack` is an array — it had been a
-comma-joined string that `buildUserMessage` skipped entirely, since it renders
-that field only when `Array.isArray`. The stack never reached the model.
+**Blog bodies are long, and `MAX_ENTRIES` is 4.** A long post competes for the
+same four slots as a STAR story that might answer more directly. BM25
+normalises for field length and no crowding has been observed, so this is
+watched rather than fixed; if it appears, the fix is a per-collection cap.
 
 ## Adding a field: the checklist
 
