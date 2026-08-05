@@ -2,6 +2,7 @@
 import BaseLayout from './Layout.astro';
 import type { CollectionEntry } from 'astro:content';
 import Hero from "@components/Hero.astro";
+import Prose from "@components/Prose.astro";
 import RelatedContent from "@components/RelatedContent.astro";
 
 interface Props {
@@ -29,7 +30,15 @@ const detailImages = [frontmatter.worksImage1, frontmatter.worksImage2].filter(
     <Hero alt="RaccoonLaptopGif" src="/laptop.webp"/>
     <article>
         <h1 class="page-title">{frontmatter.title}</h1>
-        <slot />
+        {/* Same treatment the blog gives its body — without it the case
+            study renders as a cramped wall, no air between headings and
+            paragraphs. The meta list and detail images stay outside: they
+            are page furniture, not prose. */}
+        <div class="mt-6">
+            <Prose>
+                <slot />
+            </Prose>
+        </div>
 
         <dl class="meta-list">
             {meta.map((row) => (
