@@ -12,12 +12,17 @@ const entries = sections.highlights
     )
   : [];
 
-// The site renders per-request (output: "server"), so picking here rotates the
-// spotlight on every visit rather than only on rebuild.
+// One story per *day*, not per request. The random pick this replaced let
+// anyone enumerate the whole STAR corpus by refreshing — and the spotlight
+// is the only public surface for these stories outside A.I.R., which is
+// where the full set is meant to be reached. A date-seeded pick keeps the
+// rotation (the site renders per request, so it turns without a rebuild)
+// while holding the exposure to one story a day. Sorted first: collection
+// order is not guaranteed, and determinism is the point.
+const daySeed = Math.floor(Date.now() / 86_400_000);
+const ordered = [...entries].sort((a, b) => a.id.localeCompare(b.id));
 const entry =
-  entries.length > 0
-    ? entries[Math.floor(Math.random() * entries.length)]
-    : undefined;
+  ordered.length > 0 ? ordered[daySeed % ordered.length] : undefined;
 ---
 
 {entry && (
