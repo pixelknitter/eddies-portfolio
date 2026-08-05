@@ -45,17 +45,11 @@ const detailImages = [frontmatter.worksImage1, frontmatter.worksImage2].filter(
                 {frontmatter.hook}
             </blockquote>
         )}
-        {/* Same treatment the blog gives its body — without it the case
-            study renders as a cramped wall, no air between headings and
-            paragraphs. The meta list and detail images stay outside: they
-            are page furniture, not prose. */}
-        <div class="mt-6">
-            <Prose>
-                <slot />
-            </Prose>
-        </div>
 
-        <dl class="meta-list">
+        {/* Quick-glance context ahead of the story: platform, stack, links.
+            It sat at the foot of the page, where it answered the reader's
+            first questions last. */}
+        <dl class="meta-list mt-6">
             {meta.map((row) => (
                 <>
                     <dt><span class="badge">{row.label}</span></dt>
@@ -67,6 +61,16 @@ const detailImages = [frontmatter.worksImage1, frontmatter.worksImage2].filter(
                 </>
             ))}
         </dl>
+
+        {/* Same treatment the blog gives its body — without it the case
+            study renders as a cramped wall, no air between headings and
+            paragraphs. The meta list and detail images stay outside: they
+            are page furniture, not prose. */}
+        <div class="mt-6">
+            <Prose>
+                <slot />
+            </Prose>
+        </div>
 
         {/* Both optional — a project with one screenshot renders one, and a
             project with none renders no grid at all rather than two broken
