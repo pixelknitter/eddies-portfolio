@@ -7,10 +7,16 @@ interface Props {
     image?: string;
     title: string;
     body: string;
-    alt?: string
+    alt?: string;
+    /**
+     * Small identifying line above the title — the entry's domain. Titles
+     * and hooks are written to be evocative, which reads as misleading on a
+     * card grid with nothing nominative to ground it. This is the ground.
+     */
+    kicker?: string;
 }
 
-const { url, image, title, body, alt = "" } = Astro.props;
+const { url, image, title, body, alt = "", kicker } = Astro.props;
 ---
 <li class="list-none">
   <a
@@ -23,6 +29,9 @@ const { url, image, title, body, alt = "" } = Astro.props;
       </div>
     )}
     <div class="flex flex-1 flex-col p-4">
+      {kicker && (
+        <p class="font-body text-xs uppercase tracking-wide opacity-70 m-0 mb-1">{kicker}</p>
+      )}
       <!-- Section headings own the underline motif; on a card it becomes a
            hover state instead, so a grid of cards stays scannable. -->
       <!-- h2, not h3: Card is used only by the blog and works indexes, whose
