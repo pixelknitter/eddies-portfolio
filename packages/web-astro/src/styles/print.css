@@ -98,6 +98,38 @@ html[data-print-doc] h3 {
 }
 
 /*
+ * The exception to the atomic role: "Now" is the tallest block in the
+ * document, and kept whole it cannot fit the space left after the header and
+ * strengths — so it dragged itself to page 2 and left the first page ~40%
+ * empty. Let this one role flow across the boundary instead: page 1 ends as a
+ * one-page snapshot (identity, stats, strengths, and the opening of the
+ * current role), with the rest to read on. Bullets stay whole either way.
+ */
+/*
+ * Print-only section order: Skills moves up to follow the strengths, filling
+ * the space the atomic "Now" role cannot use — kept whole, that role dragged
+ * its section to page 2 and left the first page ~40% empty. With Skills in
+ * the gap, page 1 is a self-contained snapshot (identity, stats, strengths,
+ * skills) and every later section starts a page intact.
+ *
+ * Flex `order` moves only the boxes: the DOM — and with it the tagged PDF's
+ * reading order — keeps the authored sequence, where Skills reads later.
+ * Accepted over reordering markup in ResumeVisual.astro, which would either
+ * duplicate the section or extract it to a file the fingerprint list does
+ * not cover.
+ */
+html[data-print-doc] [data-resume-sections] {
+  display: flex;
+  flex-direction: column;
+}
+html[data-print-doc] #strengths {
+  order: -2;
+}
+html[data-print-doc] #skills {
+  order: -1;
+}
+
+/*
  * The disclosure affordance, not the row.
  *
  * `<summary>` *contains* the section's `<h2>`, so `summary { display: none }`
