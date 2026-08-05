@@ -436,29 +436,34 @@ the committed PDFs, and no check says so. `yarn content:status` reporting
 `LOCAL COPY MODIFIED` is the only tell.
 
 ```bash
-# 1. See what has drifted (safe without the key)
-yarn content:status
-
-# 2. Reseal — `seal` with no path covers both drifted blobs AND brand-new
-#    working copies; `reseal-if-changed` only sees the former.
-CONTENT_SEAL_KEY=… node scripts/seal-content.mjs seal
-
-# 3. Commit the refreshed blobs
-git add packages/web-astro/content-vault
+# Reseal everything pending and stage the refreshed blobs. `seal` with no
+# path covers both drifted blobs AND brand-new working copies;
+# `reseal-if-changed` only sees the former. Then commit the vault.
+CONTENT_SEAL_KEY="$(<~/.config/eddies-portfolio/content-seal.token)" yarn content:seal
 ```
 
-**Where the key comes from.** `CONTENT_SEAL_KEY` is operator-held and lives
-outside the repo by design — it is not in `.envrc`, `.dev.vars`, or any
-committed or gitignored file. CI has it as a repo secret. The pre-commit hook
-reseals automatically **only when the key is exported in the committing
-shell**; without it the hook prints a warning and lets the commit through
-unresealed.
+**Where the key comes from.** The key lives at
+`~/.config/eddies-portfolio/content-seal.token` (`chmod 600`) — outside the
+repo by design, never in `.envrc`, `.dev.vars`, or any committed or
+gitignored file. CI has it as a repo secret. Source it by path as above;
+never paste the literal.
 
-**In a Claude/agent session** the key is absent on purpose. The agent
-prepares everything else; the operator runs step 2 themselves (in Claude
-Code, `! CONTENT_SEAL_KEY=… node scripts/seal-content.mjs seal` runs it
-in-session — source the key from wherever it is kept rather than pasting the
-literal). The agent never needs to see the value.
+> **The `<` is load-bearing.** `$(<file)` reads the file; `$(file)` tries to
+> *execute* it, and with mode 600 that fails as `zsh: permission denied` —
+> which looks like a file-permission problem and isn't.
+
+The pre-commit hook reseals automatically **only when the key is exported in
+the committing shell**; without it the hook prints a warning and lets the
+commit through unresealed. `yarn content:seal` is the primary path anyway:
+working copies are gitignored, so editing one gives git nothing to commit and
+the hook nothing to fire on.
+
+**In a Claude/agent session** the command-substitution form above is safe to
+run as-is: the shell resolves the key inline, so its value never enters the
+agent's context. Sanity check afterwards with
+`CONTENT_SEAL_KEY="$(<~/.config/eddies-portfolio/content-seal.token)" yarn content:status`
+— every entry reporting `working copy matches` means old and new blobs all
+decrypt under the one key.
 
 **Related: building without the key.** `yarn resume:pdf` reads *materialized*
 plaintext in the section dirs, which the loader globs — `.local-*/` working
