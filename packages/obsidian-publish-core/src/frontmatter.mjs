@@ -103,6 +103,13 @@ export function toEntry(converted, options = {}) {
     draft: !publish,
   };
 
+  // The problem space, as distinct from the runtime — the same field the
+  // projects collection carries. Passed through only when the note declares
+  // it, so sites whose schemas lack it never see the key.
+  if (frontmatter.domain !== undefined && frontmatter.domain !== null) {
+    mapped.domain = String(frontmatter.domain);
+  }
+
   if (heroAsset) {
     mapped.heroImage = { url: `${assetPath}/${heroAsset}`, alt: title };
   }

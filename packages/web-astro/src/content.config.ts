@@ -124,6 +124,12 @@ const BlogSchema = z.object({
     alt: z.string(),
   }),
   draft: z.boolean(),
+  /**
+   * The problem space, mirroring the projects field of the same name — a post
+   * and the project it grew out of share a domain, which is how the two
+   * collections line up without either referencing the other.
+   */
+  domain: z.string().optional(),
   // When set, the post stays hidden until this moment. The site renders per
   // request, so a scheduled post goes live on its own — no rebuild needed.
   // Omit it to publish as soon as `draft` is false.

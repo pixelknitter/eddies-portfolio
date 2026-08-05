@@ -57,6 +57,12 @@ describe('toEntry', () => {
     }
   });
 
+  it('passes domain through when the note declares it, and omits it otherwise', () => {
+    const withDomain = convertNote(['---', 'title: T', 'domain: Agentic systems', '---', 'Body.'].join('\n'));
+    expect(toEntry(withDomain).frontmatter.domain).toBe('Agentic systems');
+    expect('domain' in toEntry(converted).frontmatter).toBe(false);
+  });
+
   it('maps a hero image onto a nested object and reports the asset to copy', () => {
     const result = toEntry(converted);
     expect(result.heroAsset).toBe('shot.png');
