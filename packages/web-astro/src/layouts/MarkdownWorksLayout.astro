@@ -29,7 +29,22 @@ const detailImages = [frontmatter.worksImage1, frontmatter.worksImage2].filter(
 <BaseLayout pageTitle={frontmatter.title}>
     <Hero alt="RaccoonLaptopGif" src="/laptop.webp"/>
     <article>
+        {/* The card's grounding lines, carried onto the page itself — a
+            case study without artwork opens plain, and the frontmatter
+            already holds the material: domain orients, and the hook was
+            written to read as something a person said, which is exactly
+            what a pull-quote is. */}
+        {frontmatter.domain && (
+            <p class="font-body text-xs uppercase tracking-wide opacity-70 mb-1">
+                {frontmatter.domain}
+            </p>
+        )}
         <h1 class="page-title">{frontmatter.title}</h1>
+        {frontmatter.hook && (
+            <blockquote class="mt-5 border-l-4 border-underline pl-4 font-body text-xl italic leading-relaxed opacity-90">
+                {frontmatter.hook}
+            </blockquote>
+        )}
         {/* Same treatment the blog gives its body — without it the case
             study renders as a cramped wall, no air between headings and
             paragraphs. The meta list and detail images stay outside: they
