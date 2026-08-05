@@ -2,6 +2,7 @@
 import BaseLayout from './Layout.astro';
 import type { CollectionEntry } from 'astro:content';
 import Hero from "@components/Hero.astro";
+import RelatedContent from "@components/RelatedContent.astro";
 
 interface Props {
     frontmatter: CollectionEntry<'projects'>['data'];
@@ -53,5 +54,6 @@ const detailImages = [frontmatter.worksImage1, frontmatter.worksImage2].filter(
                 ))}
             </div>
         )}
+        <RelatedContent related={frontmatter.related} />
     </article>
 </BaseLayout>

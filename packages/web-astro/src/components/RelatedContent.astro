@@ -1,0 +1,96 @@
+---
+/**
+ * The `related` frontmatter, rendered — the footer block on project and blog
+ * detail pages that turns the cross-collection links into something a reader
+ * can follow.
+ *
+ * Only *reachable* targets render. A link is dropped when its target is a
+ * draft (unless the tier reveals unpublished work), when its section is
+ * gated off, when a scheduled post is not yet due, or when the entry does
+ * not exist at all — a sealed target in a keyless checkout looks like that.
+ * A related list that filters down to nothing renders nothing: no heading
+ * over an empty list.
+ *
+ * One timing caveat, inherited from prerendering: project pages are built
+ * ahead of time, so a *scheduled* post linked from a project becomes visible
+ * on the next build rather than at its publishDate. Blog pages render per
+ * request and do not have this lag. Drafts are never leaked either way.
+ */
+import { getEntry } from 'astro:content';
+import { isPublished } from '@util/posts.mjs';
+import { resolveSections } from '@util/flags/sections.mjs';
+
+interface Props {
+  /** Collection-qualified refs from frontmatter, e.g. `projects/knotty-brain`. */
+  related?: string[];
+}
+
+const { related = [] } = Astro.props;
+
+interface RelatedItem {
+  href: string;
+  title: string;
+  line: string;
+  kind: 'Project' | 'Post';
+}
+
+const sections = await resolveSections(import.meta.env);
+
+const resolved = (
+  await Promise.all(
+    related.map(async (ref): Promise<RelatedItem | null> => {
+      const [collection, slug] = ref.split('/');
+
+      if (collection === 'projects') {
+        if (!sections.projects) return null;
+        const entry = await getEntry('projects', slug);
+        if (!entry) return null;
+        if (!sections.unpublished && entry.data.draft === true) return null;
+        return {
+          href: `/projects/${entry.id}/`,
+          title: entry.data.title,
+          line: entry.data.description,
+          kind: 'Project',
+        };
+      }
+
+      if (collection === 'blog') {
+        if (!sections.blog) return null;
+        const entry = await getEntry('blog', slug);
+        if (!entry) return null;
+        if (!sections.unpublished && !isPublished(entry.data)) return null;
+        return {
+          href: `/blog/${entry.id}/`,
+          title: entry.data.title,
+          line: entry.data.blurb,
+          kind: 'Post',
+        };
+      }
+
+      return null;
+    }),
+  )
+).filter((item): item is RelatedItem => item !== null);
+---
+
+{
+  resolved.length > 0 && (
+    <nav
+      class="mt-10 border-t border-dark/10 pt-6 dark:border-light/15"
+      aria-label="Related content"
+    >
+      <h2 class="font-body text-lg font-semibold">Related</h2>
+      <ul class="mt-3 flex list-none flex-col gap-4 p-0">
+        {resolved.map((item) => (
+          <li>
+            <a class="font-semibold" href={item.href}>
+              {item.title}
+            </a>
+            <span class="badge ml-2 align-middle">{item.kind}</span>
+            <p class="mt-1 text-sm opacity-80">{item.line}</p>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}
