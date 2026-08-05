@@ -26,10 +26,10 @@ const pageTitle = "Works";
     <ul role="list" class="card-grid">
         {allProjects.map((card) => <Card
             url={`/projects/${card.id}/`}
-            image={card.data.image.url}
+            image={card.data.image?.url}
             title={card.data.title}
             body={card.data.description}
-            alt="ProjectImage"
+            alt={card.data.image?.alt}
         />)}
     </ul>
 </Layout>

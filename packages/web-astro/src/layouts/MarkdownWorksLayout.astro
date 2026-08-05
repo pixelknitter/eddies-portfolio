@@ -19,6 +19,10 @@ const meta = [
     { label: 'Website', value: frontmatter.website, href: frontmatter.website },
     { label: 'Source', value: frontmatter.github, href: frontmatter.github },
 ].filter((row) => row.value);
+
+const detailImages = [frontmatter.worksImage1, frontmatter.worksImage2].filter(
+    (img): img is NonNullable<typeof img> => Boolean(img),
+);
 ---
 <BaseLayout pageTitle={frontmatter.title}>
     <Hero alt="RaccoonLaptopGif" src="/laptop.webp"/>
@@ -39,9 +43,15 @@ const meta = [
             ))}
         </dl>
 
-        <div class="mt-6 grid gap-4 md:grid-cols-2">
-            <img class="pro-img" width="500" height="281" src={frontmatter.worksImage1.url} alt={frontmatter.worksImage1.alt} />
-            <img class="pro-img" width="500" height="281" src={frontmatter.worksImage2.url} alt={frontmatter.worksImage2.alt} />
-        </div>
+        {/* Both optional — a project with one screenshot renders one, and a
+            project with none renders no grid at all rather than two broken
+            images. */}
+        {detailImages.length > 0 && (
+            <div class="mt-6 grid gap-4 md:grid-cols-2">
+                {detailImages.map((img) => (
+                    <img class="pro-img" width="500" height="281" src={img.url} alt={img.alt} />
+                ))}
+            </div>
+        )}
     </article>
 </BaseLayout>

@@ -36,18 +36,36 @@ const CONTENT_GLOB = SHOW_FIXTURES
 const ProjectSchema = z.object({
   title: z.string(),
   description: z.string(),
-  image: z.object({
-    url: z.string(),
-    alt: z.string(),
-  }),
-  worksImage1: z.object({
-    url: z.string(),
-    alt: z.string(),
-  }),
-  worksImage2: z.object({
-    url: z.string(),
-    alt: z.string(),
-  }),
+  /**
+   * Optional for the same reason as the detail images below: most entries
+   * launch as prose with a diagram to follow, and a required card image
+   * forced a path to a file that did not exist — which renders as a broken
+   * image, not as nothing. The card renders text-only until one lands.
+   */
+  image: z
+    .object({
+      url: z.string(),
+      alt: z.string(),
+    })
+    .optional(),
+  /**
+   * Detail images for the case-study page. Optional: plenty of real work has
+   * one good screenshot, or none it can show at all — client software, private
+   * repos, an internal tool. Requiring two forced a placeholder into the
+   * frontmatter, which renders as a broken image rather than as nothing.
+   */
+  worksImage1: z
+    .object({
+      url: z.string(),
+      alt: z.string(),
+    })
+    .optional(),
+  worksImage2: z
+    .object({
+      url: z.string(),
+      alt: z.string(),
+    })
+    .optional(),
   platform: z.string(),
   /**
    * An array, not a comma-joined string: `buildUserMessage` renders it with
@@ -55,8 +73,26 @@ const ProjectSchema = z.object({
    * nothing could enumerate it for a filter or a chip list.
    */
   stack: z.array(z.string()),
-  website: z.string(),
-  github: z.string(),
+  /**
+   * Both optional, and omitted rather than faked when they do not exist. Not
+   * every project has a live URL or a public repo — private client work,
+   * anything holding payroll logic or customer data — and a link that 404s is
+   * worse than no link. `MarkdownWorksLayout` drops a row with no value.
+   */
+  website: z.string().optional(),
+  github: z.string().optional(),
+  /**
+   * The problem space, as distinct from `platform`, which is the runtime.
+   * "Small business operations" is a domain; "Cloud / event-driven services"
+   * is where it runs. Larger stories share a domain across their entries.
+   */
+  domain: z.string().optional(),
+  /**
+   * Slugs of connected entries — hubs list their spokes, spokes point back.
+   * Composition is how a large project stays readable: one hub carrying the
+   * argument, spokes carrying the detail, each linkable on its own.
+   */
+  related: z.array(reference('projects')).default([]),
   /**
    * Retrieval vocabulary, in the words a question arrives in — not a second
    * copy of `stack`. Never rendered.

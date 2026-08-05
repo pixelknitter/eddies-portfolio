@@ -4,6 +4,8 @@ description: >-
   One sentence on what this is and the problem it solved. It renders on the
   card, and it is mirrored into A.I.R.'s retrieval index — so it should read
   like the answer to "what is this", not like a tagline.
+# All three images are optional. An entry with no `image` renders as a text
+# card — better than a path to artwork that does not exist yet.
 image:
   url: '/project-card.webp'
   alt: 'What the image shows, for someone who cannot see it.'
@@ -13,10 +15,15 @@ worksImage1:
 worksImage2:
   url: '/detail-2.webp'
   alt: 'What this detail image shows.'
+# The problem space — distinct from `platform`, which is the runtime.
+domain: 'Small business operations'
 platform: 'Web'
 stack: ['TypeScript', 'React']
 website: 'https://example.com'
 github: 'https://github.com/pixelknitter/example'
+# Slugs of connected entries. Hubs list their spokes, spokes point back —
+# composition is how a large story stays readable in linkable pieces.
+related: []
 tags: ['example']
 draft: true
 ---
@@ -34,7 +41,7 @@ included. As a string it was skipped entirely when the prompt was assembled.
 A.I.R. searches frontmatter only, so a good `description` alone does not make a
 project findable. Two rules follow:
 
-- Tag for what makes *this* project different. A term appearing in more than
+- Tag for what makes _this_ project different. A term appearing in more than
   half the corpus is discarded as meaningless, so tagging every project `web`
   makes `web` useless.
 - Use the words someone would ask in, which is not always the stack. "offline

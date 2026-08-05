@@ -3,22 +3,25 @@ import { Image } from "astro:assets";
 
 interface Props {
     url: string;
-    image: string;
+    /** Optional: an entry that has no artwork yet renders as a text card. */
+    image?: string;
     title: string;
     body: string;
-    alt: string
+    alt?: string
 }
 
-const { url, image, title, body, alt } = Astro.props;
+const { url, image, title, body, alt = "" } = Astro.props;
 ---
 <li class="list-none">
   <a
     class="card-link surface group flex h-full flex-col overflow-hidden no-underline text-dark dark:text-light"
     href={url}
   >
-    <div class="overflow-hidden">
-      <Image class="w-full h-auto object-cover" width="452" height="254" src={image} alt={alt} />
-    </div>
+    {image && (
+      <div class="overflow-hidden">
+        <Image class="w-full h-auto object-cover" width="452" height="254" src={image} alt={alt} />
+      </div>
+    )}
     <div class="flex flex-1 flex-col p-4">
       <!-- Section headings own the underline motif; on a card it becomes a
            hover state instead, so a grid of cards stays scannable. -->
