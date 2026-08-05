@@ -21,6 +21,25 @@ const CONTENT_GLOB = SHOW_FIXTURES
   : ['**/[!_]*.md', '!**/sample-*.md'];
 
 /**
+ * A cross-collection link: `projects/knotty-brain`, `blog/hello`. One field,
+ * one convention, on every collection that connects — hubs list their spokes,
+ * spokes point back, and a post can point at the project it grew out of.
+ *
+ * Deliberately a qualified path rather than `reference()`. A reference only
+ * *tags* the string with its collection at parse time — a union of two
+ * references would tag everything as the first — and nothing resolves this
+ * field at render, so a broken reference sails through the build (verified).
+ * The path form is unambiguous across collections, and `related.spec.ts`
+ * asserts every target exists, which is more than references were buying.
+ */
+const RelatedRef = z
+  .string()
+  .regex(
+    /^(projects|blog)\/[a-z0-9][a-z0-9-]*$/,
+    'related entries are collection-qualified paths, e.g. projects/knotty-brain',
+  );
+
+/**
  * A project case study.
  *
  * Shares `title`, `tags` and `draft` with every other collection A.I.R. reads,
@@ -88,11 +107,11 @@ const ProjectSchema = z.object({
    */
   domain: z.string().optional(),
   /**
-   * Slugs of connected entries — hubs list their spokes, spokes point back.
-   * Composition is how a large project stays readable: one hub carrying the
-   * argument, spokes carrying the detail, each linkable on its own.
+   * Connected entries — see RelatedRef. Composition is how a large project
+   * stays readable: one hub carrying the argument, spokes carrying the
+   * detail, each linkable on its own.
    */
-  related: z.array(reference('projects')).default([]),
+  related: z.array(RelatedRef).default([]),
   /**
    * Retrieval vocabulary, in the words a question arrives in — not a second
    * copy of `stack`. Never rendered.
@@ -115,8 +134,12 @@ const BlogSchema = z.object({
   title: z.string(),
   // Reference a single author from the `authors` collection by `id`
   author: reference('authors'),
-  // Reference an array of related posts from the `blog` collection by `id`
-  relatedPosts: z.array(reference('blog')),
+  /**
+   * Connected entries — same field and convention as `projects.related`, so a
+   * post can point at the project it grew out of, and at other posts, in one
+   * list. Replaces `relatedPosts`, which was blog-only and never rendered.
+   */
+  related: z.array(RelatedRef).default([]),
   blurb: z.string(),
   tags: z.array(z.string()),
   heroImage: z.object({

@@ -6,7 +6,7 @@ tags: ['sample']
 heroImage:
   url: '/blog-post.webp'
   alt: 'Sample post'
-relatedPosts: []
+related: []
 publishDate: 2024-01-01T09:00:00Z
 draft: false
 ---

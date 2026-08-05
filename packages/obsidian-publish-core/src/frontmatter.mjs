@@ -110,6 +110,13 @@ export function toEntry(converted, options = {}) {
     mapped.domain = String(frontmatter.domain);
   }
 
+  // Cross-collection links (`projects/slug`, `blog/slug`) — passed through
+  // verbatim, same contract as `domain`. Validating the targets is the
+  // site's job; this mapper does not know what collections exist.
+  if (Array.isArray(frontmatter.related)) {
+    mapped.related = frontmatter.related.map(String);
+  }
+
   if (heroAsset) {
     mapped.heroImage = { url: `${assetPath}/${heroAsset}`, alt: title };
   }

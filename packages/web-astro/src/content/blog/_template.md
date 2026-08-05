@@ -9,7 +9,7 @@ tags: ['example']
 heroImage:
   url: '/blog-post.webp'
   alt: 'What the image shows, for someone who cannot see it.'
-relatedPosts: []
+related: []
 draft: true
 # publishDate: 2026-09-01T09:00:00Z
 ---
@@ -20,10 +20,13 @@ publish.
 
 ## The fields that are not obvious
 
-**`author` and `relatedPosts` are validated references**, not free text.
-`author` points at an entry in `src/content/authors/`, `relatedPosts` at other
-posts by their slug. A typo fails the build rather than rendering a dead link,
-which is the whole reason they are references.
+**`author` is a validated reference**, not free text — it points at an entry
+in `src/content/authors/`, and a typo fails the build.
+
+**`related` is the cross-collection connective tissue**, shared with projects:
+collection-qualified paths like `projects/knotty-brain` or `blog/hello`, so a
+post can point at the project it grew out of and at other posts in one list.
+`related.spec.ts` asserts every target exists.
 
 **`tags` are how a question finds this post.** A.I.R. answers from published
 posts, and it searches frontmatter only — the body never makes a post

@@ -6,7 +6,7 @@ tags: ['sample', 'accessibility']
 heroImage:
   url: '/blog-post.webp'
   alt: 'A raccoon working at a laptop, the blog section illustration'
-relatedPosts: []
+related: []
 publishDate: 2024-01-01T09:00:00Z
 draft: false
 ---
