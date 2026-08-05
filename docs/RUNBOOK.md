@@ -420,6 +420,55 @@ production in agreement.
 Moved to [CONTENT.md](./CONTENT.md#schedule-publish-now-or-pull-a-post) with
 the rest of the content workflows.
 
+### Reseal the content vault
+
+Run this after **any edit to a `.local-<section>/` working copy** (resume
+sections, sealed drafts). Day-to-day sealing is documented in
+[CONTENT.md](./CONTENT.md#working-on-sealed-content); this entry is the
+operational procedure and the failure mode that makes it matter.
+
+**Why a stale vault is dangerous: nothing goes red.** The PDF fingerprint
+(`util/resume/fingerprint.mjs`) covers code and stylesheets only — sealed
+content is deliberately outside it. So editing a working copy, regenerating
+the PDFs, and committing leaves CI green while the vault still holds the old
+text. The next deploy unseals the *old* content: the live site disagrees with
+the committed PDFs, and no check says so. `yarn content:status` reporting
+`LOCAL COPY MODIFIED` is the only tell.
+
+```bash
+# 1. See what has drifted (safe without the key)
+yarn content:status
+
+# 2. Reseal — `seal` with no path covers both drifted blobs AND brand-new
+#    working copies; `reseal-if-changed` only sees the former.
+CONTENT_SEAL_KEY=… node scripts/seal-content.mjs seal
+
+# 3. Commit the refreshed blobs
+git add packages/web-astro/content-vault
+```
+
+**Where the key comes from.** `CONTENT_SEAL_KEY` is operator-held and lives
+outside the repo by design — it is not in `.envrc`, `.dev.vars`, or any
+committed or gitignored file. CI has it as a repo secret. The pre-commit hook
+reseals automatically **only when the key is exported in the committing
+shell**; without it the hook prints a warning and lets the commit through
+unresealed.
+
+**In a Claude/agent session** the key is absent on purpose. The agent
+prepares everything else; the operator runs step 2 themselves (in Claude
+Code, `! CONTENT_SEAL_KEY=… node scripts/seal-content.mjs seal` runs it
+in-session — source the key from wherever it is kept rather than pasting the
+literal). The agent never needs to see the value.
+
+**Related: building without the key.** `yarn resume:pdf` reads *materialized*
+plaintext in the section dirs, which the loader globs — `.local-*/` working
+copies alone load **zero** entries (dot-directories never match). Without the
+key, copy each `.local-<section>/*.md` into its section dir first, and delete
+those copies after the build. They are deliberately not gitignored (an ignore
+list would name what the opaque blob names hide) — the pre-commit hook and
+explicit staging are the guard. Never `git add -A` while plaintext is
+materialized.
+
 ### Clean up an orphaned preview Worker
 
 `preview-cleanup.yml` handles PR close. If one is stranded:

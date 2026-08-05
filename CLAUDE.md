@@ -924,12 +924,16 @@ commits.
 yarn resume:pdf     # then commit src/util/resume/pdfs.generated.mjs
 ```
 
-Regenerating needs `CONTENT_SEAL_KEY`; without it the run fails with a 404 on
-`/cv/print/human` rather than naming the missing key.
-**[docs/RESUME.md](./docs/RESUME.md) is the source of truth** for the sealing
-model, fixtures, watermarking, and the remote-session and sandbox caveats.
-This entry exists only so the constraint is discoverable before a change, not
-after CI rejects it.
+Regenerating needs the plaintext *materialized in the section dirs* —
+`.local-*/` working copies alone load zero entries; without `CONTENT_SEAL_KEY`
+the run fails with a 404 on `/cv/print/human` rather than naming the missing
+key. **Editing a working copy also makes the vault stale, and nothing goes
+red** — resealing is key-gated and operator-run: see
+[Reseal the content vault](./docs/RUNBOOK.md#reseal-the-content-vault) in the
+runbook. **[docs/RESUME.md](./docs/RESUME.md) is the source of truth** for the
+sealing model, fixtures, watermarking, and the remote-session and sandbox
+caveats. This entry exists only so the constraint is discoverable before a
+change, not after CI rejects it.
 
 ---
 
