@@ -628,7 +628,11 @@ export function rolesByRecency(resume: {
 }
 
 /** Where the visible resume sends people instead of publishing an address. */
-export const REQUEST_PATH = '/cv/';
+// The fragment matters: on /cv/ itself a bare '/cv/' link is circular — it
+// reloads the page the download UI is already on. The anchor lands on the
+// action bar instead. A direct PDF URL is not an option by design: no PDF
+// exists at a public URL; the request flow watermarks each copy.
+export const REQUEST_PATH = '/cv/#download';
 
 /**
  * Route prefix for every resume surface.

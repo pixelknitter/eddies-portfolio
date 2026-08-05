@@ -90,8 +90,7 @@ const airPath = sections.air ? '/cv/air/' : undefined;
     <h1>{resume.name}</h1>
     <p>{resume.headline}</p>
     <p>
-      This resume is available as a PDF — human-readable or ATS-friendly.
-      Request a copy at
+      Available as a PDF — human-readable or ATS-friendly — at
       <strong>eddie.engineering/cv</strong>.
     </p>
   </div>
@@ -121,7 +120,9 @@ const airPath = sections.air ? '/cv/air/' : undefined;
   */
   }
   <div class="mx-auto max-w-2xl">
-    <div class="organic resume-action-bar resume-no-print">
+    {/* `id` is the target of REQUEST_PATH ('/cv/#download') — the footer's
+        "Request a copy" and the for-bots page both land here. */}
+    <div id="download" class="organic resume-action-bar resume-no-print">
       <ResumeDownload client:visible />
     </div>
   </div>

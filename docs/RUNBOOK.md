@@ -420,6 +420,60 @@ production in agreement.
 Moved to [CONTENT.md](./CONTENT.md#schedule-publish-now-or-pull-a-post) with
 the rest of the content workflows.
 
+### Reseal the content vault
+
+Run this after **any edit to a `.local-<section>/` working copy** (resume
+sections, sealed drafts). Day-to-day sealing is documented in
+[CONTENT.md](./CONTENT.md#working-on-sealed-content); this entry is the
+operational procedure and the failure mode that makes it matter.
+
+**Why a stale vault is dangerous: nothing goes red.** The PDF fingerprint
+(`util/resume/fingerprint.mjs`) covers code and stylesheets only — sealed
+content is deliberately outside it. So editing a working copy, regenerating
+the PDFs, and committing leaves CI green while the vault still holds the old
+text. The next deploy unseals the *old* content: the live site disagrees with
+the committed PDFs, and no check says so. `yarn content:status` reporting
+`LOCAL COPY MODIFIED` is the only tell.
+
+```bash
+# Reseal everything pending and stage the refreshed blobs. `seal` with no
+# path covers both drifted blobs AND brand-new working copies;
+# `reseal-if-changed` only sees the former. Then commit the vault.
+CONTENT_SEAL_KEY="$(<~/.config/eddies-portfolio/content-seal.token)" yarn content:seal
+```
+
+**Where the key comes from.** The key lives at
+`~/.config/eddies-portfolio/content-seal.token` (`chmod 600`) — outside the
+repo by design, never in `.envrc`, `.dev.vars`, or any committed or
+gitignored file. CI has it as a repo secret. Source it by path as above;
+never paste the literal.
+
+> **The `<` is load-bearing.** `$(<file)` reads the file; `$(file)` tries to
+> *execute* it, and with mode 600 that fails as `zsh: permission denied` —
+> which looks like a file-permission problem and isn't.
+
+The pre-commit hook reseals automatically **only when the key is exported in
+the committing shell**; without it the hook prints a warning and lets the
+commit through unresealed. `yarn content:seal` is the primary path anyway:
+working copies are gitignored, so editing one gives git nothing to commit and
+the hook nothing to fire on.
+
+**In a Claude/agent session** the command-substitution form above is safe to
+run as-is: the shell resolves the key inline, so its value never enters the
+agent's context. Sanity check afterwards with
+`CONTENT_SEAL_KEY="$(<~/.config/eddies-portfolio/content-seal.token)" yarn content:status`
+— every entry reporting `working copy matches` means old and new blobs all
+decrypt under the one key.
+
+**Related: building without the key.** `yarn resume:pdf` reads *materialized*
+plaintext in the section dirs, which the loader globs — `.local-*/` working
+copies alone load **zero** entries (dot-directories never match). Without the
+key, copy each `.local-<section>/*.md` into its section dir first, and delete
+those copies after the build. They are deliberately not gitignored (an ignore
+list would name what the opaque blob names hide) — the pre-commit hook and
+explicit staging are the guard. Never `git add -A` while plaintext is
+materialized.
+
 ### Clean up an orphaned preview Worker
 
 `preview-cleanup.yml` handles PR close. If one is stranded:

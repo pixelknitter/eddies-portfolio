@@ -11,7 +11,7 @@
  * so reciprocating with an address is reasonable. No phone number — a number in a
  * PDF travels with every forward of the file and cannot be un-shared.
  */
-import { CONTACT, RESUME } from '@util/resume/resume.data';
+import { CONTACT } from '@util/resume/resume.data';
 
 interface Props {
   /** Render as plain lines rather than organic chips. */
@@ -20,8 +20,9 @@ interface Props {
 
 const { plain = false } = Astro.props;
 
+// No location entry: both print hosts (ResumeVisual, ResumeFull) already
+// render RESUME.location in their header, directly above this block.
 const entries = [
-  { label: RESUME.location, href: null },
   { label: CONTACT.email, href: `mailto:${CONTACT.email}` },
   { label: CONTACT.site, href: CONTACT.siteUrl },
   { label: CONTACT.linkedin, href: CONTACT.linkedinUrl },

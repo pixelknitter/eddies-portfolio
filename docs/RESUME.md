@@ -126,9 +126,13 @@ git add packages/web-astro/src/util/resume/pdfs.generated.mjs
 
 Without `CONTENT_SEAL_KEY`, `unseal-all` cannot run, the collection loads zero
 entries, and every resume route 404s — so `yarn resume:pdf` fails with a 404 on
-`/cv/print/human` rather than anything naming the real cause. If gitignored
-`.local-<section>/` directories are already present locally, the unseal step is
-unnecessary.
+`/cv/print/human` rather than anything naming the real cause. Gitignored
+`.local-<section>/` working copies do **not** substitute on their own: the
+loader globs the section dirs and dot-directories never match. Copy each
+`.local-<section>/*.md` into its section dir before the build and remove the
+copies afterwards — the procedure, and the reseal that must follow any working-copy
+edit, are in the runbook:
+[Reseal the content vault](./RUNBOOK.md#reseal-the-content-vault).
 
 **In a remote or Cloud session** the key is absent by default. A styling change can
 be authored and verified there, but the PDFs cannot be rebuilt: add
