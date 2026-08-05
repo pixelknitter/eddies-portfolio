@@ -9,6 +9,7 @@ import { buildingBlocks } from "@util/constants";
 import AnimateOnScroll from "@components/AnimateOnScroll.astro";
 import StarSpotlight from "@components/StarSpotlight.astro";
 import LatestWork from "@components/LatestWork.astro";
+import FeaturedProjects from "@components/FeaturedProjects.astro";
 
 const { title: pageTitle, badges, subject } = aboutMatter;
 ---
@@ -33,7 +34,11 @@ const { title: pageTitle, badges, subject } = aboutMatter;
         <StarSpotlight />
     </AnimateOnScroll>
     <AnimateOnScroll>
-        <LatestWork />
+        {/* Featured projects once the corpus is live; GitHub activity until
+            then. The component decides — see the fallback note inside it. */}
+        <FeaturedProjects>
+            <LatestWork slot="fallback" />
+        </FeaturedProjects>
     </AnimateOnScroll>
     <h2 class="mt-6">My Building Blocks</h2>
     <p class="font-body text-lg mb-6">As a product engineer, how I build is ever-changing, but below are a good number of the blocks I've used in my engineering.</p>

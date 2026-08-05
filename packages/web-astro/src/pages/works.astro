@@ -28,7 +28,7 @@ const pageTitle = "Works";
             url={`/projects/${card.id}/`}
             image={card.data.image?.url}
             title={card.data.title}
-            body={card.data.description}
+            body={card.data.hook ?? card.data.description}
             alt={card.data.image?.alt}
         />)}
     </ul>

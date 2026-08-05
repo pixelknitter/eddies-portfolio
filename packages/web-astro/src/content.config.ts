@@ -52,9 +52,21 @@ const RelatedRef = z
  * `description` is mirrored to `summary` when the corpus is built rather than
  * renamed, so the page keeps the name it renders. See `util/air/corpus.mjs`.
  */
+/**
+ * The card's opening line — see the project/blog templates for the writing
+ * rules. `description` explains what the thing is; `hook` makes someone want
+ * to read it: one sentence, pulled from the body so it pays off on arrival,
+ * a tension or a reversal rather than a summary. Cards lead with it and fall
+ * back to `description`/`blurb` where absent. It is also scored by A.I.R.
+ * retrieval — it is written in the reader's language, which makes it good
+ * matching surface.
+ */
+const HookSchema = z.string().optional();
+
 const ProjectSchema = z.object({
   title: z.string(),
   description: z.string(),
+  hook: HookSchema,
   /**
    * Optional for the same reason as the detail images below: most entries
    * launch as prose with a diagram to follow, and a required card image
@@ -123,6 +135,12 @@ const ProjectSchema = z.object({
    * gates one entry, the same way `draft` does for a post or a STAR story.
    */
   draft: z.boolean().default(false),
+  /**
+   * Pinned to the home page's featured row. Everything published but not
+   * featured joins the rotation slot beneath it, StarSpotlight-style — the
+   * site renders per request, so the rotation turns on every visit.
+   */
+  featured: z.boolean().default(false),
 });
 
 const projects = defineCollection({
@@ -141,6 +159,7 @@ const BlogSchema = z.object({
    */
   related: z.array(RelatedRef).default([]),
   blurb: z.string(),
+  hook: HookSchema,
   tags: z.array(z.string()),
   heroImage: z.object({
     url: z.string(),

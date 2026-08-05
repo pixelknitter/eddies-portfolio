@@ -117,6 +117,12 @@ export function toEntry(converted, options = {}) {
     mapped.related = frontmatter.related.map(String);
   }
 
+  // The card's opening line, distinct from the blurb — same pass-through
+  // contract as `domain`.
+  if (frontmatter.hook !== undefined && frontmatter.hook !== null) {
+    mapped.hook = String(frontmatter.hook);
+  }
+
   if (heroAsset) {
     mapped.heroImage = { url: `${assetPath}/${heroAsset}`, alt: title };
   }

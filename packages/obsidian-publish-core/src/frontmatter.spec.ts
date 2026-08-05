@@ -63,6 +63,12 @@ describe('toEntry', () => {
     expect('domain' in toEntry(converted).frontmatter).toBe(false);
   });
 
+  it('passes hook through when the note declares it, and omits it otherwise', () => {
+    const withHook = convertNote(['---', 'title: T', 'hook: A short reversal.', '---', 'Body.'].join('\n'));
+    expect(toEntry(withHook).frontmatter.hook).toBe('A short reversal.');
+    expect('hook' in toEntry(converted).frontmatter).toBe(false);
+  });
+
   it('passes related through verbatim, and omits it when absent', () => {
     const withRelated = convertNote(
       ['---', 'title: T', 'related:', '  - projects/knotty-brain', '  - blog/hello', '---', 'Body.'].join('\n'),

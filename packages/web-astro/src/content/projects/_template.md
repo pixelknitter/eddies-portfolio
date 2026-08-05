@@ -4,6 +4,10 @@ description: >-
   One sentence on what this is and the problem it solved. It renders on the
   card, and it is mirrored into A.I.R.'s retrieval index — so it should read
   like the answer to "what is this", not like a tagline.
+# Optional. Cards lead with it and fall back to description. One sentence,
+# under ~15 words, pulled from the body so it pays off on arrival — a tension
+# or a reversal, not a summary. A.I.R. scores it too.
+hook: 'A sentence from the body that makes someone want the rest.'
 # All three images are optional. An entry with no `image` renders as a text
 # card — better than a path to artwork that does not exist yet.
 image:

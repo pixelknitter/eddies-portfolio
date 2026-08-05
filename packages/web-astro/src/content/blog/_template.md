@@ -5,6 +5,9 @@ blurb: >-
   One sentence, for the listing card. It is also what A.I.R. searches: the
   blurb is mirrored into the retrieval index, so wording someone would
   actually type belongs here rather than a teaser that withholds the subject.
+# Optional. Cards lead with it and fall back to blurb — one short sentence,
+# pulled from the body, a tension or reversal rather than a summary.
+hook: 'A sentence from the body that makes someone want the rest.'
 tags: ['example']
 heroImage:
   url: '/blog-post.webp'
