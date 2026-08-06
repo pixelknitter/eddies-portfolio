@@ -19,6 +19,7 @@
     "content:seal": "node scripts/content-seal.mjs",
     "content:prune": "node scripts/seal-content.mjs prune",
     "content:status": "node scripts/seal-content.mjs status",
+    "blog:sync": "node scripts/blog-sync.mjs",
     "resume:pdf": "node scripts/resume-pdf.mjs"
   },
   "private": true,

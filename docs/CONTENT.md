@@ -83,6 +83,20 @@ and copies attachments out of the vault. Two behaviours are deliberate:
 
 Imports default to `draft: true` — publishing stays a separate decision.
 
+**Sync the whole vault folder in one command** — import every note in
+`<vault>/writing/blog/`, then apply the sealing policy (unpublished notes
+seal, published notes stay plaintext, unchanged notes touch nothing so the
+vault does not churn):
+
+```bash
+CONTENT_SEAL_KEY="$(<~/.config/eddies-portfolio/content-seal.token)" yarn blog:sync
+```
+
+`OBSIDIAN_VAULT` names the vault root (it can live in `.envrc` — it is a
+path, not a secret). This is the interim workflow: the endgame is an
+Obsidian plugin over `obsidian-publish-core`, specced in
+[`packages/obsidian-publish-core/docs/PLUGIN-SPEC.md`](../packages/obsidian-publish-core/docs/PLUGIN-SPEC.md).
+
 ## Schedule, publish now, or pull a post
 
 | Intent              | Frontmatter                                                                |
