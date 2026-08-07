@@ -71,7 +71,7 @@ const { assets } = converted;
 // package — it stays reusable by any Astro site.
 const entry = toEntry(converted, {
   filename: basename(notePath),
-  defaults: { author: 'eddie-freeman', relatedPosts: [] },
+  defaults: { author: 'eddie-freeman' },
   publish: has('publish'),
 });
 

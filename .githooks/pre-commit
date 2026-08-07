@@ -19,6 +19,18 @@ CONTENT_ROOT="packages/web-astro/src/content"
 staged=$(git diff --cached --name-only --diff-filter=ACM -- "$CONTENT_ROOT" | grep '\.md$' || true)
 [ -n "$staged" ] || exit 0
 
+# The keyless rule, and the one that catches *new* drafts: unpublished
+# content (draft: true, or a future publishDate) may never sit at a real
+# content path in plaintext. The blob check below cannot see this case — a
+# brand-new draft has no blob yet, so it sails through is-sealed — which is
+# exactly how 15 draft entries once reached a public branch and had to be
+# rewritten out of history. CI runs the same audit; failing here is the same
+# failure, minutes earlier, while it is still undoable.
+if ! node scripts/seal-content.mjs audit >/dev/null 2>&1; then
+  node scripts/seal-content.mjs audit >&2 || true
+  exit 1
+fi
+
 if [ -z "${CONTENT_SEAL_KEY:-}" ]; then
   echo "⚠ CONTENT_SEAL_KEY not set — cannot check staged content against the vault." >&2
   echo "  If you are committing a sealed story's plaintext, this will not catch it." >&2

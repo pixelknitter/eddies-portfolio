@@ -133,6 +133,11 @@ const WEIGHTS = {
   org: 4,
   role: 4,
   summary: 1,
+  // The card hook. Curated and short like tags, and written in the reader's
+  // language rather than the system's — which is exactly the vocabulary a
+  // question arrives in. Below tags because a hook is one sentence of many
+  // possible framings; above the narrative fields because it is chosen.
+  hook: 2,
 };
 
 /**

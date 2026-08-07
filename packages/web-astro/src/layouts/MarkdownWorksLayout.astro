@@ -2,6 +2,8 @@
 import BaseLayout from './Layout.astro';
 import type { CollectionEntry } from 'astro:content';
 import Hero from "@components/Hero.astro";
+import Prose from "@components/Prose.astro";
+import RelatedContent from "@components/RelatedContent.astro";
 
 interface Props {
     frontmatter: CollectionEntry<'projects'>['data'];
@@ -19,14 +21,35 @@ const meta = [
     { label: 'Website', value: frontmatter.website, href: frontmatter.website },
     { label: 'Source', value: frontmatter.github, href: frontmatter.github },
 ].filter((row) => row.value);
+
+const detailImages = [frontmatter.worksImage1, frontmatter.worksImage2].filter(
+    (img): img is NonNullable<typeof img> => Boolean(img),
+);
 ---
 <BaseLayout pageTitle={frontmatter.title}>
     <Hero alt="RaccoonLaptopGif" src="/laptop.webp"/>
     <article>
+        {/* The card's grounding lines, carried onto the page itself — a
+            case study without artwork opens plain, and the frontmatter
+            already holds the material: domain orients, and the hook was
+            written to read as something a person said, which is exactly
+            what a pull-quote is. */}
+        {frontmatter.domain && (
+            <p class="font-body text-xs uppercase tracking-wide opacity-70 mb-1">
+                {frontmatter.domain}
+            </p>
+        )}
         <h1 class="page-title">{frontmatter.title}</h1>
-        <slot />
+        {frontmatter.hook && (
+            <blockquote class="mt-5 border-l-4 border-underline pl-4 font-body text-xl italic leading-relaxed opacity-90">
+                {frontmatter.hook}
+            </blockquote>
+        )}
 
-        <dl class="meta-list">
+        {/* Quick-glance context ahead of the story: platform, stack, links.
+            It sat at the foot of the page, where it answered the reader's
+            first questions last. */}
+        <dl class="meta-list mt-6">
             {meta.map((row) => (
                 <>
                     <dt><span class="badge">{row.label}</span></dt>
@@ -39,9 +62,26 @@ const meta = [
             ))}
         </dl>
 
-        <div class="mt-6 grid gap-4 md:grid-cols-2">
-            <img class="pro-img" width="500" height="281" src={frontmatter.worksImage1.url} alt={frontmatter.worksImage1.alt} />
-            <img class="pro-img" width="500" height="281" src={frontmatter.worksImage2.url} alt={frontmatter.worksImage2.alt} />
+        {/* Same treatment the blog gives its body — without it the case
+            study renders as a cramped wall, no air between headings and
+            paragraphs. The meta list and detail images stay outside: they
+            are page furniture, not prose. */}
+        <div class="mt-6">
+            <Prose>
+                <slot />
+            </Prose>
         </div>
+
+        {/* Both optional — a project with one screenshot renders one, and a
+            project with none renders no grid at all rather than two broken
+            images. */}
+        {detailImages.length > 0 && (
+            <div class="mt-6 grid gap-4 md:grid-cols-2">
+                {detailImages.map((img) => (
+                    <img class="pro-img" width="500" height="281" src={img.url} alt={img.alt} />
+                ))}
+            </div>
+        )}
+        <RelatedContent related={frontmatter.related} />
     </article>
 </BaseLayout>

@@ -3,6 +3,7 @@ import BaseLayout from './Layout.astro';
 import type { CollectionEntry } from 'astro:content';
 import Hero from "@components/Hero.astro";
 import Prose from "@components/Prose.astro";
+import RelatedContent from "@components/RelatedContent.astro";
 interface Props {
     frontmatter: CollectionEntry<'blog'>['data'];
 }
@@ -35,5 +36,6 @@ const authorName = String(author.id)
                 <slot />
             </Prose>
         </div>
+        <RelatedContent related={frontmatter.related} />
     </article>
 </BaseLayout>

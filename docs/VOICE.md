@@ -113,3 +113,45 @@ holds — the adjustment is *what* the narrative is about, not how it's told:
 - Let the technical insight arrive as the lesson, in the same earned position
 - Keep the colloquial asides — they're what stop a technical piece reading
   like documentation
+
+## Titles, hooks, and cards
+
+Cards carry four lines, and each has one job. A card that misleads is almost
+always one line doing another's work.
+
+| Line | Job | Source |
+|---|---|---|
+| Kicker | Orient — which problem space | `domain` |
+| Title | Identify — what the thing *is* | `title` |
+| Hook | Pull — why someone should care | `hook` |
+| Description | Summarize — for A.I.R. and anywhere the hook is absent | `description` / `blurb` |
+
+**Titles are descriptive first, with the flare kept, not cut.** The failure
+mode is an evocative title over an evocative hook: two lines of intrigue and
+nothing that says what the project is. The fix is not drying the title out —
+it is moving the intrigue to where it belongs and letting the title carry an
+outcome:
+
+- *"The architecture underneath the video"* → *"React Native video
+  architected to last"* — still has a pulse, now says what it is.
+- *"Contractor portal platform modernization"* → *"Platform modernization
+  that boosts morale and unlocks big projects"* — the first needs insider
+  context to land; the second states the outcome anyone can want.
+
+**Stay domain-general unless a name carries the specificity.** "Salon report
+ingestion" loses every reader who does not care about salons, for work that
+applies to any business with two systems that never talk. Product names
+(Knotty-Brain, Curlfriend BI) are the exception: a name grounds a card the
+way a category never can, without narrowing the claim.
+
+**The `X — flare` pattern** earns both jobs in one line: identity before the
+dash, the turn after it. *"Report ingestion — reconciling two systems that
+never talk."*
+
+**Hooks** (from the corpus amendment, kept here so it survives):
+
+- One sentence, ideally under 15 words. Two short ones at most.
+- Pulled from the body, not invented for the card — it pays off on arrival.
+- A tension, a reversal, or a specific surprising detail. Not a summary.
+- No jargon that needs the article to decode.
+- Should read as something a person said, because it is.

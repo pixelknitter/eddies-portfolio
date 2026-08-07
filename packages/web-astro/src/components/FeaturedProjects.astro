@@ -1,0 +1,63 @@
+---
+/**
+ * The home page's project shelf: entries pinned with `featured: true`, plus
+ * one rotating slot drawn from everything else published — the same
+ * per-request rotation StarSpotlight uses, so the shelf changes between
+ * visits without a rebuild.
+ *
+ * Cards lead with `hook` (the line that makes someone want to read it) and
+ * fall back to `description` (the line that says what it is).
+ *
+ * Renders the `fallback` slot instead when there is nothing to show — the
+ * projects section gated off, or no visible entries. That is the transition
+ * plan: the home page keeps its current section until the corpus goes live,
+ * then swaps, with no second deploy to coordinate.
+ */
+import { getCollection } from 'astro:content';
+import Card from '@components/Card.astro';
+import { resolveSections } from '@util/flags/sections.mjs';
+
+const sections = await resolveSections(import.meta.env);
+
+const visible = sections.projects
+  ? await getCollection(
+      'projects',
+      ({ data }) => sections.unpublished || data.draft !== true,
+    )
+  : [];
+
+const featured = visible.filter((entry) => entry.data.featured);
+const pool = visible.filter((entry) => !entry.data.featured);
+
+// One rotating card beyond the pinned row. Random per request — the site
+// renders per visit, so this rotates without a rebuild.
+const rotating =
+  pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : undefined;
+
+const shelf = [...featured, ...(rotating ? [rotating] : [])];
+---
+
+{
+  shelf.length > 0 ? (
+    <section>
+      <h2 class="mt-6">Featured work</h2>
+      <ul role="list" class="card-grid">
+        {shelf.map((entry) => (
+          <Card
+            url={`/projects/${entry.id}/`}
+            image={entry.data.image?.url}
+            title={entry.data.title}
+            body={entry.data.hook ?? entry.data.description}
+            alt={entry.data.image?.alt}
+            kicker={entry.data.domain}
+          />
+        ))}
+      </ul>
+      <p class="font-body mt-4">
+        <a href="/works/">All projects &rarr;</a>
+      </p>
+    </section>
+  ) : (
+    <slot name="fallback" />
+  )
+}

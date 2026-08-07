@@ -30,8 +30,9 @@ const blogEntries = sections.unpublished
             url={`/blog/${card.id}/`}
             image={card.data.heroImage.url}
             title={card.data.title}
-            body={card.data.blurb}
-            alt="ProjectImage"
+            body={card.data.hook ?? card.data.blurb}
+            alt={card.data.heroImage.alt}
+            kicker={card.data.domain}
         />)}
     </ul>
     <!-- <h2>YouTube</h2>

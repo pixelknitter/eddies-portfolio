@@ -103,6 +103,26 @@ export function toEntry(converted, options = {}) {
     draft: !publish,
   };
 
+  // The problem space, as distinct from the runtime — the same field the
+  // projects collection carries. Passed through only when the note declares
+  // it, so sites whose schemas lack it never see the key.
+  if (frontmatter.domain !== undefined && frontmatter.domain !== null) {
+    mapped.domain = String(frontmatter.domain);
+  }
+
+  // Cross-collection links (`projects/slug`, `blog/slug`) — passed through
+  // verbatim, same contract as `domain`. Validating the targets is the
+  // site's job; this mapper does not know what collections exist.
+  if (Array.isArray(frontmatter.related)) {
+    mapped.related = frontmatter.related.map(String);
+  }
+
+  // The card's opening line, distinct from the blurb — same pass-through
+  // contract as `domain`.
+  if (frontmatter.hook !== undefined && frontmatter.hook !== null) {
+    mapped.hook = String(frontmatter.hook);
+  }
+
   if (heroAsset) {
     mapped.heroImage = { url: `${assetPath}/${heroAsset}`, alt: title };
   }

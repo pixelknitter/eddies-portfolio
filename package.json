@@ -10,7 +10,7 @@
     "test:watch": "nx test web-astro --configuration=watch",
     "check": "nx check web-astro",
     "lint": "nx lint web-astro",
-    "ci": "nx run-many --targets=check,lint,test,build",
+    "ci": "nx run-many --targets=check,lint,test,build && node scripts/seal-content.mjs audit",
     "smoke": "node scripts/smoke-test.mjs",
     "posts:queue": "node scripts/posts-queue.mjs",
     "posts:next": "node scripts/posts-queue.mjs --next",
@@ -19,6 +19,7 @@
     "content:seal": "node scripts/content-seal.mjs",
     "content:prune": "node scripts/seal-content.mjs prune",
     "content:status": "node scripts/seal-content.mjs status",
+    "blog:sync": "node scripts/blog-sync.mjs",
     "resume:pdf": "node scripts/resume-pdf.mjs"
   },
   "private": true,

@@ -34,9 +34,10 @@ Three things that look like details and are not:
 
 - **`tags` is retrieval vocabulary; `chips` is what renders.** Conflating them
   silently dropped the display chips and every highlight card during the migration.
-- **`tags` must be a single-line inline array.** The `parseFrontmatter` used by
-  `scripts/air-eval.mjs` reads `tags: ['a', 'b']` but not a `- a` list, so list form
-  is invisible to retrieval scoring there. Astro parses either.
+- **`tags` may be written in any YAML list form.** Inline, wrapped across lines, or
+  a `- a` block list all parse — in Astro and in the `parseFrontmatter` used by
+  `scripts/air-eval.mjs`. That parser used to read only the key's own line, so a
+  wrapped list scored as no tags at all.
 - **`featured` is frontmatter indices, not an in-body marker.** The bullets are in a
   deliberate order the complete renderings depend on and a featured set is rarely a
   prefix, so grouping under a heading would reorder the document and an inline
