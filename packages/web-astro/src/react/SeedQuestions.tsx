@@ -25,6 +25,22 @@ import { AIResume } from './AIResume';
  * too. The first question in each lane is the one that stays, so nothing is
  * hidden behind an animation that never runs.
  *
+ * ## Why the flip has two phases
+ *
+ * The text used to swap in full view, which read as a stutter rather than a
+ * change. The card now turns edge-on, swaps while it cannot be read, and
+ * returns from the opposite side — so the movement explains the new text
+ * instead of interrupting the old one. `motion.css` owns the keyframes.
+ *
+ * ## Why it pauses
+ *
+ * Rotation stops on hover, on focus, and while the dialog is open. A question
+ * that flips away as someone reaches for it is worse than one that never
+ * moved — they now have to find it again, and it is the reason WCAG 2.2.2 asks
+ * for a way to stop moving content at all. Pausing on the interaction that
+ * precedes a click is that mechanism, and it costs the visitor nothing to
+ * discover.
+ *
  * ## Why a picked question is prefilled and not sent
  *
  * The visitor chose a starting point, not a final wording. Sending it for them
@@ -46,12 +62,27 @@ interface Props {
 /** Long enough to read a question and decide it is not the one. */
 const ROTATE_MS = 7000;
 
+/**
+ * How long the card takes to turn edge-on, and therefore when the text may be
+ * swapped without anyone seeing it happen.
+ *
+ * Must match `flip-out` in motion.css. Duplicated because CSS and JS cannot
+ * share a constant, and the failure is visible rather than subtle: too short
+ * and the text changes in view, too long and the card sits blank.
+ */
+const FLIP_OUT_MS = 170;
+
+/** `idle` renders no animation at all, so nothing flips on first paint. */
+type Phase = 'idle' | 'out' | 'in';
+
 export function SeedQuestions({ seeds }: Props) {
   const lanes = React.useMemo(
     () => Object.keys(seeds).filter((lane) => (seeds[lane] ?? []).length > 0),
     [seeds],
   );
   const [tick, setTick] = React.useState(0);
+  const [phase, setPhase] = React.useState<Phase>('idle');
+  const [hovering, setHovering] = React.useState(false);
   const [asking, setAsking] = React.useState<Seed | null>(null);
 
   /**
@@ -68,11 +99,33 @@ export function SeedQuestions({ seeds }: Props) {
     setRotates(!window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   }, []);
 
+  /*
+   * Held while someone is looking at a card or reading an answer. The dialog
+   * counts: the list is behind it, so rotating spends motion nobody can see and
+   * would move the card they came from out from under them on close.
+   */
+  const held = hovering || asking !== null;
+
   React.useEffect(() => {
-    if (!rotates) return;
-    const id = setInterval(() => setTick((value) => value + 1), ROTATE_MS);
+    if (!rotates || held) return;
+    const id = setInterval(() => setPhase('out'), ROTATE_MS);
     return () => clearInterval(id);
-  }, [rotates]);
+  }, [rotates, held]);
+
+  /*
+   * The swap, timed to land while the card is edge-on. Deliberately not guarded
+   * by `held`: a rotation already under way finishes even if the pointer
+   * arrives mid-flip, because stopping here would leave the card frozen
+   * face-down.
+   */
+  React.useEffect(() => {
+    if (phase !== 'out') return;
+    const id = setTimeout(() => {
+      setTick((value) => value + 1);
+      setPhase('in');
+    }, FLIP_OUT_MS);
+    return () => clearTimeout(id);
+  }, [phase]);
 
   // Stable, because Modal has it as an effect dependency and that effect's
   // cleanup restores focus to the trigger. A fresh identity each render would
@@ -83,16 +136,36 @@ export function SeedQuestions({ seeds }: Props) {
 
   return (
     <>
-      <ul className="grid list-none gap-3 pl-0 sm:grid-cols-2">
+      {/*
+        Focus handlers on the list rather than each button: `onFocus` bubbles in
+        React, so one pair covers every card and keyboard users get the same
+        pause a pointer gets. Hover is on the list too, so moving between cards
+        does not resume the rotation for the width of the gap between them.
+      */}
+      <ul
+        className="grid list-none gap-3 pl-0 sm:grid-cols-2"
+        onMouseEnter={() => setHovering(true)}
+        onMouseLeave={() => setHovering(false)}
+        onFocus={() => setHovering(true)}
+        onBlur={() => setHovering(false)}
+      >
         {lanes.map((lane) => {
           const pool = seeds[lane];
           const seed = pool[tick % pool.length];
           return (
-            <li key={lane}>
+            // `perspective` belongs to the parent of the thing being rotated,
+            // or rotateX flattens into a vertical squash with no depth to it.
+            <li key={lane} className="[perspective:800px]">
               <button
                 type="button"
+                data-phase={phase}
                 onClick={() => setAsking(seed)}
-                className="flex w-full items-start gap-2 rounded-lg border border-hairline bg-surface p-3 text-left font-body transition-colors hover:border-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-underline dark:border-hairline-dark dark:bg-surface-dark dark:hover:border-link dark:focus-visible:outline-link"
+                /*
+                  `min-h` so a one-line question and a two-line one occupy the
+                  same box: without it the grid row resizes as the text swaps,
+                  and the flip lands on a card that has moved.
+                */
+                className="seed-card flex min-h-20 w-full items-start gap-2 rounded-lg border border-hairline bg-surface p-3 text-left font-body transition-colors hover:border-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-underline dark:border-hairline-dark dark:bg-surface-dark dark:hover:border-link dark:focus-visible:outline-link"
               >
                 <span aria-hidden="true">✦</span>
                 <span>{seed.question}</span>

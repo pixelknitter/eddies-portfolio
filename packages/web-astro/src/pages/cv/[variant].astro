@@ -178,7 +178,12 @@ const airPath = sections.air ? '/cv/air/' : undefined;
   }
   {
     airPath && (
-      <div class="resume-no-print mx-auto mt-2 -mb-5 max-w-2xl">
+      // `px-1` matches the 4px inline padding `.resume-action-bar` carries, so
+      // this row and the download panel above it start on the same pixel rather
+      // than 4px apart. Set here rather than in resume-organic.css, which is
+      // fingerprinted: spacing that never reaches paper should not cost a PDF
+      // regeneration.
+      <div class="resume-no-print mx-auto mt-2 -mb-5 max-w-2xl px-1">
         {/*
           The framing the visitor is reading, carried into anything they ask.
           It boosts retrieval and picks which suggested questions to offer; it

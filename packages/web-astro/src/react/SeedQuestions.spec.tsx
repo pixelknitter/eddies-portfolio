@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, fireEvent } from '@testing-library/react';
 
 import { SeedQuestions } from './SeedQuestions';
 
@@ -63,12 +63,91 @@ describe('SeedQuestions', () => {
   it('rotates to the next question in each lane', () => {
     render(<SeedQuestions seeds={seeds} />);
 
+    // The interval starts the flip; the text swaps a beat later, while the card
+    // is edge-on. Advancing only to the interval would assert the old text.
+    act(() => {
+      vi.advanceTimersByTime(7000);
+    });
+    expect(screen.getByText('First product question?')).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    expect(screen.getByText('Second product question?')).toBeInTheDocument();
+    expect(screen.getByText('Second solutions question?')).toBeInTheDocument();
+  });
+
+  // The swap has to be invisible. If the card is not edge-on when the text
+  // changes, this is the stiff jump the flip was added to remove.
+  it('turns the card away before the text changes', () => {
+    render(<SeedQuestions seeds={seeds} />);
+
     act(() => {
       vi.advanceTimersByTime(7000);
     });
 
+    const card = screen.getByText('First product question?').closest('button');
+    expect(card).toHaveAttribute('data-phase', 'out');
+
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+
+    expect(
+      screen.getByText('Second product question?').closest('button'),
+    ).toHaveAttribute('data-phase', 'in');
+  });
+
+  it('renders no animation on first paint', () => {
+    render(<SeedQuestions seeds={seeds} />);
+    expect(
+      screen.getByText('First product question?').closest('button'),
+    ).toHaveAttribute('data-phase', 'idle');
+  });
+
+  /*
+   * A question that flips away as someone reaches for it is worse than one that
+   * never moved: they now have to find it again. This is the WCAG 2.2.2
+   * mechanism, on the interaction that precedes a click.
+   */
+  it('stops rotating while the pointer is over the list', () => {
+    render(<SeedQuestions seeds={seeds} />);
+    const list = screen.getByRole('list');
+
+    act(() => {
+      fireEvent.mouseEnter(list);
+      vi.advanceTimersByTime(21000);
+    });
+
+    expect(screen.getByText('First product question?')).toBeInTheDocument();
+  });
+
+  it('resumes once the pointer leaves', () => {
+    render(<SeedQuestions seeds={seeds} />);
+    const list = screen.getByRole('list');
+
+    act(() => {
+      fireEvent.mouseEnter(list);
+      vi.advanceTimersByTime(21000);
+      fireEvent.mouseLeave(list);
+    });
+    act(() => {
+      vi.advanceTimersByTime(7200);
+    });
+
     expect(screen.getByText('Second product question?')).toBeInTheDocument();
-    expect(screen.getByText('Second solutions question?')).toBeInTheDocument();
+  });
+
+  // Keyboard users get the same pause a pointer gets.
+  it('stops rotating while a card has focus', () => {
+    render(<SeedQuestions seeds={seeds} />);
+
+    act(() => {
+      fireEvent.focus(screen.getByText('First product question?').closest('button')!);
+      vi.advanceTimersByTime(21000);
+    });
+
+    expect(screen.getByText('First product question?')).toBeInTheDocument();
   });
 
   /*

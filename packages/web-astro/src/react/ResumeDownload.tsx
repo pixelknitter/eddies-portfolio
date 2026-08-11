@@ -164,7 +164,15 @@ export function ResumeDownload({ variant = DEFAULT_VARIANT }: Props = {}) {
   }
 
   return (
-    <div className="font-body">
+    /*
+      `w-full`, because this island is a flex child of `.resume-action-bar`.
+      Without it the island sizes to its content, so the confirmation panel and
+      the form ended up narrower than the buttons above them and narrower than
+      the ask row below — three controls in one column, none of them agreeing
+      on where that column ends. Full width settles everything on the bar's own
+      measure.
+    */
+    <div className="w-full font-body">
       {/*
         `resume-cta`, not the site's `.btn`. The unlayered organic stylesheet
         outranks `@layer components`, so `.btn` arrived here stripped of its border

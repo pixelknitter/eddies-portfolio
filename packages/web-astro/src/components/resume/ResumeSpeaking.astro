@@ -42,3 +42,60 @@ const { resume: RESUME, print = false } = Astro.props;
     }.
   </p>
 </ResumeSection>
+
+<style>
+  /*
+   * Moved here from ResumeVisual when this section became its own component.
+   * Astro scopes a component's styles to that component, so these stopped
+   * reaching the markup the moment it moved out — the talk cards lost their
+   * padding and the prose its measure, on the page and in the PDF.
+   */
+  .resume-prose {
+    margin: 0;
+    font-size: 15.5px;
+    line-height: 1.6;
+    color: var(--color-neutral-800);
+  }
+
+  .resume-talks {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 12px;
+    padding: var(--space-3) 0;
+  }
+
+  /*
+   * `.resume-talk.card`, not `.resume-talk`. These cards carry both classes,
+   * and `.organic .card` in resume-organic.css sets a smaller padding at the
+   * same specificity — so which one won came down to the order the two
+   * stylesheets happened to land in the bundle. That was true before this
+   * section moved out of ResumeVisual too; moving it simply flipped the
+   * coin the other way and shrank the cards. Matching on both classes settles
+   * it on specificity instead, where it does not depend on bundling at all.
+   */
+  .resume-talk.card {
+    padding: 18px 22px;
+    gap: 6px;
+  }
+
+  .resume-talk-org {
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-accent-700);
+  }
+
+  .resume-talk-title {
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 1.4;
+  }
+
+  .resume-talk-detail {
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--color-neutral-800);
+  }
+</style>

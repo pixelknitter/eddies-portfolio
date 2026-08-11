@@ -554,8 +554,12 @@ const bulletsFor = (role: ResumeRole) =>
     color: var(--color-neutral-600);
   }
 
-  .resume-role-summary,
-  .resume-prose {
+  /*
+   * `.resume-prose` used to share this rule and now lives in
+   * ResumeSpeaking.astro, which is its only user. Astro scopes a component's
+   * styles to that component, so a rule left here would not reach it.
+   */
+  .resume-role-summary {
     margin: 0;
     font-size: 15.5px;
     line-height: 1.6;
@@ -670,61 +674,4 @@ const bulletsFor = (role: ResumeRole) =>
     color: var(--color-neutral-800);
   }
 
-  /* ── Skills ─────────────────────────────────────────────────────────────── */
-
-  .resume-skills {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .resume-skill-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .resume-skill-label {
-    font-weight: 700;
-    font-size: 13px;
-    line-height: 1;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--color-accent-700);
-  }
-
-  /* ── Talks ──────────────────────────────────────────────────────────────── */
-
-  .resume-talks {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 12px;
-    padding: var(--space-3) 0;
-  }
-
-  .resume-talk {
-    padding: 18px 22px;
-    gap: 6px;
-  }
-
-  .resume-talk-org {
-    font-weight: 700;
-    font-size: 13px;
-    line-height: 1;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--color-accent-700);
-  }
-
-  .resume-talk-title {
-    font-weight: 700;
-    font-size: 15px;
-    line-height: 1.4;
-  }
-
-  .resume-talk-detail {
-    font-size: 14px;
-    line-height: 1.55;
-    color: var(--color-neutral-800);
-  }
 </style>

@@ -144,6 +144,13 @@ test.describe('the chooser seed questions', () => {
     await page.goto('/cv/');
 
     const seed = page.locator(SEEDS).first();
+
+    /*
+     * Hover first, which pauses the rotation. Reading the question and then
+     * clicking it is two steps, and a rotation landing between them asserts
+     * against a question that is no longer on the card.
+     */
+    await seed.hover();
     // The question, without the decorative glyph beside it.
     const asked = (
       await seed.locator('span:not([aria-hidden])').innerText()

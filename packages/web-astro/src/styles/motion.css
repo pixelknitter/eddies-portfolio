@@ -47,3 +47,59 @@
     translate: 0 0;
   }
 }
+
+/*
+ * Seed-question rotation on the CV chooser.
+ *
+ * A two-phase flip, because the swap has to happen while the card is edge-on:
+ * the text changing in full view is the stiff jump this replaces. `flip-out`
+ * holds its end state (`forwards`) so the card stays invisible for the instant
+ * React needs to render the next question, then `flip-in` brings it back from
+ * the opposite side — which is what makes it read as one card turning over
+ * rather than two cards swapping.
+ *
+ * Two keyframes rather than a transition: transitioning to -90deg and then
+ * needing to *start* the next one from +90deg has no resting state to
+ * transition from, and mixing a transition with an animation on the same
+ * properties fights itself.
+ *
+ * Out is quicker than in. Leaving should feel decisive and arriving should
+ * settle, and equal timings read as mechanical.
+ */
+@keyframes flip-out {
+  from {
+    opacity: 1;
+    transform: rotateX(0deg);
+  }
+  to {
+    opacity: 0;
+    transform: rotateX(-90deg);
+  }
+}
+
+@keyframes flip-in {
+  from {
+    opacity: 0;
+    transform: rotateX(90deg);
+  }
+  to {
+    opacity: 1;
+    transform: rotateX(0deg);
+  }
+}
+
+/*
+ * The rotation is already switched off in JavaScript under reduced motion, so
+ * these never fire there. Guarded anyway: the JS reads the preference once on
+ * mount, and someone who changes the system setting mid-session should not have
+ * to reload to be taken at their word.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .seed-card[data-phase='out'] {
+    animation: flip-out 170ms ease-in forwards;
+  }
+
+  .seed-card[data-phase='in'] {
+    animation: flip-in 240ms ease-out;
+  }
+}
