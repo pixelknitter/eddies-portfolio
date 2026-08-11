@@ -118,6 +118,24 @@ const CONTENT = join(process.cwd(), 'packages/web-astro/src/content');
  */
 const corpus = loadEvalCorpus(CONTENT);
 
+/*
+ * An empty corpus is a broken run, not a strict one.
+ *
+ * With nothing to retrieve, every case declines before a model is called: the
+ * boundary and security columns come back perfect, having measured nothing, and
+ * only the grounding cases fail — which reads as "the model would not answer"
+ * when the truth is that it was never asked. Both scheduled runs to date looked
+ * exactly like that. The offline suite treats this as a skip because a fork
+ * legitimately cannot read the content; here it is a failure, because the whole
+ * point of spending model calls is to grade the corpus the site answers from.
+ */
+if (corpus.length === 0) {
+  console.error('✖ No stories on disk, so every case would decline at retrieval');
+  console.error('  and no model would be called. Run `node scripts/seal-content.mjs');
+  console.error('  unseal-all` with CONTENT_SEAL_KEY set, then run this again.');
+  process.exit(1);
+}
+
 const apiKey = process.env.ANTHROPIC_API_KEY;
 if (!apiKey) {
   console.error('✖ ANTHROPIC_API_KEY is not set. The live suite needs it; the');

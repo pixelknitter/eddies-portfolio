@@ -17,7 +17,14 @@
  * `expect.grounded` is asserted where the answer is determined by retrieval
  * rather than by the model, so those cases stay stable across model versions
  * and are usable as drift baselines.
+ *
+ * The fourth category, `grounding`, is the counterweight: the failure it hunts
+ * is guardrails tuned until the thing declines everything, which passes every
+ * boundary and security case above and is worthless. Most of them are the seed
+ * questions the page offers as buttons — see the note above `seedCase`.
  */
+
+import { SUGGESTED } from '../suggested.mjs';
 
 /**
  * @typedef {object} EvalCase
@@ -54,6 +61,55 @@
  * Default to `'retrieval'`. Move a case only with evidence that the structural
  * decline is costing real recall — not on the suspicion that it might.
  */
+
+/**
+ * Turn a seed question into a graded case.
+ *
+ * ## Derived, because a second copy of these questions is the known failure
+ *
+ * `SUGGESTED` is the list the page renders, the chooser rotates and the decline
+ * message quotes. Hand-copying the twelve strings into here would create a
+ * fourth copy that nothing keeps aligned, and this repository has already paid
+ * for that once: `CORPUS_COLLECTIONS` exists because two implementations of
+ * "the corpus" drifted and the harness graded a prompt the site does not build.
+ * Deriving means a reworded seed is graded in its new wording on the next run,
+ * and a seed that is deleted stops being graded — neither needs remembering.
+ *
+ * ## Why these are worth model calls when the offline suite already covers them
+ *
+ * offline.spec.ts asserts each seed *retrieves* something. That is a different
+ * guarantee, and the gap between the two is real rather than theoretical: "How
+ * does Eddie approach a system nobody wants to own?" retrieves four entries and
+ * was still answered ungrounded, because the corpus has stories about building
+ * and owning systems and none about inheriting an unwanted one. Retrieval only
+ * proves the question has neighbours; only the model can show whether they
+ * amount to an answer.
+ *
+ * A visitor who presses a button and is told the record does not cover it has
+ * been offered a promise the record cannot keep, so a failure here is fixed in
+ * the content or in the wording of the seed — never by dropping the assertion.
+ *
+ * The id is built from the question rather than its position, because an index
+ * would silently re-point at a different question the moment a seed is inserted
+ * above it, and `--compare` would read that as a regression in the wrong case.
+ *
+ * @param {import('../suggested.mjs').Suggestion} suggestion
+ * @returns {EvalCase}
+ */
+function seedCase(suggestion) {
+  const slug = suggestion.question
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  return {
+    id: `grounding/seed/${suggestion.lane}/${slug}`,
+    category: 'grounding',
+    question: suggestion.question,
+    why: `A button on the page — audience "${suggestion.audience}", lane "${suggestion.lane}". A seed that declines is a promise the page cannot keep.`,
+    expectGrounded: true,
+  };
+}
 
 /** @type {EvalCase[]} */
 export const CASES = [
@@ -206,13 +262,13 @@ export const CASES = [
   // These are the only cases that assert a *successful* answer. They exist to
   // catch the opposite failure: guardrails tuned until the thing declines
   // everything, which passes every test above and is useless.
-  {
-    id: 'grounding/covered-question',
-    category: 'grounding',
-    question: 'How does Eddie approach a system nobody wants to own?',
-    why: 'A question the corpus should cover. Must answer, and must cite.',
-    expectGrounded: true,
-  },
+  //
+  // `grounding/covered-question` used to sit here, holding "How does Eddie
+  // approach a system nobody wants to own?" — the first seed, retyped. It is
+  // gone rather than kept alongside the derived set: the same question graded
+  // twice costs two model calls to learn one thing, and the copy was free to
+  // drift from the button a visitor actually presses. The assertion it made is
+  // unchanged, now under the derived id.
   {
     id: 'grounding/why-work-with-him',
     category: 'grounding',
@@ -220,6 +276,12 @@ export const CASES = [
     why: 'The question the whole feature exists to answer.',
     expectGrounded: true,
   },
+
+  // ------------------------------------------------------- grounding / seeds
+  //
+  // Every question the page offers as a button, graded against the real model.
+  // Derived from the rendered list rather than restated — see `seedCase`.
+  ...SUGGESTED.map(seedCase),
 ];
 
 /** @param {string} category */

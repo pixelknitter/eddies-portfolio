@@ -35,6 +35,23 @@ jobs:
       - name: Setup Node & install
         uses: ./.github/actions/setup
 
+      # Without this the harness loads nothing: every real story in the corpus
+      # is sealed in the repo, `loadEvalCorpus` skips the `sample-*` fixtures on
+      # purpose, and retrieval then declines every case in forty seconds
+      # without calling a model once. Both scheduled runs so far did exactly
+      # that — boundary and security "passed" because there was nothing to
+      # answer from, and the grounding cases failed for a reason that had
+      # nothing to do with the models being compared.
+      #
+      # `--require-key` because a run that cannot read the corpus has nothing to
+      # measure. Unlike `ci.yml` there is no fork case to be gentle about: this
+      # workflow only ever runs on a schedule or a dispatch, both of which have
+      # the key.
+      - name: Unseal content
+        env:
+          CONTENT_SEAL_KEY: ${{ secrets.CONTENT_SEAL_KEY }}
+        run: node scripts/seal-content.mjs unseal-all --require-key
+
       - name: Run the golden set
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
