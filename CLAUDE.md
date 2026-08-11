@@ -105,10 +105,11 @@ src/
 │   ├── works.astro        # Projects listing
 │   ├── projects/[...slug].astro # Dynamic project pages (prerendered)
 │   ├── cv/                # Resume surfaces + A.I.R.
-│   │   ├── index.astro    #   Visual resume
-│   │   ├── for-bots.astro #   Complete resume + JSON-LD graph
+│   │   ├── index.astro    #   Role chooser: one card per available variant
+│   │   ├── [variant].astro #  Visual resume, in one framing (/cv/product…)
+│   │   ├── for-bots.astro #   Complete resume + JSON-LD graph (default only)
 │   │   ├── air/           #   AI Resume (A.I.R.) chat page
-│   │   └── print/         #   Print-only routes the PDF generator prints
+│   │   └── print/[variant]/ # Print-only routes the PDF generator prints
 │   ├── api/               # SSR endpoints (air/*, resume/*)
 │   ├── privacy.astro      # Privacy notice
 │   ├── robots.txt.ts      # Per-tier robots policy
@@ -926,7 +927,7 @@ yarn resume:pdf     # then commit src/util/resume/pdfs.generated.mjs
 
 Regenerating needs the plaintext *materialized in the section dirs* —
 `.local-*/` working copies alone load zero entries; without `CONTENT_SEAL_KEY`
-the run fails with a 404 on `/cv/print/human` rather than naming the missing
+the run fails with a 404 on `/cv/print/product/human` rather than naming the missing
 key. **Editing a working copy also makes the vault stale, and nothing goes
 red** — resealing is key-gated and operator-run: see
 [Reseal the content vault](./docs/RUNBOOK.md#reseal-the-content-vault) in the

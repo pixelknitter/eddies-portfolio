@@ -4,10 +4,11 @@ Four surfaces, one source of truth, and a download gate that captures leads.
 
 | Route                      | What it is                                            | Flag                  |
 | -------------------------- | ----------------------------------------------------- | --------------------- |
-| `/cv/`                     | Visual resume, sections collapsed, no contact details | `PUBLIC_SHOW_RESUME`  |
+| `/cv/`                     | Role chooser: one card per variant with content       | `PUBLIC_SHOW_RESUME`  |
+| `/cv/<variant>`            | Visual resume in one framing, no contact details      | `PUBLIC_SHOW_RESUME`  |
 | `/cv/for-bots`             | Complete resume + JSON-LD `ProfilePage` graph         | `PUBLIC_SHOW_RESUME`  |
-| `/cv/print/human`          | Print source for the human-readable PDF               | `PUBLIC_RESUME_PRINT` |
-| `/cv/print/bot`            | Print source for the ATS/LLM PDF                      | `PUBLIC_RESUME_PRINT` |
+| `/cv/print/<variant>/human` | Print source for the human-readable PDF              | `PUBLIC_RESUME_PRINT` |
+| `/cv/print/<variant>/bot`  | Print source for the ATS/LLM PDF                      | `PUBLIC_RESUME_PRINT` |
 | `POST /api/resume/request` | Lead capture; returns signed download links           | `PUBLIC_SHOW_RESUME`  |
 | `GET /api/resume/download` | Serves a watermarked PDF against a token              | `PUBLIC_SHOW_RESUME`  |
 
@@ -96,13 +97,49 @@ Contact lives in a separate `CONTACT` export imported by exactly one component,
 `PrintContact.astro`. If that component ever appears in a route serving the public
 web, it is visible in an import list.
 
+## Variants
+
+One CV, several framings. A **variant** is a slug — `product`, `solutions`,
+`leadership` — registered in `util/resume/variants.mjs`, which is the only file
+that decides what a slug means: its route, its PDF filenames, and the
+`variant:kind` key its generated PDFs are stored under. Four consumers read it
+(the loader, the chooser, the print routes, the generator) and a second list
+would drift from the first.
+
+Registering a variant does **not** publish it. A variant is live only once it
+has a `profile` entry of its own; until then its route 404s and it leaves no
+card on the chooser. That is what lets the machinery ship ahead of the prose.
+
+What a variant may change:
+
+| Section | How |
+| --- | --- |
+| `profile`, `strengths`, `skills` | A whole file of its own, marked `variant: <slug>`. Falls back to the default when absent, so a variant overrides only what it genuinely reframes. |
+| `experience` | **Emphasis only** — a `variants.<slug>` block carrying `featured`, `summary`, `lede`. Never a fact. |
+| `speaking`, `education` | Nothing. Shared by every variant. |
+
+`profile` also carries `pitch` (the chooser card's one line) and `sectionOrder`
+(the solutions framing puts Speaking above Skills).
+
+**Facts stay single-source.** A correction to a bullet is made once and reaches
+every variant. If a variant seems to need a different fact, the fact belongs in
+the base entry. This is the whole reason experience is not duplicated per
+variant the way the singleton sections are.
+
 ## Regenerating the PDFs
 
 ```bash
-yarn resume:pdf              # both variants
-yarn resume:pdf --only human
-yarn resume:pdf --keep-pdf   # also write the raw files for inspection
+yarn resume:pdf                      # every variant with content, both kinds
+yarn resume:pdf --only human         # one kind, every variant
+yarn resume:pdf --variant solutions  # one variant, both kinds
+yarn resume:pdf --keep-pdf           # also write the raw files for inspection
 ```
+
+Two variants with content means **four** PDFs. The generator asks the running
+server which variants answer on their print route rather than guessing, so an
+unwritten variant is skipped with a line saying so. A variant this run did not
+regenerate keeps its previously generated copy, so `--only` and `--variant` are
+never a silent way to blank a download.
 
 Commit `src/util/resume/pdfs.generated.mjs` afterwards. `nx test` fails if it drifts
 from the sources — the fingerprint covers the resume data _and_ the print layout,
@@ -127,7 +164,7 @@ git add packages/web-astro/src/util/resume/pdfs.generated.mjs
 
 Without `CONTENT_SEAL_KEY`, `unseal-all` cannot run, the collection loads zero
 entries, and every resume route 404s — so `yarn resume:pdf` fails with a 404 on
-`/cv/print/human` rather than anything naming the real cause. Gitignored
+`/cv/print/product/human` rather than anything naming the real cause. Gitignored
 `.local-<section>/` working copies do **not** substitute on their own: the
 loader globs the section dirs and dot-directories never match. Copy each
 `.local-<section>/*.md` into its section dir before the build and remove the

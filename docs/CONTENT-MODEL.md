@@ -251,12 +251,26 @@ Every section shares `title`, `tags`, `order` (low first). Then:
 
 | `section`    | Adds                                                                                                                                             |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `profile`    | `headline`, `location`, `summary`, `stats[]`                                                                                                     |
-| `experience` | `org`, `role`, `location`, `dates`, `start`, `end?`, `tier`, `period?`, `lede?`, `summary?`, `compact?`, `chips[]`, `highlights[]`, `featured[]` |
-| `strengths`  | `items[]` of `{ title, detail, wide }`                                                                                                           |
-| `skills`     | `groups[]` of `{ group, tone, items[] }`                                                                                                         |
+| `profile`    | `headline`, `location`, `summary`, `stats[]`, `variant?`, `pitch?`, `sectionOrder?`                                                              |
+| `experience` | `org`, `role`, `location`, `dates`, `start`, `end?`, `tier`, `period?`, `lede?`, `summary?`, `compact?`, `chips[]`, `highlights[]`, `featured[]`, `variants?` |
+| `strengths`  | `items[]` of `{ title, detail, wide }`, `variant?`                                                                                               |
+| `skills`     | `groups[]` of `{ group, tone, items[] }`, `variant?`                                                                                             |
 | `speaking`   | `evaluation`, `talks[]`, `footer?`, `writing?`                                                                                                   |
 | `education`  | `entries[]` of `{ period, institution, detail }`                                                                                                 |
+
+**Variants.** `variant` on a singleton section says which framing of the CV it
+belongs to; absent means the default (`product`), so every file written before
+variants existed is still valid and still the fallback. `pitch` is the chooser
+card's one line and `sectionOrder` lets a framing move a section (the solutions
+CV puts Speaking above Skills).
+
+`experience` is different on purpose. Its `variants` record is keyed by slug and
+carries **emphasis only** — `featured`, `summary`, `lede`. A variant may
+re-spotlight bullets and swap the condensed opener; it may not change a fact,
+because facts are the thing that must stay single-source. A correction lands
+once and reaches every variant. `speaking` and `education` take no variant at
+all. See [docs/RESUME.md](./RESUME.md#variants) for the whole model, and
+`util/resume/variants.mjs` for the registered slugs.
 
 Three details that look cosmetic and are not:
 
