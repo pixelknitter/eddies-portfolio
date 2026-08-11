@@ -925,10 +925,10 @@ commits.
 yarn resume:pdf     # then commit src/util/resume/pdfs.generated.mjs
 ```
 
-Regenerating needs the plaintext *materialized in the section dirs* —
-`.local-*/` working copies alone load zero entries; without `CONTENT_SEAL_KEY`
-the run fails with a 404 on `/cv/print/product/human` rather than naming the missing
-key. **Editing a working copy also makes the vault stale, and nothing goes
+`yarn resume:pdf` now materializes the sealed content itself and cleans up after,
+so it is one command — do not run `unseal-all` first. It needs the key, which it
+reads from `$CONTENT_SEAL_KEY` or `~/.config/eddies-portfolio/content-seal.token`.
+**Editing a working copy makes the vault stale, and nothing goes
 red** — resealing is key-gated and operator-run: see
 [Reseal the content vault](./docs/RUNBOOK.md#reseal-the-content-vault) in the
 runbook. **[docs/RESUME.md](./docs/RESUME.md) is the source of truth** for the

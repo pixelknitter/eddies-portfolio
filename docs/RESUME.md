@@ -154,23 +154,37 @@ layout, `print.css`, `resume-organic.css`, and both `pages/cv/print/*.astro`.
 site-wide theme work does not force a rebuild — which is a reason to split a resume
 change and a site change into separate commits.
 
-**The key is the gate, not the procedure.** Regenerating needs the real content:
+**The key is the gate, not the procedure.** One command does all of it:
 
 ```bash
-CONTENT_SEAL_KEY=… node scripts/seal-content.mjs unseal-all   # if no .local-* dirs
 yarn resume:pdf
 git add packages/web-astro/src/util/resume/pdfs.generated.mjs
 ```
 
-Without `CONTENT_SEAL_KEY`, `unseal-all` cannot run, the collection loads zero
-entries, and every resume route 404s — so `yarn resume:pdf` fails with a 404 on
-`/cv/print/product/human` rather than anything naming the real cause. Gitignored
-`.local-<section>/` working copies do **not** substitute on their own: the
-loader globs the section dirs and dot-directories never match. Copy each
-`.local-<section>/*.md` into its section dir before the build and remove the
-copies afterwards — the procedure, and the reseal that must follow any working-copy
-edit, are in the runbook:
+`resume-pdf.mjs` unseals the content into the section dirs for the length of the
+run and removes exactly the files it created, from a `finally` so a failed print
+leaves no sealed plaintext in the working tree. **Do not run `unseal-all`
+first** — it is no longer needed, and its output is not cleaned up for you.
+
+It used to be three commands with an ordering constraint and nothing connecting
+them. `seal` deletes the collection-path plaintext once a file is in the vault,
+which is correct — that path is build output — but it leaves the collection
+empty, so a `resume:pdf` straight after a seal built for forty seconds and then
+reported that no variant had content. The missing step was `unseal-all`, and
+nothing said so at the point it was needed. That is now the script's job.
+
+Gitignored `.local-<section>/` working copies do **not** substitute for the
+section dirs on their own: the loader globs the section dirs, and
+dot-directories never match. Editing a working copy still makes the vault stale
+and nothing goes red — see
 [Reseal the content vault](./RUNBOOK.md#reseal-the-content-vault).
+
+**The key.** Every key-gated command reads `$CONTENT_SEAL_KEY`, falling back to
+`~/.config/eddies-portfolio/content-seal.token` (override with
+`$CONTENT_SEAL_TOKEN_FILE`). No command needs the environment prefix. A variable
+that is *set but empty* means "no key" deliberately and is never overridden by
+the file — that is what keeps the no-key tests honest on a machine that has
+one.
 
 **In a remote or Cloud session** the key is absent by default. A styling change can
 be authored and verified there, but the PDFs cannot be rebuilt: add
