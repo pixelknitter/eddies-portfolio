@@ -29,8 +29,8 @@
  *   yarn resume:pdf --keep-pdf                         # also write the raw files
  */
 
-import { spawn } from 'node:child_process';
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { spawn, execFileSync } from 'node:child_process';
+import { readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -163,6 +163,66 @@ async function waitForServer(url, timeoutMs = 90_000) {
 }
 
 /**
+ * Put the sealed resume where Astro can glob it, for the length of this run.
+ *
+ * ## Why the script does this rather than asking you to
+ *
+ * `seal-content.mjs seal` deletes the collection-path plaintext once a file is
+ * in the vault — correct, because that path is build output and committing it
+ * would publish the thing the vault exists to protect. But it leaves the
+ * collection empty, so a `yarn resume:pdf` straight after a seal builds for
+ * forty seconds and then reports that no variant has content. The missing step
+ * is `unseal-all`, and nothing said so at the point it was needed.
+ *
+ * Two separate commands with an ordering constraint and no error connecting
+ * them is a trap, and it caught its own author. So this runs the unseal, and
+ * the `finally` below removes exactly the files it created — no glob, no
+ * guessing, nothing left behind for `git add` to find.
+ *
+ * @returns {string[]} The paths written, for cleanup.
+ */
+function materializeSealedContent() {
+  let output = '';
+  try {
+    output = execFileSync(
+      'node',
+      ['scripts/seal-content.mjs', 'unseal-all', '--require-key'],
+      { cwd: REPO, encoding: 'utf8' },
+    );
+  } catch (error) {
+    // seal-content.mjs resolves the key from $CONTENT_SEAL_KEY or the token
+    // file and says which it looked in, so its message is the useful one.
+    throw new Error(
+      `could not unseal the content.\n${(error.stderr || error.stdout || error.message).trim()}`,
+    );
+  }
+
+  // `✓ <path>` per file, which is the only record of what to remove after.
+  const written = output
+    .split('\n')
+    .map((line) => line.match(/^✓ (.+)$/))
+    .filter(Boolean)
+    .map((match) => match[1].trim());
+
+  log(`materialized ${written.length} sealed file(s) for this run`);
+  return written;
+}
+
+/**
+ * Remove the plaintext this run materialized.
+ *
+ * In a `finally`, so a failed print does not leave the sealed resume sitting in
+ * the working tree — which is how it ends up staged.
+ *
+ * @param {string[]} paths
+ */
+function cleanUpMaterialized(paths) {
+  if (paths.length === 0) return;
+  for (const path of paths) rmSync(join(REPO, path), { force: true });
+  log(`cleaned up ${paths.length} materialized file(s)`);
+}
+
+/**
  * Which variants have printable content right now.
  *
  * Asked of the running server rather than of `availableVariants()` directly:
@@ -280,9 +340,11 @@ async function stampWatermarkSlot(pdfBytes) {
 async function main() {
   const baseUrl = baseUrlOverride ?? `http://127.0.0.1:${PORT}`;
   let server;
+  let materialized = [];
 
   try {
     if (!baseUrlOverride) {
+      materialized = materializeSealedContent();
       log('building with the print routes enabled…');
       await run('npx', ['astro', 'build'], {
         cwd: APP,
@@ -447,6 +509,7 @@ async function main() {
     );
   } finally {
     if (server && !server.killed) server.kill();
+    cleanUpMaterialized(materialized);
   }
 }
 

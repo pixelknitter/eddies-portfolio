@@ -36,18 +36,23 @@
  *
  * Usage:
  *   node scripts/seal-content.mjs keygen
- *   CONTENT_SEAL_KEY=… node scripts/seal-content.mjs seal          # everything pending
- *   CONTENT_SEAL_KEY=… node scripts/seal-content.mjs seal <path>
- *   CONTENT_SEAL_KEY=… node scripts/seal-content.mjs unseal-all [--require-key]
- *   CONTENT_SEAL_KEY=… node scripts/seal-content.mjs status
- *   CONTENT_SEAL_KEY=… node scripts/seal-content.mjs check
- *   CONTENT_SEAL_KEY=… node scripts/seal-content.mjs is-sealed <path>
+ *   node scripts/seal-content.mjs seal          # everything pending
+ *   node scripts/seal-content.mjs seal <path>
+ *   node scripts/seal-content.mjs unseal-all [--require-key]
+ *   node scripts/seal-content.mjs status
+ *   node scripts/seal-content.mjs check
+ *   node scripts/seal-content.mjs is-sealed <path>
+ *
+ * The key comes from $CONTENT_SEAL_KEY, or from
+ * ~/.config/eddies-portfolio/content-seal.token when that is unset. No command
+ * needs the environment prefix any more.
  */
 
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, scryptSync } from 'node:crypto';
 import { parseFrontmatter } from '../packages/obsidian-publish-core/src/index.mjs';
 import { readFileSync, writeFileSync, unlinkSync, existsSync, readdirSync, mkdirSync, statSync } from 'node:fs';
 import { join, relative, dirname, basename } from 'node:path';
+import { homedir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 
 const CONTENT_ROOT = 'packages/web-astro/src/content';
@@ -68,16 +73,65 @@ const args = process.argv.slice(2);
 const [command, target] = args.filter((arg) => !arg.startsWith('--'));
 const requireKey = args.includes('--require-key');
 
-const hasKey = () => Boolean(process.env.CONTENT_SEAL_KEY?.trim());
+/**
+ * Where the key lives when it is not in the environment.
+ *
+ * Every key-gated command used to need the same eleven-word prefix, which is
+ * the kind of thing that gets abbreviated, mistyped, or pasted into a shell
+ * history. A token file read on demand keeps the key out of the environment of
+ * every unrelated process *and* out of the command, and it is the form the
+ * operator already keeps it in. Overridable so a CI runner can point at
+ * wherever it materialises its secret.
+ */
+const TOKEN_FILE =
+  process.env.CONTENT_SEAL_TOKEN_FILE ??
+  join(homedir(), '.config/eddies-portfolio/content-seal.token');
+
+/**
+ * The key, from the environment or the token file.
+ *
+ * Environment first: an explicitly exported value should always win over a file
+ * on disk, which is what makes CI and a one-off override predictable.
+ *
+ * Memoised, because `hasKey()` is called on nearly every path and re-reading a
+ * file to answer the same question is both wasteful and racy.
+ */
+let cachedPassphrase;
+function sealKey() {
+  if (cachedPassphrase !== undefined) return cachedPassphrase;
+
+  /*
+   * An explicitly *set* variable always wins, even when it is empty or blank.
+   * "Set to nothing" is a deliberate statement that there is no key — it is how
+   * the spec exercises the no-key paths — and silently reaching past it to a
+   * file on the operator's machine would make those tests pass or fail
+   * depending on whose laptop ran them. Only an absent variable falls through.
+   */
+  if ('CONTENT_SEAL_KEY' in process.env) {
+    return (cachedPassphrase = process.env.CONTENT_SEAL_KEY?.trim() || null);
+  }
+
+  try {
+    cachedPassphrase = readFileSync(TOKEN_FILE, 'utf8').trim() || null;
+  } catch {
+    // No token file is a normal state — a fork, or a machine that never seals.
+    cachedPassphrase = null;
+  }
+  return cachedPassphrase;
+}
+
+const hasKey = () => Boolean(sealKey());
 
 function passphrase() {
-  if (!hasKey()) {
-    console.error('✖ CONTENT_SEAL_KEY is not set.');
+  const key = sealKey();
+  if (!key) {
+    console.error('✖ No content seal key.');
+    console.error(`  Looked in: $CONTENT_SEAL_KEY, then ${TOKEN_FILE}`);
     console.error('  Suggestion: node scripts/seal-content.mjs keygen');
     console.error('  Any long passphrase works — it is stretched with scrypt.');
     process.exit(1);
   }
-  return process.env.CONTENT_SEAL_KEY;
+  return key;
 }
 
 /** Read the manifest, creating one with a fresh salt on first seal. */

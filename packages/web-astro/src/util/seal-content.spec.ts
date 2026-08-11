@@ -28,10 +28,24 @@ const CONTENT = FIXTURE_DIR;
 const CONTENT_REL = relative(REPO_ROOT, FIXTURE_DIR);
 const KEY = 'a memorable passphrase for tests';
 
+/**
+ * A path that does not exist, so the script's token-file fallback finds
+ * nothing. Without this a machine with a real `~/.config/.../content-seal.token`
+ * runs these tests against the operator's own key — they pass in CI, where no
+ * such file exists, and fail locally. Same hazard as the vault override below,
+ * through a different door.
+ */
+const NO_TOKEN_FILE = join(VAULT, 'no-such-token');
+
 function run(args: string[], env: Record<string, string> = {}) {
   return execFileSync('node', [SCRIPT, ...args], {
     // Point the script at the temp vault for every invocation.
-    env: { ...process.env, CONTENT_VAULT_DIR: VAULT, ...env },
+    env: {
+      ...process.env,
+      CONTENT_VAULT_DIR: VAULT,
+      CONTENT_SEAL_TOKEN_FILE: NO_TOKEN_FILE,
+      ...env,
+    },
     encoding: 'utf8',
     cwd: REPO_ROOT,
   });
@@ -47,6 +61,7 @@ function keylessEnv(): NodeJS.ProcessEnv {
     Object.entries(process.env).filter(([k]) => k !== 'CONTENT_SEAL_KEY')
   ) as NodeJS.ProcessEnv;
   env.CONTENT_VAULT_DIR = VAULT;
+  env.CONTENT_SEAL_TOKEN_FILE = NO_TOKEN_FILE;
   return env;
 }
 
