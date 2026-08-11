@@ -17,11 +17,19 @@ interface Props {
 }
 
 const { url, image, title, body, alt = "", kicker } = Astro.props;
+import GlowBorder from '@components/GlowBorder.astro';
 ---
+{/*
+  Rendered per card, emitted once: Astro bundles a component's `<script>` into
+  one page asset regardless of how many instances render it. So every page that
+  uses a Card gets the pointer-tracked ring with no wiring of its own.
+*/}
+<GlowBorder />
 <li class="list-none">
   <a
     class="card-link surface group flex h-full flex-col overflow-hidden no-underline text-dark dark:text-light"
     href={url}
+    data-glow
   >
     {image && (
       <div class="overflow-hidden">
@@ -50,14 +58,23 @@ const { url, image, title, body, alt = "", kicker } = Astro.props;
   @reference "../styles/global.css";
 
   .card-link {
-    /* Border colour carries the hover state. A shadow-only affordance is
-       invisible when the card and the page share a background. */
+    /*
+     * Border colour carries the *keyboard* state. A shadow-only affordance is
+     * invisible when the card and the page share a background.
+     */
     transition:
       border-color var(--animate-duration, 250ms) ease,
       transform var(--animate-duration, 250ms) ease;
   }
 
-  .card-link:hover,
+  /*
+   * Hover is the pointer-tracked ring, not a border colour.
+   *
+   * A hover switch fires the instant the cursor crosses the edge, so the border
+   * snapped to full strength while the ring was still fading up behind it — two
+   * answers to the same question, arriving at different speeds. Focus keeps the
+   * colour: a keyboard has no proximity to track, so it needs the binary state.
+   */
   .card-link:focus-visible {
     @apply border-underline dark:border-link;
   }

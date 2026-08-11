@@ -32,12 +32,13 @@
   /**
    * How far outside a card the pointer still lights it, in CSS pixels.
    *
-   * Roughly a card's width. Much less and the ring only appears once the
-   * pointer is nearly touching, which is the hover behaviour this replaced;
+   * Comfortably wider than a card, so a card starts answering while the pointer
+   * is still crossing its neighbour. Much less and the ring only appears once
+   * the pointer is nearly touching, which is the hover behaviour this replaced;
    * much more and every card on the page sits permanently half-lit, which says
    * as little as none of them being lit.
    */
-  const PROXIMITY = 260;
+  const PROXIMITY = 360;
 
   /** Every card currently opted in. Re-queried rather than held: see `paint`. */
   const glowCards = () =>

@@ -270,8 +270,14 @@
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    /* The ring's thickness. */
-    padding: 1px;
+    /*
+     * The ring's thickness. 1px read as a hairline that happened to be lit.
+     *
+     * This, `--glow-size` and `--glow-color` are the three knobs worth turning
+     * if it wants to be louder or quieter — all of them here, none of them in
+     * the script.
+     */
+    padding: 2px;
     /*
      * Three stops, not two. A single fade from colour to transparent across a
      * 240px radius lit a 360px card almost evenly — the far edge kept enough
@@ -281,11 +287,12 @@
      * so the near edge is bright and the far edge is genuinely dark.
      */
     background: radial-gradient(
-      var(--glow-size, 200px) circle at var(--glow-x, 50%) var(--glow-y, 50%),
+      var(--glow-size, 260px) circle at var(--glow-x, 50%) var(--glow-y, 50%),
       var(--glow-color, var(--color-link)) 0%,
-      color-mix(in oklab, var(--glow-color, var(--color-link)) 30%, transparent)
-        30%,
-      transparent 55%
+      var(--glow-color, var(--color-link)) 18%,
+      color-mix(in oklab, var(--glow-color, var(--color-link)) 55%, transparent)
+        40%,
+      transparent 65%
     );
     -webkit-mask:
       linear-gradient(#000 0 0) content-box,
@@ -305,7 +312,7 @@
      * responsive edge into a lagging one; this only smooths the last step out
      * to zero when the pointer leaves the neighbourhood entirely.
      */
-    transition: opacity 120ms linear;
+    transition: opacity 180ms ease-out;
     /* Never intercept the click on the card it decorates. */
     pointer-events: none;
   }
