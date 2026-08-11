@@ -315,10 +315,18 @@
     background: radial-gradient(
       var(--glow-size, 260px) circle at var(--glow-x, 50%) var(--glow-y, 50%),
       var(--glow-color, var(--color-link)) 0%,
-      var(--glow-color, var(--color-link)) 18%,
-      color-mix(in oklab, var(--glow-color, var(--color-link)) 55%, transparent)
-        40%,
-      transparent 65%
+      /*
+       * Full colour this far out because the stops are relative to
+       * `--glow-size`, and inside a card that radius is the card's diagonal —
+       * its border sits at roughly a quarter of it. Holding the core to 30%
+       * puts the whole border in full colour when the pointer is inside, while
+       * the same stop at the smaller resting radius is barely 70px and stays a
+       * tight spot on approach.
+       */
+      var(--glow-color, var(--color-link)) 30%,
+      color-mix(in oklab, var(--glow-color, var(--color-link)) 60%, transparent)
+        48%,
+      transparent 72%
     );
     -webkit-mask:
       linear-gradient(#000 0 0) content-box,
