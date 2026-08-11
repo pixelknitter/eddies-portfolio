@@ -354,14 +354,54 @@ const resumeBase = {
   order: z.number().default(50),
 };
 
+/**
+ * Which CV variant a singleton section belongs to.
+ *
+ * Absent means the default (`product`), so every file written before variants
+ * existed stays valid and stays the fallback. The loader resolves
+ * variant-first: a section with no variant-specific file falls back to the
+ * default rather than disappearing, which is what lets a variant override only
+ * what it genuinely reframes.
+ *
+ * A plain string rather than an enum of slugs: the authoritative list is
+ * util/resume/variants.mjs, and importing it here to build a Zod enum would put
+ * a build-order dependency between the config and the app for a check the
+ * loader already makes with a better error message.
+ */
+const variantField = {
+  variant: z.string().optional(),
+};
+
 const ResumeSchema = z.discriminatedUnion('section', [
   z.object({
     ...resumeBase,
+    ...variantField,
     section: z.literal('profile'),
     headline: z.string(),
     location: z.string(),
     /** Condensed, for the visual page. The body carries the long form. */
     summary: z.string(),
+    /**
+     * One line of chooser copy for this variant's card on /cv.
+     *
+     * Lives in content rather than in the landing page so a new variant appears
+     * on the chooser the moment its prose is sealed, with no code change. Read
+     * only by the landing.
+     */
+    pitch: z.string().optional(),
+    /**
+     * The order the resume lays its sections out in, when this variant wants a
+     * different one.
+     *
+     * Ordering is part of a framing: a solutions reader should meet the talks
+     * before the stack, because the talks are the evidence for the claim that
+     * framing makes. Absent means the established order.
+     */
+    sectionOrder: z
+      .array(
+        z.enum(['strengths', 'experience', 'skills', 'speaking', 'education']),
+      )
+      .optional(),
     stats: z
       .array(z.object({ value: z.string(), label: z.string() }))
       .default([]),
@@ -418,9 +458,34 @@ const ResumeSchema = z.discriminatedUnion('section', [
      * A.I.R. context. The loader checks every index is in range.
      */
     featured: z.array(z.number().int().nonnegative()).default([]),
+    /**
+     * Per-variant emphasis, keyed by variant slug.
+     *
+     * Facts stay single-source: a variant may re-spotlight bullets and swap the
+     * condensed opener, and it may do nothing else. A correction to a bullet
+     * lands once and reaches every variant, which is the whole reason
+     * experience is not duplicated per variant the way singleton sections are.
+     * If a variant seems to need a different fact, the fact belongs in the base
+     * entry.
+     *
+     * `featured` here replaces the base list rather than extending it, because
+     * a reframe is a different selection and not an addition. The loader range
+     * checks it against the same bullets.
+     */
+    variants: z
+      .record(
+        z.string(),
+        z.object({
+          featured: z.array(z.number().int().nonnegative()).optional(),
+          summary: z.string().optional(),
+          lede: z.string().optional(),
+        }),
+      )
+      .optional(),
   }),
   z.object({
     ...resumeBase,
+    ...variantField,
     section: z.literal('strengths'),
     items: z.array(
       z.object({
@@ -432,6 +497,7 @@ const ResumeSchema = z.discriminatedUnion('section', [
   }),
   z.object({
     ...resumeBase,
+    ...variantField,
     section: z.literal('skills'),
     groups: z.array(
       z.object({
