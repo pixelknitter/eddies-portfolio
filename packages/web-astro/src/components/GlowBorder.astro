@@ -1,0 +1,89 @@
+---
+/**
+ * Lights the border of any `[data-glow]` element under the pointer.
+ *
+ * Renders nothing. Include it once on a page and mark the cards with
+ * `data-glow`; the styling lives in `.glow-card` in global.css, and this only
+ * supplies the two things CSS cannot know — that JavaScript is available, and
+ * where the cursor is.
+ *
+ * ## Why a component rather than a line in Layout
+ *
+ * Every page would carry it, to serve the two that want it. Opt-in keeps the
+ * cost on the pages that spend it, and makes the effect greppable: the pages
+ * using it are the pages importing it.
+ */
+---
+
+<script>
+  /**
+   * Attach the pointer-tracked border glow.
+   *
+   * Bound on `astro:page-load` rather than at module scope: that event fires on
+   * the first load *and* after every view transition, and the site persists its
+   * nav across swaps. A plain top-level listener would go stale on navigation —
+   * the same reason the resume's expand control binds this way.
+   */
+  function initGlowBorders() {
+    // `Array.from`, not the NodeList directly: iterating one needs
+    // downlevelIteration under this tsconfig — the same reason the resume's
+    // expand control wraps its query.
+    const cards = Array.from(
+      document.querySelectorAll<HTMLElement>('[data-glow]'),
+    );
+    if (cards.length === 0) return;
+
+    /*
+     * A ring that chases the cursor is movement, and someone who asked the
+     * system to stop moving things has asked for this too. They still get the
+     * ring — it fades in on hover, centred — because that is presence rather
+     * than motion, and losing it would cost them the affordance as well.
+     */
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    for (const card of cards) {
+      // The class is what makes the ring exist at all, so a page with no
+      // JavaScript renders the card exactly as it did before this feature.
+      card.classList.add('glow-card');
+
+      // A view transition can hand back a node that is already wired.
+      if (card.dataset.glowReady === 'true') continue;
+      card.dataset.glowReady = 'true';
+
+      if (still) continue;
+
+      /*
+       * Coalesced into one frame. `pointermove` fires far faster than the
+       * screen redraws, and every handler here reads `getBoundingClientRect`,
+       * which forces layout — left unthrottled that is a layout per event on a
+       * path the visitor is actively moving through.
+       */
+      let frame = 0;
+      card.addEventListener('pointermove', (event: PointerEvent) => {
+        if (frame !== 0) return;
+        frame = requestAnimationFrame(() => {
+          frame = 0;
+          const rect = card.getBoundingClientRect();
+          card.style.setProperty('--glow-x', `${event.clientX - rect.left}px`);
+          card.style.setProperty('--glow-y', `${event.clientY - rect.top}px`);
+        });
+      });
+
+      /*
+       * Reset on the way out. Without this the gradient stays where the pointer
+       * left, so the next hover lights the old corner for a frame before the
+       * first move corrects it — a small wrongness that reads as lag.
+       */
+      card.addEventListener('pointerleave', () => {
+        if (frame !== 0) {
+          cancelAnimationFrame(frame);
+          frame = 0;
+        }
+        card.style.removeProperty('--glow-x');
+        card.style.removeProperty('--glow-y');
+      });
+    }
+  }
+
+  document.addEventListener('astro:page-load', initGlowBorders);
+</script>

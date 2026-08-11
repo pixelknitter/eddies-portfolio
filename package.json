@@ -3,6 +3,7 @@
   "version": "0.3.0",
   "license": "MIT",
   "scripts": {
+    "dev": "node scripts/dev-server.mjs",
     "astro:dev": "nx dev web-astro",
     "astro:build": "nx build web-astro",
     "astro:preview": "nx preview web-astro",

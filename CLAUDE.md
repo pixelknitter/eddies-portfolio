@@ -247,6 +247,10 @@ yarn install
 
 ```bash
 # Start development server (http://localhost:4321)
+yarn dev                    # preferred — see the note below
+yarn dev --port 4322 --all  # every gated section on, plus fixtures
+
+# The raw commands, which do not guard against the singleton trap:
 yarn astro:dev
 # or
 nx dev web-astro
@@ -286,6 +290,15 @@ Nx caches build outputs, lint results, and test runs for faster rebuilds:
 - Cache: local only (`.nx/cache`); Nx Cloud has been removed
 - Clear cache: `nx reset`
 - CI disables the daemon (`NX_DAEMON=false`) for deterministic runs
+
+> **Use `yarn dev`, not `astro dev` directly.** `astro dev` daemonises and is a
+> **singleton**: a second start does not fail, does not honour `--port`, and
+> exits 0 after printing "Dev server already running at …". Whatever you open is
+> then served by the *first* daemon, built from the environment **that** one was
+> started with — which is how a run with `PUBLIC_SHOW_RESUME=true` 404s every
+> resume route while the flags look correct. `scripts/dev-server.mjs` stops any
+> existing daemon, sweeps a stale one the registry has forgotten, and confirms
+> the port answers before returning.
 
 ### File Watching
 

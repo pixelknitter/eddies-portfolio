@@ -18,8 +18,11 @@ interface Props {
 const { href, headline, pitch } = Astro.props;
 ---
 
+<!-- `data-glow` is the whole opt-in: GlowBorder, included once by the page,
+     lights this border from the pointer. The card knows nothing else about it. -->
 <a
   href={href}
+  data-glow
   class="group flex flex-col gap-3 rounded-2xl border border-hairline bg-surface p-6 no-underline transition-colors hover:border-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-underline dark:border-hairline-dark dark:bg-surface-dark dark:hover:border-link dark:focus-visible:outline-link"
 >
   <h3 class="font-header text-xl leading-tight">{headline}</h3>

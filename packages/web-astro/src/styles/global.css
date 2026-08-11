@@ -234,3 +234,73 @@
   }
 }
 
+@layer components {
+  /*
+   * A border that lights up where the pointer is.
+   *
+   * The card's own border stays as it was; this paints a second ring on top of
+   * it from a radial gradient whose centre is two custom properties. The script
+   * in `GlowBorder.astro` writes those on pointermove — CSS cannot read the
+   * cursor, and this is the whole reason the effect needs any JavaScript at all.
+   *
+   * ## How the ring is cut
+   *
+   * The gradient fills the whole card, then two masks subtract the middle:
+   * one clipped to the content box, one to the border box, composited to
+   * exclude the overlap. What survives is the `padding` width at the edge —
+   * so the thickness is set by one number and the radius is inherited, and
+   * neither has to be repeated from the element it decorates.
+   *
+   * `-webkit-` prefixes included deliberately: `mask-composite` takes different
+   * keywords in the two syntaxes (`xor` against `exclude`), so this is not a
+   * duplicated declaration that could be dropped once support lands.
+   *
+   * ## Why the class is added by script
+   *
+   * Nothing renders it without JavaScript, which is the honest default: the
+   * ring only ever means "your pointer is here", and a static one on a page
+   * that cannot track the pointer is decoration pretending to be feedback.
+   */
+  .glow-card {
+    position: relative;
+  }
+
+  .glow-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    /* The ring's thickness. */
+    padding: 1px;
+    background: radial-gradient(
+      var(--glow-size, 240px) circle at var(--glow-x, 50%) var(--glow-y, 50%),
+      var(--glow-color, var(--color-link)),
+      transparent 60%
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    /* Presence only — the ring fades in, it does not move on its own. */
+    transition: opacity 220ms ease;
+    /* Never intercept the click on the card it decorates. */
+    pointer-events: none;
+  }
+
+  /*
+   * `hover: hover` so a touch device does not light a card and leave it lit
+   * with no pointer to explain it. Keyboard focus gets the ring too: it is the
+   * same "you are here", and the card is a link.
+   */
+  @media (hover: hover) {
+    .glow-card:hover::after {
+      opacity: 1;
+    }
+  }
+
+  .glow-card:focus-visible::after {
+    opacity: 1;
+  }
+}

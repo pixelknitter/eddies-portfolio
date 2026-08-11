@@ -1,6 +1,7 @@
 ---
 import Layout from '@layouts/Layout.astro';
 import RoleCard from '@components/cv/RoleCard.astro';
+import GlowBorder from '@components/GlowBorder.astro';
 import { SeedQuestions } from '../../react/SeedQuestions';
 import { variantCards } from '@util/resume/load';
 import { LANES, seedsForLane } from '@util/air/suggested.mjs';
@@ -121,6 +122,9 @@ const description =
           }
         </div>
       </section>
+
+      {/* Renders nothing; wires the cards' pointer-tracked border. */}
+      <GlowBorder />
     </div>
 
     {
