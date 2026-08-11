@@ -153,6 +153,24 @@ export const RELEVANCE_FLOOR = 3;
 export const MAX_ENTRIES = 4;
 
 /**
+ * How much a matching variant is worth, as a multiplier.
+ *
+ * Role context breaks ties in framing. It does not decide what is relevant: a
+ * visitor in the solutions lane asking about agents in production should still
+ * get the agents answer, because that is the true answer to what they asked.
+ *
+ * Multiplicative rather than additive, because BM25 scores have no fixed scale.
+ * A flat bonus is noise against a score of thirty and decisive against a score
+ * of one, so the same constant would mean something different for every
+ * question. Five percent reorders entries that are already within five percent
+ * of each other and cannot overturn a genuinely better match.
+ *
+ * Applied only to entries that already cleared the floor. The role never
+ * admits anything — see `selectContext`.
+ */
+export const ROLE_BOOST = 1.05;
+
+/**
  * Split text into comparable terms.
  *
  * @param {string} text
@@ -635,13 +653,15 @@ export function distinctiveTerms(question, entries) {
  *
  * @param {string} question
  * @param {Array<{id: string, data: Record<string, unknown>}>} entries
- * @param {{limit?: number}} [options]
+ * @param {{limit?: number, role?: string}} [options] `role` is a variant slug
+ *   the asker arrived under. It reorders entries that already cleared the
+ *   floor and admits nothing on its own — see `ROLE_BOOST`.
  * @returns {Array<{id: string, score: number, data: Record<string, unknown>}>}
  *   Ordered most-relevant first. Empty when nothing is admitted — the caller
  *   must treat that as "decline", not as "answer with no context".
  */
 export function selectContext(question, entries, options = {}) {
-  const { limit = MAX_ENTRIES } = options;
+  const { limit = MAX_ENTRIES, role } = options;
   if (!entries || entries.length === 0) return [];
 
   const distinctive = new Set(distinctiveTerms(question, entries));
@@ -679,11 +699,21 @@ export function selectContext(question, entries, options = {}) {
         ).length;
         return covered >= MIN_COVERED_TERMS;
       })
-      .map((result) => ({
-        id: String(result.id),
-        score: result.score,
-        data: byId.get(String(result.id))?.data ?? {},
-      }))
+      .map((result) => {
+        const data = byId.get(String(result.id))?.data ?? {};
+        /*
+         * The role adjusts the score; it does not gate the set. Applied after
+         * admission so it reorders entries that already cleared the floor — an
+         * entry that would not have been selected without the boost is an entry
+         * the question did not ask for.
+         */
+        const preferred = Boolean(role) && data.variant === role;
+        return {
+          id: String(result.id),
+          score: preferred ? result.score * ROLE_BOOST : result.score,
+          data,
+        };
+      })
       // Tie-break on id so identical scores produce a stable order. Without
       // this the same question can retrieve a different set between requests,
       // which makes drift evals report noise as regression.
@@ -697,5 +727,10 @@ export function selectContext(question, entries, options = {}) {
   // that *did* match is allowed to see. An overview question names nothing
   // specific and so has no distinctive terms to cover; this is the path that
   // keeps "Why should I work with Eddie Freeman?" answerable.
+  //
+  // Deliberately not role-aware. This path returns a curated selection rather
+  // than a ranking, so there is no ordering for a boost to adjust, and biasing
+  // *which* entries an overview draws on is a larger decision than breaking a
+  // tie between two that already matched.
   return isOverviewQuestion(question) ? overviewSelection(entries, limit) : [];
 }

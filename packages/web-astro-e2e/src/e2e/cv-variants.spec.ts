@@ -127,3 +127,44 @@ test.describe('the variant routes', () => {
     }
   });
 });
+
+test.describe('the chooser seed questions', () => {
+  const SEEDS = 'section[aria-labelledby="cv-seeds"] button';
+
+  test('offers a question to start from', async ({ page }) => {
+    await page.goto('/cv/');
+    await expect(
+      page.getByRole('heading', { name: /start with a question/i }),
+    ).toBeVisible();
+    await expect(page.locator(SEEDS).first()).toBeVisible();
+  });
+
+  // A seed that opens nothing is a dead button, which is worse than no button.
+  test('opens A.I.R. on the question that was picked', async ({ page }) => {
+    await page.goto('/cv/');
+
+    const seed = page.locator(SEEDS).first();
+    // The question, without the decorative glyph beside it.
+    const asked = (
+      await seed.locator('span:not([aria-hidden])').innerText()
+    ).trim();
+
+    /*
+     * Retried, because the island is `client:visible`. On a narrow viewport
+     * these sit below the fold, so scrolling them into view is what starts
+     * hydration — and a click that lands in the gap before React attaches is
+     * swallowed silently. Retrying the click rather than only the assertion is
+     * the difference between waiting for hydration and waiting forever.
+     */
+    const dialog = page.getByRole('dialog');
+    await expect(async () => {
+      await seed.click();
+      await expect(dialog).toBeVisible({ timeout: 1000 });
+    }).toPass({ timeout: 15000 });
+
+    // Prefilled, not sent: the visitor picked a starting point, not a wording.
+    await expect(dialog.locator('input[type="text"]').first()).toHaveValue(
+      asked,
+    );
+  });
+});

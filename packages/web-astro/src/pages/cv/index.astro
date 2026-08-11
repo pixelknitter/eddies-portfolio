@@ -1,7 +1,9 @@
 ---
 import Layout from '@layouts/Layout.astro';
 import RoleCard from '@components/cv/RoleCard.astro';
+import { SeedQuestions } from '../../react/SeedQuestions';
 import { variantCards } from '@util/resume/load';
+import { LANES, seedsForLane } from '@util/air/suggested.mjs';
 import { resolveSections } from '@util/flags/sections.mjs';
 import '../../styles/resume-organic.css';
 
@@ -41,6 +43,18 @@ const cards = await variantCards();
 if (cards.length === 0) {
   return new Response(null, { status: 404, statusText: 'Not found' });
 }
+
+/*
+ * Every lane, not only the lanes with a CV behind them.
+ *
+ * A seed has to be answerable from the corpus, not from a particular document —
+ * so the leadership questions belong here even though the leadership CV is
+ * unwritten. Filtering these by `availableVariants` would withhold answers the
+ * record can already give.
+ */
+const seeds = Object.fromEntries(
+  LANES.map((lane) => [lane, seedsForLane(lane)]),
+);
 
 const pageTitle = 'Eddie Freeman — CV';
 const description =
@@ -109,7 +123,31 @@ const description =
       </section>
     </div>
 
-    {/* Seed questions mount here once A.I.R. carries a lane. */}
+    {
+      /*
+      Hidden entirely when A.I.R. is off. The two features ship independently,
+      and a band of questions that open nothing is worse than no band.
+
+      Deliberately outside the `organic` scope above: that class carries the
+      resume document's own typography at a specificity utilities cannot beat,
+      and the dialog these open renders inside whatever wrapper its trigger sits
+      in. `[variant].astro` records the same lesson about the A.I.R. trigger.
+    */
+    }
+    {
+      sections.air && (
+        <section aria-labelledby="cv-seeds" class="mb-12">
+          <h2 id="cv-seeds" class="mb-3 font-header text-xl">
+            Or start with a question
+          </h2>
+          <p class="mb-4 font-body leading-relaxed">
+            Tell it the problem you are trying to solve. It answers from a fixed
+            record of the work, and says so when the record does not cover it.
+          </p>
+          <SeedQuestions client:visible seeds={seeds} />
+        </section>
+      )
+    }
 
     {
       /*

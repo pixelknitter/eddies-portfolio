@@ -179,7 +179,12 @@ const airPath = sections.air ? '/cv/air/' : undefined;
   {
     airPath && (
       <div class="resume-no-print mx-auto mt-2 -mb-5 max-w-2xl">
-        <AskAir client:visible href={airPath} />
+        {/*
+          The framing the visitor is reading, carried into anything they ask.
+          It boosts retrieval and picks which suggested questions to offer; it
+          never filters what may be answered. See selectContext.
+        */}
+        <AskAir client:visible href={airPath} role={resume.variant} />
       </div>
     )
   }
