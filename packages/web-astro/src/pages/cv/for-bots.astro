@@ -2,6 +2,7 @@
 import Layout from '@layouts/Layout.astro';
 import ResumeFull from '@components/resume/ResumeFull.astro';
 import { loadResume } from '@util/resume/load';
+import { DEFAULT_VARIANT } from '@util/resume/variants.mjs';
 import { buildResumeJsonLd } from '@util/resume/jsonld';
 import { plainText } from '@util/resume/markup';
 import { resolveSections } from '@util/flags/sections.mjs';
@@ -35,7 +36,13 @@ if (!sections.resume) {
  * 404 rather than publish a header with empty sections — and, for the machine
  * page, a JSON-LD graph asserting a person with no work history.
  */
-const resume = await loadResume();
+/*
+ * Deliberately the default variant, not a per-variant machine record. A
+ * generative engine reading three framings of one career would have to decide
+ * which is true, and the honest answer is that they all are. One canonical
+ * record, one JSON-LD graph, no ambiguity.
+ */
+const resume = await loadResume(DEFAULT_VARIANT);
 if (!resume) {
   return new Response(null, { status: 404, statusText: 'Not found' });
 }
