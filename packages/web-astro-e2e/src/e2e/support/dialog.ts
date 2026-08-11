@@ -40,5 +40,19 @@ export async function openDialog(page: Page, opener: Locator): Promise<Locator> 
  * same entry.
  */
 export async function settleDialog(panel: Locator): Promise<void> {
-  await panel.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+  /*
+   * `finished` *rejects* when an animation is cancelled rather than running to
+   * the end, and cancellation is now a normal thing to see: the panel has an
+   * exit as well as an entry, so reopening a dialog can replace a `sink-out`
+   * that is still playing. An unhandled rejection there surfaced as
+   * `AbortError: The user aborted a request` from inside `evaluate`, which
+   * names neither the animation nor the dialog and reads like a network fault.
+   *
+   * Swallowed rather than awaited-and-checked, because this helper answers one
+   * question — has it stopped moving? — and a cancelled animation has stopped
+   * moving just as surely as a completed one.
+   */
+  await panel.evaluate((el) =>
+    Promise.all(el.getAnimations().map((a) => a.finished.catch(() => undefined))),
+  );
 }

@@ -1,6 +1,7 @@
 import React from 'react';
 
 import Modal from './Modal';
+import { useReducedMotion } from './useReducedMotion';
 import { AIResume } from './AIResume';
 
 /**
@@ -85,19 +86,9 @@ export function SeedQuestions({ seeds }: Props) {
   const [hovering, setHovering] = React.useState(false);
   const [asking, setAsking] = React.useState<Seed | null>(null);
 
-  /**
-   * Read the motion preference in an effect, not during render.
-   *
-   * This island is server-rendered, where there is no `matchMedia`, and
-   * branching on it during render would make the first client render disagree
-   * with the server's HTML. Starting at `false` also means the still version is
-   * what renders first, so rotation is something that begins rather than
-   * something that has to be stopped.
-   */
-  const [rotates, setRotates] = React.useState(false);
-  React.useEffect(() => {
-    setRotates(!window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-  }, []);
+  // Shared with Modal, so both halves of the site agree about what the
+  // preference means and pick it up if it changes mid-visit.
+  const rotates = !useReducedMotion();
 
   /*
    * Held while someone is looking at a card or reading an answer. The dialog
@@ -131,6 +122,18 @@ export function SeedQuestions({ seeds }: Props) {
   // cleanup restores focus to the trigger. A fresh identity each render would
   // re-run it while open, bouncing focus out of the dialog mid-sentence.
   const close = React.useCallback(() => setAsking(null), []);
+
+  /*
+   * The last question asked, held through the dialog's exit.
+   *
+   * `asking` goes null the instant close is pressed, but the panel stays on
+   * screen for the length of the sink-out. Rendering on `asking` alone emptied
+   * the panel first and then animated the empty shell away, which reads as two
+   * separate failures rather than one dismissal.
+   */
+  const lastAsked = React.useRef<Seed | null>(null);
+  if (asking) lastAsked.current = asking;
+  const shown = asking ?? lastAsked.current;
 
   if (lanes.length === 0) return null;
 
@@ -188,12 +191,12 @@ export function SeedQuestions({ seeds }: Props) {
         surface={false}
         widthClass="sm:max-w-3xl"
       >
-        {asking && (
+        {shown && (
           <AIResume
             variant="dialog"
             titleId="seed-dialog-title"
-            seed={asking.question}
-            role={asking.lane}
+            seed={shown.question}
+            role={shown.lane}
           />
         )}
       </Modal>

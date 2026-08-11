@@ -272,12 +272,21 @@ export function ResumeDownload({ variant = DEFAULT_VARIANT }: Props = {}) {
 
       {/* Announced, because the outcome is the whole point of the interaction. */}
       <div aria-live="polite" aria-busy={state.status === 'sending'}>
+        {/*
+          A refusal is nudged rather than popped: it is not an arrival to
+          celebrate, and the shake is transform-only so the form beneath it does
+          not move. `a rejected request reports why without shifting the layout`
+          is an e2e test, and a layout-affecting shake would fail it correctly.
+        */}
         {state.status === 'failed' && (
-          <p className="surface mt-4 p-4 text-sm">{state.message}</p>
+          <p className="motion-nudge surface mt-4 p-4 text-sm">
+            {state.message}
+          </p>
         )}
 
+        {/* The one moment in this flow worth a small overshoot. */}
         {state.status === 'sent' && (
-          <div className="surface mt-4 p-4">
+          <div className="motion-pop-in surface mt-4 p-4">
             <p className="text-sm">{state.message}</p>
             {/* The fallback that matters: if the programmatic click was blocked,
                 these are still here to press. */}
