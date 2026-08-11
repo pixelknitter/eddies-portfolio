@@ -42,7 +42,7 @@ test.describe('the resume pages', () => {
   test('renders collapsed, with every section present but closed', async ({
     page,
   }) => {
-    await page.goto('/cv/');
+    await page.goto('/cv/product/');
 
     await expect(
       page.getByRole('heading', { level: 1, name: 'Eddie Freeman' }),
@@ -57,7 +57,7 @@ test.describe('the resume pages', () => {
   test('expands and collapses every section, from either control', async ({
     page,
   }) => {
-    await page.goto('/cv/');
+    await page.goto('/cv/product/');
 
     // Two controls now — one above the sections, one at their foot. The foot
     // one is hidden while everything is collapsed, so that two buttons reading
@@ -92,7 +92,7 @@ test.describe('the resume pages', () => {
   // The premise of the whole feature: the page publishes no way to contact him
   // except the request form.
   test('publishes no contact details', async ({ page }) => {
-    await page.goto('/cv/');
+    await page.goto('/cv/product/');
     const html = await page.content();
 
     expect(html).not.toMatch(/mailto:/);
