@@ -35,7 +35,7 @@ type Answer = {
  * an interactive resume, and a blank box gets a blank response.
  */
 // Shared with the decline message in api/air/ask.ts.
-import { SUGGESTED } from '../util/air/suggested.mjs';
+import { suggestionsFor } from '../util/air/suggested.mjs';
 import { readStoredCode, storeCode } from '../util/air/access-code.mjs';
 
 interface Props {
@@ -468,7 +468,7 @@ export function AIResume({ variant = 'page', titleId }: Props = {}) {
             <>
               <p className="mb-2 font-body text-sm font-semibold">Not sure where to start?</p>
               <ul className="flex list-none flex-col gap-2 pl-0">
-                {SUGGESTED.map((item) => (
+                {suggestionsFor().map((item) => (
                   <li key={item.question}>
                     {/*
                       Live without a code, not disabled.
