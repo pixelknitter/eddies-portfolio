@@ -1,0 +1,44 @@
+---
+import ResumeSection from './ResumeSection.astro';
+import { emphasize } from '@util/resume/markup';
+
+import type { Resume } from '@util/resume/load';
+
+/**
+ * The Speaking & community section of the visual resume.
+ *
+ * Extracted alongside `ResumeSkills` so the two can swap places. See that file
+ * for why they are components rather than an inline conditional pair.
+ */
+interface Props {
+  resume: Resume;
+  print?: boolean;
+}
+
+const { resume: RESUME, print = false } = Astro.props;
+---
+
+<ResumeSection open={print} title="Speaking & community" id="speaking">
+  <p class="resume-prose" set:html={emphasize(RESUME.speaking.evaluation)} />
+
+  <div class="resume-talks">
+    {
+      RESUME.speaking.talks.map((talk) => (
+        <div class="card resume-talk">
+          <span class="resume-talk-org">{talk.org}</span>
+          <a class="resume-talk-title" href={talk.url}>
+            {talk.title}
+          </a>
+          <span class="resume-talk-detail">{talk.detail}</span>
+        </div>
+      ))
+    }
+  </div>
+
+  <p class="resume-prose">
+    {RESUME.speaking.footer} I write at{' '}
+    <a href={RESUME.speaking.writing.url}>{RESUME.speaking.writing.label}</a>, {
+      RESUME.speaking.writing.detail
+    }.
+  </p>
+</ResumeSection>

@@ -161,6 +161,8 @@ test.describe('the download gate', () => {
       '/resume.pdf',
       '/Eddie-Freeman-Resume.pdf',
       '/Eddie-Freeman-Resume-ATS.pdf',
+      '/Eddie-Freeman-Resume-Solutions.pdf',
+      '/Eddie-Freeman-Resume-Solutions-ATS.pdf',
       '/resume/human.pdf',
       '/cv/resume.pdf',
       '/_astro/resume.pdf',
@@ -199,7 +201,15 @@ test.describe('the download gate', () => {
   test('keeps the print render routes unreachable in a normal build', async ({
     request,
   }) => {
-    for (const path of ['/cv/print/human', '/cv/print/bot']) {
+    for (const path of [
+      '/cv/print/product/human',
+      '/cv/print/product/bot',
+      '/cv/print/solutions/human',
+      '/cv/print/solutions/bot',
+      // The pre-variant paths, which must not have been left answering.
+      '/cv/print/human',
+      '/cv/print/bot',
+    ]) {
       expect((await request.get(path)).status(), path).toBe(404);
     }
   });

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { EVENTS } from '@pk/telemetry/events';
 import { ensureClient, getClient } from '../util/telemetry/client.mjs';
+import { DEFAULT_VARIANT } from '../util/resume/variants.mjs';
 
 /**
  * The lead-capture gate on the resume page.
@@ -59,7 +60,18 @@ function triggerDownload(url: string, filename: string) {
   anchor.remove();
 }
 
-export function ResumeDownload() {
+interface Props {
+  /**
+   * Which CV this bar belongs to.
+   *
+   * Sent with the request so the issued token names the variant, and the
+   * download endpoint can refuse a token minted for a different document. The
+   * visitor never sees it: they asked for the CV they are reading.
+   */
+  variant?: string;
+}
+
+export function ResumeDownload({ variant = DEFAULT_VARIANT }: Props = {}) {
   const [wanted, setWanted] = useState<Wanted | null>(null);
   const [state, setState] = useState<State>({ status: 'idle' });
   const emailRef = useRef<HTMLInputElement>(null);
@@ -98,7 +110,7 @@ export function ResumeDownload() {
       const response = await fetch('/api/resume/request', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email, reason, format: wanted }),
+        body: JSON.stringify({ email, reason, format: wanted, variant }),
       });
       const body = (await response.json()) as {
         ok?: boolean;

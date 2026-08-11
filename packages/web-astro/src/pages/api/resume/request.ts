@@ -11,6 +11,12 @@ import {
 import { tierFromRequest } from '@util/air/tier.mjs';
 import { resumeRequestNotification } from '@util/resume/notify.mjs';
 import { RESUME_PDFS } from '@util/resume/pdfs.generated.mjs';
+import {
+  DEFAULT_VARIANT,
+  PDF_KINDS as KINDS,
+  isVariantSlug,
+  pdfKey,
+} from '@util/resume/variants.mjs';
 
 /**
  * Resume download request — the lead-capture gate.
@@ -96,11 +102,26 @@ export async function POST(context: APIContext): Promise<Response> {
     email,
     reason,
     format = 'both',
+    variant: askedVariant,
   } = (payload ?? {}) as {
     email?: unknown;
     reason?: unknown;
     format?: unknown;
+    variant?: unknown;
   };
+
+  /*
+   * Which framing of the CV this request is for.
+   *
+   * Defaulted rather than required, so a client that predates variants still
+   * gets the document it always got. Validated against the registry because it
+   * ends up inside a signed claim: signing a slug that names nothing would
+   * leave the download endpoint holding a valid token it cannot honour.
+   */
+  const variant =
+    typeof askedVariant === 'string' && isVariantSlug(askedVariant)
+      ? askedVariant
+      : DEFAULT_VARIANT;
 
   // Reused verbatim from A.I.R.: same bounds, same deliberately loose email check,
   // and already tested. The note requirement is the point of the gate — an address
@@ -113,7 +134,9 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   // A fresh clone ships the stub, so say so plainly rather than serving 0 bytes.
-  if (RESUME_PDFS.human.bytes === 0 && RESUME_PDFS.bot.bytes === 0) {
+  if (
+    KINDS.every((kind) => (RESUME_PDFS[pdfKey(variant, kind)]?.bytes ?? 0) === 0)
+  ) {
     console.error(
       '[resume] pdfs.generated.mjs is a stub — run `yarn resume:pdf`',
     );
@@ -132,22 +155,24 @@ export async function POST(context: APIContext): Promise<Response> {
     format === 'both' ? ['human', 'bot'] : [format];
 
   const downloads = await Promise.all(
-    wanted.map(async (variant) => {
-      // The token carries both the address (which becomes the watermark) and the
-      // variant it is good for, so a token issued for one cannot fetch the other.
+    wanted.map(async (kind) => {
+      // The token carries the address (which becomes the watermark), the kind it
+      // is good for, and now the variant — so a token issued for one document
+      // cannot fetch another, in either dimension.
       const token = await mintPurposeToken(signingSecret, 'download', {
         email: validated.email,
-        format: variant,
+        format: kind,
+        variant,
       });
       return {
-        format: variant,
-        label: LABELS[variant],
-        filename: RESUME_PDFS[variant].filename,
+        format: kind,
+        label: LABELS[kind],
+        filename: RESUME_PDFS[pdfKey(variant, kind)].filename,
         // Relative, deliberately. The caller is always same-origin, and building
         // this absolute from `context.url` takes the host from a header that can be
         // rewritten — under `wrangler dev` it becomes eddie.engineering, so a local
         // download link points at production. A path cannot be wrong that way.
-        url: `/api/resume/download?format=${variant}&token=${encodeURIComponent(token)}`,
+        url: `/api/resume/download?format=${kind}&variant=${variant}&token=${encodeURIComponent(token)}`,
       };
     }),
   );

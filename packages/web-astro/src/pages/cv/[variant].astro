@@ -147,7 +147,7 @@ const airPath = sections.air ? '/cv/air/' : undefined;
         footer's "Request a copy" and the for-bots page both land here. It
         names a variant because /cv is now a chooser and carries no form. */}
     <div id="download" class="organic resume-action-bar resume-no-print">
-      <ResumeDownload client:visible />
+      <ResumeDownload client:visible variant={resume.variant} />
     </div>
   </div>
 

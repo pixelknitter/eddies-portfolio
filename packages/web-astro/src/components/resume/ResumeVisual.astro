@@ -22,6 +22,8 @@
  * ever hidden outright: the complete set is also on `/cv/for-bots`.
  */
 import ResumeSection from './ResumeSection.astro';
+import ResumeSkills from './ResumeSkills.astro';
+import ResumeSpeaking from './ResumeSpeaking.astro';
 import { rolesByRecency, type ResumeRole } from '@util/resume/resume.data';
 import type { Resume } from '@util/resume/load';
 import { emphasize } from '@util/resume/markup';
@@ -58,6 +60,18 @@ const selected = print
 const earlier = print
   ? []
   : RESUME.experience.filter((role) => role.tier === 'earlier');
+
+/**
+ * Does this variant want Speaking above Skills?
+ *
+ * Derived from the declared order rather than from a dedicated flag, so the
+ * content says what it wants and this file decides what it can honour.
+ */
+const order = RESUME.sectionOrder;
+const speakingFirst = Boolean(
+  order && order.indexOf('speaking') > -1 &&
+    order.indexOf('speaking') < order.indexOf('skills'),
+);
 
 /** Which bullets a role contributes. Print takes them all. */
 const bulletsFor = (role: ResumeRole) =>
@@ -300,51 +314,35 @@ const bulletsFor = (role: ResumeRole) =>
       )
     }
 
-    <ResumeSection open={print} title="Skills" id="skills">
-      <div class="resume-skills">
-        {
-          RESUME.skills.map((group) => (
-            <div class="resume-skill-group">
-              <span class="resume-skill-label">{group.group}</span>
-              <div class="resume-tags">
-                {group.items.map((item) => (
-                  <span class={`tag tag-${group.tone} resume-chip`}>
-                    {item}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))
-        }
-      </div>
-    </ResumeSection>
+    {
+      /*
+      Skills and Speaking, in the order this variant asks for.
 
-    <ResumeSection open={print} title="Speaking & community" id="speaking">
-      <p
-        class="resume-prose"
-        set:html={emphasize(RESUME.speaking.evaluation)}
-      />
+      Ordering is part of a framing rather than a layout preference: a solutions
+      reader should meet the talks before the stack, because the talks are the
+      evidence for the claim that framing makes. Any variant that does not say
+      otherwise gets the established order.
 
-      <div class="resume-talks">
-        {
-          RESUME.speaking.talks.map((talk) => (
-            <div class="card resume-talk">
-              <span class="resume-talk-org">{talk.org}</span>
-              <a class="resume-talk-title" href={talk.url}>
-                {talk.title}
-              </a>
-              <span class="resume-talk-detail">{talk.detail}</span>
-            </div>
-          ))
-        }
-      </div>
-
-      <p class="resume-prose">
-        {RESUME.speaking.footer} I write at{' '}
-        <a href={RESUME.speaking.writing.url}>{RESUME.speaking.writing.label}</a
-        >, {RESUME.speaking.writing.detail}.
-      </p>
-    </ResumeSection>
+      Only these two move. `sectionOrder` names all five sections so the field
+      reads as an order rather than a flag, but Strengths opens the document and
+      Education closes it in every framing, and Experience is three sections that
+      travel together — reordering those is a change no variant has asked for and
+      would cost more than it buys.
+    */
+    }
+    {
+      speakingFirst ? (
+        <Fragment>
+          <ResumeSpeaking resume={RESUME} {print} />
+          <ResumeSkills resume={RESUME} {print} />
+        </Fragment>
+      ) : (
+        <Fragment>
+          <ResumeSkills resume={RESUME} {print} />
+          <ResumeSpeaking resume={RESUME} {print} />
+        </Fragment>
+      )
+    }
 
     <ResumeSection open={print} title="Education" id="education">
       <dl class="resume-earlier">

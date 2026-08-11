@@ -6,6 +6,7 @@ import {
 } from './pdfs.generated.mjs';
 import { resumeFingerprint } from './fingerprint.mjs';
 import { WATERMARK_LENGTH, WATERMARK_PLACEHOLDER } from './watermark.mjs';
+import { parsePdfKey, pdfFilename } from './variants.mjs';
 
 /**
  * The PDFs are build artifacts committed into the repo, so every invariant that
@@ -81,7 +82,7 @@ describe('generated resume PDFs', () => {
       expect(
         total,
         'combined PDFs are too large for the Worker bundle',
-      ).toBeLessThanOrEqual(1_200_000);
+      ).toBeLessThanOrEqual(2_400_000);
     });
 
     it('has one watermark slot per page', () => {
@@ -114,9 +115,27 @@ describe('generated resume PDFs', () => {
       }
     });
 
-    // Distinct filenames, or saving both leaves one overwritten in Downloads.
-    it('gives the two variants different filenames', () => {
-      expect(RESUME_PDFS.human.filename).not.toBe(RESUME_PDFS.bot.filename);
+    // A key naming a variant that no longer exists is a stale module. The
+    // endpoint answers 503 for it; this is where it gets noticed instead.
+    it('is keyed by a registered variant and kind', () => {
+      for (const [key] of variants) {
+        expect(parsePdfKey(key), key).toBeDefined();
+      }
+    });
+
+    it('names the file the registry says it should', () => {
+      for (const [key, pdf] of variants) {
+        const parsed = parsePdfKey(key)!;
+        expect(pdf.filename, key).toBe(
+          pdfFilename(parsed.variant, parsed.kind),
+        );
+      }
+    });
+
+    // Distinct filenames, or saving two leaves one overwritten in Downloads.
+    it('gives every generated PDF a different filename', () => {
+      const names = variants.map(([, pdf]) => pdf.filename);
+      expect(new Set(names).size).toBe(names.length);
     });
   });
 });

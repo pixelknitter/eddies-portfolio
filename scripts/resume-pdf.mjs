@@ -48,6 +48,13 @@ import {
   WATERMARK_PLACEHOLDER,
 } from '../packages/web-astro/src/util/resume/watermark.mjs';
 import { resumeFingerprint } from '../packages/web-astro/src/util/resume/fingerprint.mjs';
+import {
+  PDF_KINDS,
+  pdfKey,
+  parsePdfKey,
+  pdfFilename,
+  VARIANTS as REGISTERED_VARIANTS,
+} from '../packages/web-astro/src/util/resume/variants.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const APP = join(REPO, 'packages/web-astro');
@@ -64,21 +71,32 @@ const PORT = 4319;
  * print-background-heavy document with photographs is the realistic way to blow it.
  */
 const MAX_PDF_BYTES = 600_000;
-const MAX_TOTAL_BYTES = 1_200_000;
+/**
+ * Four documents now, not two, and six once the leadership framing is written.
+ * The bundle ceiling is 3 MB compressed on Workers Free and base64 costs about
+ * 1% once gzip runs, so this still leaves room for the rest of the Worker. If a
+ * further variant makes this tight, the answer is R2 behind a binding rather
+ * than a larger number here.
+ */
+const MAX_TOTAL_BYTES = 2_400_000;
 
-const VARIANTS = [
+/**
+ * The two renderings every variant is printed to.
+ *
+ * Named KINDS rather than VARIANTS, which now means something else: a variant
+ * is a framing of the CV, and each framing is printed in both of these. The
+ * paths and filenames are derived from the registry rather than written here,
+ * so a new variant needs no edit to this file.
+ */
+const KINDS = [
   {
     key: 'human',
-    path: '/cv/print/human',
-    filename: 'Eddie-Freeman-Resume.pdf',
     printBackground: true,
     // The organic document; these are the families PrintLayout loads for it.
     fonts: ['400 42px "Caprasimo"', '400 16px "Figtree"'],
   },
   {
     key: 'bot',
-    path: '/cv/print/bot',
-    filename: 'Eddie-Freeman-Resume-ATS.pdf',
     // Light on white: smaller, and what an ATS expects to be handed.
     printBackground: false,
     // Deliberately none — the plain variant forces a system stack precisely so it
@@ -95,13 +113,19 @@ const value = (name) => {
 };
 
 const only = value('only');
+const onlyVariant = value('variant');
 const baseUrlOverride = value('base-url');
 const keepPdf = flag('keep-pdf');
 
-const variants = only ? VARIANTS.filter((v) => v.key === only) : VARIANTS;
-if (variants.length === 0) {
+const kinds = only ? KINDS.filter((k) => k.key === only) : KINDS;
+if (kinds.length === 0) {
+  console.error(`--only must be one of: ${KINDS.map((k) => k.key).join(', ')}`);
+  process.exit(1);
+}
+
+if (onlyVariant && !REGISTERED_VARIANTS.some((v) => v.slug === onlyVariant)) {
   console.error(
-    `--only must be one of: ${VARIANTS.map((v) => v.key).join(', ')}`,
+    `--variant must be one of: ${REGISTERED_VARIANTS.map((v) => v.slug).join(', ')}`,
   );
   process.exit(1);
 }
@@ -136,6 +160,37 @@ async function waitForServer(url, timeoutMs = 90_000) {
     await new Promise((r) => setTimeout(r, 500));
   }
   throw new Error(`server did not answer at ${url} within ${timeoutMs}ms`);
+}
+
+/**
+ * Which variants have printable content right now.
+ *
+ * Asked of the running server rather than of `availableVariants()` directly:
+ * that function needs an Astro content runtime and this script is plain node.
+ * A print route answering 200 is the same condition established by a more
+ * honest test, because it is the condition generation actually depends on.
+ *
+ * @param {string} baseUrl
+ * @returns {Promise<string[]>}
+ */
+async function printableVariants(baseUrl) {
+  const found = [];
+  for (const variant of REGISTERED_VARIANTS) {
+    if (onlyVariant && variant.slug !== onlyVariant) continue;
+    const response = await fetch(`${baseUrl}/cv/print/${variant.slug}/human`, {
+      redirect: 'manual',
+    });
+    if (response.ok) found.push(variant.slug);
+    else log(`${variant.slug}: no content, skipping`);
+  }
+
+  if (found.length === 0) {
+    throw new Error(
+      'no variant has printable content. The print routes need CONTENT_SEAL_KEY ' +
+        'and the plaintext materialized in the section dirs — see docs/RESUME.md.',
+    );
+  }
+  return found;
 }
 
 /**
@@ -263,13 +318,17 @@ async function main() {
     const generated = {};
 
     try {
-      for (const variant of variants) {
+      const slugs = await printableVariants(baseUrl);
+      log(`printing ${slugs.join(', ')}`);
+
+      for (const slug of slugs) {
+      for (const variant of kinds) {
         const page = await browser.newPage();
         // Never inherit a dark colour scheme: the print layout does not run the
         // site's theme script, but emulation would still apply media queries.
         await page.emulateMedia({ colorScheme: 'light', forcedColors: 'none' });
 
-        const url = `${baseUrl}${variant.path}`;
+        const url = `${baseUrl}/cv/print/${slug}/${variant.key}`;
         const response = await page.goto(url, { waitUntil: 'networkidle' });
         if (!response || !response.ok()) {
           throw new Error(
@@ -289,7 +348,9 @@ async function main() {
             spec,
           );
           if (!loaded)
-            throw new Error(`${variant.key}: webfont did not load: ${spec}`);
+            throw new Error(
+            `${pdfKey(slug, variant.key)}: webfont did not load: ${spec}`,
+          );
         }
 
         // `preferCSSPageSize` makes `format` and `margin` no-ops: page geometry
@@ -309,28 +370,30 @@ async function main() {
 
         if (bytes.length > MAX_PDF_BYTES) {
           throw new Error(
-            `${variant.key} is ${bytes.length} bytes, over the ${MAX_PDF_BYTES} budget. ` +
+            `${pdfKey(slug, variant.key)} is ${bytes.length} bytes, over the ${MAX_PDF_BYTES} budget. ` +
               'Trim the document, or move the PDFs to R2 and read them through a binding.',
           );
         }
 
-        generated[variant.key] = {
+        const filename = pdfFilename(slug, variant.key);
+        generated[pdfKey(slug, variant.key)] = {
           base64: Buffer.from(bytes).toString('base64'),
           bytes: bytes.length,
           pages,
           watermarkOffsets: offsets,
-          filename: variant.filename,
+          filename,
         };
 
         log(
-          `${variant.key}: ${pages} pages, ${(bytes.length / 1024).toFixed(0)}KB, ${offsets.length} watermark slots`,
+          `${pdfKey(slug, variant.key)}: ${pages} pages, ${(bytes.length / 1024).toFixed(0)}KB, ${offsets.length} watermark slots`,
         );
 
         if (keepPdf) {
           const dir = join(APP, 'dist/resume-preview');
           mkdirSync(dir, { recursive: true });
-          writeFileSync(join(dir, variant.filename), bytes);
+          writeFileSync(join(dir, filename), bytes);
         }
+      }
       }
     } finally {
       await browser.close();
@@ -347,7 +410,10 @@ async function main() {
     // silent way to blank the other download.
     const existing = readFileSync(OUT, 'utf8');
     const previous = {};
-    for (const key of ['human', 'bot']) {
+    const everyKey = REGISTERED_VARIANTS.flatMap((v) =>
+      PDF_KINDS.map((kind) => pdfKey(v.slug, kind)),
+    );
+    for (const key of everyKey) {
       if (generated[key]) continue;
       const match = existing.match(
         new RegExp(
@@ -387,17 +453,16 @@ async function main() {
 /** The generated module's text. Kept in one place so its shape is reviewable. */
 function renderModule(all, fingerprint, stamp) {
   const entry = (key) => {
+    const { variant, kind } = parsePdfKey(key);
     const v = all[key] ?? {
       base64: '',
       bytes: 0,
       pages: 0,
       watermarkOffsets: [],
-      filename:
-        key === 'human'
-          ? 'Eddie-Freeman-Resume.pdf'
-          : 'Eddie-Freeman-Resume-ATS.pdf',
+      filename: pdfFilename(variant, kind),
     };
-    return `  ${key}: {
+    // Quoted: the key carries a colon, so it is not a bare identifier.
+    return `  '${key}': {
     base64:
       '${v.base64}',
     bytes: ${v.bytes},
@@ -431,10 +496,15 @@ function renderModule(all, fingerprint, stamp) {
  * @property {string} filename Sent as the Content-Disposition filename.
  */
 
-/** @type {Record<'human' | 'bot', GeneratedPdf>} */
+/**
+ * Keyed \`variant:kind\` — see util/resume/variants.mjs, which owns the format.
+ * A key naming a variant that no longer exists is a stale module rather than a
+ * download: parsePdfKey rejects it and the endpoint answers 503.
+ *
+ * @type {Record<string, GeneratedPdf>}
+ */
 export const RESUME_PDFS = {
-${entry('human')}
-${entry('bot')}
+${Object.keys(all).sort().map(entry).join('\n')}
 };
 
 /**
