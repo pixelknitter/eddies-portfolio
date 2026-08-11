@@ -103,6 +103,34 @@
         const dy = Math.max(rect.top - pointerY, 0, pointerY - rect.bottom);
         const distance = Math.hypot(dx, dy);
 
+        /*
+         * Inside the card, the gradient grows to cover it.
+         *
+         * At the base radius a pointer in the middle of a card is further from
+         * its own border than the gradient reaches, so the ring went out
+         * exactly where the visitor was most committed to it — the card looked
+         * unlit at the moment it was being read. Spanning the diagonal keeps
+         * the whole border lit, and because the falloff is unchanged the near
+         * edge is still the brightest: a lit card with a bright spot, rather
+         * than a spotlight that lost its subject.
+         *
+         * `--glow-size` is a registered property (see global.css), so this is a
+         * transition rather than a jump — the expansion on arrival and the
+         * contraction on leaving are the same 420ms curve, which overshoots
+         * just enough to read as a pulse.
+         */
+        const inside = distance === 0;
+        if (inside) {
+          card.style.setProperty(
+            '--glow-size',
+            `${Math.round(Math.hypot(rect.width, rect.height))}px`,
+          );
+        } else {
+          // Removed rather than set back: the registered initial value is the
+          // one number that should decide the resting radius.
+          card.style.removeProperty('--glow-size');
+        }
+
         const nearness = Math.max(0, 1 - distance / PROXIMITY);
         /*
          * Squared, so the falloff is gentle close in and steep further out.
