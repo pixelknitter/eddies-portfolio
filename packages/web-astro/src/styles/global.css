@@ -272,35 +272,63 @@
     border-radius: inherit;
     /* The ring's thickness. */
     padding: 1px;
+    /*
+     * Three stops, not two. A single fade from colour to transparent across a
+     * 240px radius lit a 360px card almost evenly — the far edge kept enough
+     * colour to read as "on", which loses the whole point: the ring should say
+     * where the pointer is, and a ring that is lit everywhere says nothing.
+     * The middle stop collapses most of the intensity inside the first third,
+     * so the near edge is bright and the far edge is genuinely dark.
+     */
     background: radial-gradient(
-      var(--glow-size, 240px) circle at var(--glow-x, 50%) var(--glow-y, 50%),
-      var(--glow-color, var(--color-link)),
-      transparent 60%
+      var(--glow-size, 200px) circle at var(--glow-x, 50%) var(--glow-y, 50%),
+      var(--glow-color, var(--color-link)) 0%,
+      color-mix(in oklab, var(--glow-color, var(--color-link)) 30%, transparent)
+        30%,
+      transparent 55%
     );
     -webkit-mask:
       linear-gradient(#000 0 0) content-box,
       linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
-    opacity: 0;
-    /* Presence only — the ring fades in, it does not move on its own. */
-    transition: opacity 220ms ease;
+    /*
+     * Driven by proximity, not by `:hover`. The script sets this from the
+     * cursor's distance to the card, so a card lights as the pointer
+     * approaches and dims as it leaves — which is the behaviour `:hover` cannot
+     * express, because it only knows inside from outside.
+     */
+    opacity: var(--glow-opacity, 0);
+    /*
+     * Short, because this value is already being updated every frame while the
+     * pointer moves. A long transition here fights the tracking and turns a
+     * responsive edge into a lagging one; this only smooths the last step out
+     * to zero when the pointer leaves the neighbourhood entirely.
+     */
+    transition: opacity 120ms linear;
     /* Never intercept the click on the card it decorates. */
     pointer-events: none;
   }
 
-  /*
-   * `hover: hover` so a touch device does not light a card and leave it lit
-   * with no pointer to explain it. Keyboard focus gets the ring too: it is the
-   * same "you are here", and the card is a link.
-   */
-  @media (hover: hover) {
-    .glow-card:hover::after {
-      opacity: 1;
-    }
-  }
-
+  /* Keyboard focus lights it fully: same "you are here", and the card is a link. */
   .glow-card:focus-visible::after {
     opacity: 1;
+  }
+
+  /*
+   * The fallback when nothing is tracking the pointer.
+   *
+   * Under reduced motion the script never writes `--glow-opacity`, so the ring
+   * would never appear at all — and losing the affordance is a worse trade than
+   * losing the movement. `:hover` restores it, centred and static. `hover:
+   * hover` so a touch device does not light a card and leave it lit with no
+   * pointer to explain it.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    @media (hover: hover) {
+      .glow-card:hover::after {
+        opacity: 1;
+      }
+    }
   }
 }
