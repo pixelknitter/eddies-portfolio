@@ -145,6 +145,21 @@ if (!apiKey) {
 
 const client = new Anthropic({ apiKey });
 
+/**
+ * Models that rejected `effort`, learned at runtime rather than declared.
+ *
+ * @type {Set<string>}
+ */
+const noEffort = new Set();
+
+/** Does this error say the model will not take an `effort`? */
+function rejectsEffort(error) {
+  return (
+    error?.status === 400 &&
+    /does not support the effort parameter/i.test(String(error?.message ?? ''))
+  );
+}
+
 /** Answer one case exactly as the endpoint would, including the no-context decline. */
 async function answer(testCase, model) {
   const selected = selectContext(testCase.question, corpus);
@@ -160,13 +175,42 @@ async function answer(testCase, model) {
   }
 
   const startedAt = process.hrtime.bigint();
-  const response = await client.messages.create({
-    model,
-    max_tokens: 2000,
-    output_config: { effort, format: { type: 'json_schema', schema: ANSWER_SCHEMA } },
-    system: buildSystemPrompt(),
-    messages: [{ role: 'user', content: buildUserMessage(testCase.question, selected) }],
-  });
+  const request = () =>
+    client.messages.create({
+      model,
+      max_tokens: 2000,
+    /*
+     * `effort` only where it is accepted.
+     *
+     * Sending it to a model that does not support it is a 400, and because the
+     * models are compared in one process that 400 took the whole run down —
+     * claude-haiku-4-5 killed a three-model comparison after the first two had
+     * already been paid for. Which models accept it changes over time and is
+     * not worth a hardcoded list, so `answer` retries once without it; this is
+     * the memo of what that retry learned, so the rest of the run does not
+     * repeat the mistake case by case.
+     */
+      output_config: {
+        ...(noEffort.has(model) ? {} : { effort }),
+        format: { type: 'json_schema', schema: ANSWER_SCHEMA },
+      },
+      system: buildSystemPrompt(),
+      messages: [
+        { role: 'user', content: buildUserMessage(testCase.question, selected) },
+      ],
+    });
+
+  let response;
+  try {
+    response = await request();
+  } catch (error) {
+    // Learn it once, then retry this case without it. Every later case for this
+    // model reads the memo and never sends it again.
+    if (!rejectsEffort(error) || noEffort.has(model)) throw error;
+    console.log(`  ${model} does not take an effort; retrying without it`);
+    noEffort.add(model);
+    response = await request();
+  }
   const ms = Number(process.hrtime.bigint() - startedAt) / 1e6;
 
   const retrievedIds = selected.map((entry) => entry.id);
@@ -361,8 +405,29 @@ async function main() {
   console.log(`Running ${CASES.length} cases across ${MODELS.length} model(s)`);
   console.log(`Corpus: ${corpus.length} stories`);
 
+  /*
+   * One model's failure costs its own column, not the run.
+   *
+   * These are compared in a single process, so an unrecoverable error in the
+   * third model threw away the two that had already been paid for and reported
+   * nothing about either. A comparison missing a column is still a comparison;
+   * a crash is not.
+   */
   const runs = [];
-  for (const model of MODELS) runs.push(await runModel(model));
+  const crashed = [];
+  for (const model of MODELS) {
+    try {
+      runs.push(await runModel(model));
+    } catch (error) {
+      crashed.push(model);
+      console.error(`\n✖ ${model} did not finish: ${error.message}`);
+    }
+  }
+
+  if (runs.length === 0) {
+    console.error('\n✖ No model completed, so there is nothing to compare.');
+    process.exit(1);
+  }
 
   /*
    * Flushed here, before any of the exit paths below.
@@ -407,6 +472,19 @@ async function main() {
     for (const verdict of fixes) console.log(`  ✓ newly passing: ${verdict.id}`);
 
     if (regressions.length > 0) process.exit(1);
+  }
+
+  /*
+   * A missing column fails the run even when every column present passed.
+   *
+   * Otherwise a model that cannot be reached at all is indistinguishable from
+   * one that was never asked for, and the comparison quietly narrows over time
+   * — which is the same shape of silence as the empty corpus this harness
+   * already refuses to run against.
+   */
+  if (crashed.length > 0) {
+    console.error(`\n✖ No result for: ${crashed.join(', ')}`);
+    process.exit(1);
   }
 
   // Only the first model gates. Comparing a candidate should not fail the run
