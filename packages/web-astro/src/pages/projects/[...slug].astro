@@ -2,6 +2,7 @@
 import { getCollection, render } from 'astro:content';
 import MarkdownWorksLayout from '@layouts/MarkdownWorksLayout.astro';
 import { showProjects, showUnpublished } from '@util/visibility.mjs';
+import { isRenderable } from '@util/stage.mjs';
 
 // build static html for dynamic pages
 export const prerender = true;
@@ -17,7 +18,7 @@ export async function getStaticPaths() {
     // way to keep it non-public is to never write it to disk.
     const reveal = showUnpublished(import.meta.env);
     const projectEntries = await getCollection('projects', ({ data }) =>
-        reveal || data.draft !== true,
+        reveal || isRenderable(data),
     );
     return projectEntries.map(entry => ({
         params: { slug: entry.id }, props: { entry },

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildCorpus } from './corpus.mjs';
+import { buildCorpus, isAnswerable } from './corpus.mjs';
 
 /**
  * Entries as `getCollection` hands them over: `{ id, data, body }`.
@@ -141,5 +141,48 @@ describe('a corpus entry built from a project', () => {
     });
 
     expect(selectContext('does he use smoke tests', corpus)).toHaveLength(1);
+  });
+});
+
+/**
+ * The gate this stage exists for, asserted from both sides.
+ *
+ * A `reviewed` entry is accurate enough to quote and deliberately not on the
+ * site. Getting that backwards in either direction is the whole risk: one way
+ * A.I.R. stays starved of the corpus, the other way unfinished pages leak.
+ */
+describe('the reviewed stage', () => {
+  // Only the field `isAnswerable` reads: everything else on a collection
+  // spec is about shaping, not about visibility.
+  const spec = {};
+
+  it('lets A.I.R. answer from a reviewed entry', () => {
+    expect(isAnswerable({ stage: 'reviewed' }, spec)).toBe(true);
+  });
+
+  it('still refuses a draft', () => {
+    expect(isAnswerable({ stage: 'draft' }, spec)).toBe(false);
+    expect(isAnswerable({ draft: true }, spec)).toBe(false);
+  });
+
+  /*
+   * `reviewed` is a claim about accuracy, not about timing. A post the site
+   * refuses to serve until its date must not be read out early — that would
+   * publish it in prose to anyone who asked the right question.
+   */
+  it('does not let a reviewed post escape its publish date', () => {
+    const future = new Date(Date.now() + 86_400_000).toISOString();
+    const scheduled = { scheduled: true };
+
+    expect(
+      isAnswerable({ stage: 'reviewed', publishDate: future }, scheduled),
+    ).toBe(false);
+    expect(
+      isAnswerable({ stage: 'published', publishDate: future }, scheduled),
+    ).toBe(false);
+  });
+
+  it('answers from a reviewed post with no date at all', () => {
+    expect(isAnswerable({ stage: 'reviewed' }, { scheduled: true })).toBe(true);
   });
 });

@@ -4,6 +4,7 @@ import Layout from '@layouts/Layout.astro';
 import Card from '@components/Card.astro';
 import Hero from "@components/Hero.astro";
 import { showProjects, showUnpublished } from "@util/visibility.mjs";
+import { isRenderable } from '@util/stage.mjs';
 
 // Gate the route, not just the nav link — an unlisted page is still a public
 // page if it responds. Production was serving the placeholder fixtures to
@@ -16,7 +17,7 @@ if (!showProjects(import.meta.env)) {
 // review tiers so an unfinished case study can be looked at before it lands.
 const reveal = showUnpublished(import.meta.env);
 const allProjects = await getCollection("projects", ({ data }) =>
-    reveal || data.draft !== true,
+    reveal || isRenderable(data),
 );
 const pageTitle = "Works";
 ---

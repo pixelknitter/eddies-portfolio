@@ -16,13 +16,14 @@
 import { getCollection } from 'astro:content';
 import Card from '@components/Card.astro';
 import { resolveSections } from '@util/flags/sections.mjs';
+import { isRenderable } from '@util/stage.mjs';
 
 const sections = await resolveSections(import.meta.env);
 
 const visible = sections.projects
   ? await getCollection(
       'projects',
-      ({ data }) => sections.unpublished || data.draft !== true,
+      ({ data }) => sections.unpublished || isRenderable(data),
     )
   : [];
 

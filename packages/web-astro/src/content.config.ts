@@ -136,6 +136,15 @@ const ProjectSchema = z.object({
    */
   draft: z.boolean().default(false),
   /**
+   * Where this entry is in its life. See util/stage.mjs.
+   *
+   * Optional, and `draft` above is the fallback while the corpus migrates —
+   * promoting an entry to `reviewed` is a judgement about whether it is true
+   * enough to quote, which no migration script can make. `stage` wins where
+   * both are present.
+   */
+  stage: z.enum(['draft', 'reviewed', 'published']).optional(),
+  /**
    * Pinned to the home page's featured row. Everything published but not
    * featured joins the rotation slot beneath it, StarSpotlight-style — the
    * site renders per request, so the rotation turns on every visit.
@@ -166,6 +175,15 @@ const BlogSchema = z.object({
     alt: z.string(),
   }),
   draft: z.boolean(),
+  /**
+   * Where this entry is in its life. See util/stage.mjs.
+   *
+   * Optional, and `draft` above is the fallback while the corpus migrates —
+   * promoting an entry to `reviewed` is a judgement about whether it is true
+   * enough to quote, which no migration script can make. `stage` wins where
+   * both are present.
+   */
+  stage: z.enum(['draft', 'reviewed', 'published']).optional(),
   /**
    * The problem space, mirroring the projects field of the same name — a post
    * and the project it grew out of share a domain, which is how the two
@@ -208,6 +226,15 @@ const star = defineCollection({
     result: z.string(),
     tags: z.array(z.string()).default([]),
     draft: z.boolean().default(false),
+    /**
+     * Where this entry is in its life. See util/stage.mjs.
+     *
+     * Optional, and `draft` above is the fallback while the corpus migrates —
+     * promoting an entry to `reviewed` is a judgement about whether it is true
+     * enough to quote, which no migration script can make. `stage` wins where
+     * both are present.
+     */
+    stage: z.enum(['draft', 'reviewed', 'published']).optional(),
   }),
 });
 
@@ -251,6 +278,15 @@ const challenges = defineCollection({
     reflection: z.string().optional(),
     tags: z.array(z.string()).default([]),
     draft: z.boolean().default(false),
+    /**
+     * Where this entry is in its life. See util/stage.mjs.
+     *
+     * Optional, and `draft` above is the fallback while the corpus migrates —
+     * promoting an entry to `reviewed` is a judgement about whether it is true
+     * enough to quote, which no migration script can make. `stage` wins where
+     * both are present.
+     */
+    stage: z.enum(['draft', 'reviewed', 'published']).optional(),
   }),
 });
 
