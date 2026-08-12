@@ -98,6 +98,35 @@ const flaggedSections = [
   { name: 'air', href: '/cv/air/' },
 ];
 
+/**
+ * Pages that stay live when *another* section's flag is off, and the traces of
+ * that section which must not survive on them.
+ *
+ * A different failure from `flaggedSections` above, which asks whether the home
+ * page still links somewhere it should not. This asks whether a page that is
+ * legitimately live still *talks about* something that is switched off — copy
+ * with no route behind it, which reads as an oversight rather than a gate.
+ *
+ * The case that prompted it: `/cv` is the CV chooser and ships whether or not
+ * A.I.R. does. Its seed questions were gated correctly; the honesty line under
+ * them was not, so with the chat off the page promised "Answers are drawn from
+ * a fixed record" while carrying nothing to ask. Nothing failed — the route was
+ * gated, the nav was clean, and the sentence sat there.
+ *
+ * A page whose own flag is off is skipped rather than failed: a 404 cannot leak.
+ */
+const gatedCopy = [
+  {
+    page: '/cv/',
+    name: 'the CV chooser',
+    absent: [
+      ['a link to A.I.R.', 'href="/cv/air/'],
+      ['the seed questions', 'cv-seeds'],
+      ['A.I.R.’s honesty line', 'fixed record'],
+    ],
+  },
+];
+
 function headers() {
   return hasAccessCreds
     ? {
@@ -300,6 +329,36 @@ async function main() {
         continue;
       }
       console.log(`✓ ${section.name} not linked (${section.href})`);
+    }
+
+    for (const surface of gatedCopy) {
+      let page;
+      try {
+        page = await fetchWithRetry(`${baseUrl}${surface.page}`);
+      } catch (error) {
+        failures.push(`${surface.page} — ${error.message}`);
+        console.log(`✖ ${surface.page} — ${error.message}`);
+        continue;
+      }
+
+      // Its own flag is off, so there is no page to leak from.
+      if (page.response.status !== 200) {
+        console.log(
+          `· ${surface.name} is not live (${page.response.status}) — nothing to check`,
+        );
+        continue;
+      }
+
+      for (const [what, needle] of surface.absent) {
+        extra += 1;
+        if (page.body.includes(needle)) {
+          const problem = `${surface.name} still carries ${what}`;
+          failures.push(problem);
+          console.log(`✖ ${problem}`);
+          continue;
+        }
+        console.log(`✓ ${surface.name} is free of ${what}`);
+      }
     }
   }
 
