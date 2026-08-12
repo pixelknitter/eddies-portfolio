@@ -158,12 +158,20 @@ const description =
       Adapted from the A.I.R. prototype. It belongs at the foot of the page a
       visitor is about to ask questions from: the promise is worth making before
       the first question rather than after the first answer.
+
+      Gated with the seeds above, and for the same reason. This sentence is
+      about answers; with A.I.R. off there is nothing on this page to ask, so it
+      promises a thing that does not exist and reads as leftover copy. The two
+      features ship independently, and the chooser has to be complete on its own
+      with the chat switched off.
     */
     }
-    <footer
-      class="border-t border-hairline pt-6 font-body text-sm leading-relaxed opacity-75 dark:border-hairline-dark"
-    >
-      <p>Answers are drawn from a fixed record. Nothing is invented.</p>
-    </footer>
+    {
+      sections.air && (
+        <footer class="border-t border-hairline pt-6 font-body text-sm leading-relaxed opacity-75 dark:border-hairline-dark">
+          <p>Answers are drawn from a fixed record. Nothing is invented.</p>
+        </footer>
+      )
+    }
   </div>
 </Layout>
