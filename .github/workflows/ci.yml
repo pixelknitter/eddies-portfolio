@@ -159,6 +159,36 @@ jobs:
         run: |
           yarn nx e2e web-astro-e2e && exit 0
           echo "::warning::E2E suite failed and is being retried once. If this run ends green, check the wrangler log group for 'Error inside ProxyWorker' before treating it as clean — see docs/RUNBOOK.md."
+
+          # Free the port before retrying, or the retry is theatre.
+          #
+          # serve-worker.mjs reaps its process group on SIGTERM and waits for
+          # the port — but when the ProxyWorker fault fires it *restarts*
+          # wrangler mid-run, and a teardown landing during that restart can
+          # leave the new workerd behind. Observed exactly once it mattered:
+          # "restarting (1/5)" at 22:38:42, the run ending at 22:39:01, and
+          # [InspectorProxyWorker] still logging at 22:39:04.
+          #
+          # The retry then died in 1.1s on "http://localhost:4321 is already
+          # used" — so the one mechanism meant to absorb this fault turned it
+          # into a red branch instead. Every wall of ERR_CONNECTION_REFUSED
+          # since has been unrecoverable for this reason rather than the
+          # original one.
+          #
+          # Matched on the command line, so nothing unrelated on the runner is
+          # touched, and the port is polled rather than slept on because the
+          # only question that matters is whether the next attempt can bind.
+          for pattern in 'serve-worker.mjs' 'wrangler dev' 'workerd'; do
+            pkill -f "$pattern" 2>/dev/null || true
+          done
+          for _ in $(seq 1 30); do
+            lsof -ti tcp:4321 >/dev/null 2>&1 || break
+            sleep 1
+          done
+          if lsof -ti tcp:4321 >/dev/null 2>&1; then
+            echo "::warning::port 4321 is still held after 30s; the retry will likely fail to bind."
+          fi
+
           yarn nx e2e web-astro-e2e
 
       # wrangler writes its own log and prints the path on the way down. When it
