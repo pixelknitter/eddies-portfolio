@@ -318,3 +318,69 @@ describe('distinctiveTerms', () => {
     expect(terms).not.toContain('the');
   });
 });
+
+describe('role context', () => {
+  /**
+   * Two entries the question matches equally well, one belonging to a variant.
+   * Identical fields on purpose: the only thing that can separate them is the
+   * role, which is exactly what is under test.
+   */
+  const TIED = [
+    {
+      id: 'resume/skills/default',
+      data: {
+        section: 'skills',
+        title: 'Skills',
+        tags: ['kubernetes', 'observability'],
+      },
+    },
+    {
+      id: 'resume/skills/solutions',
+      data: {
+        section: 'skills',
+        variant: 'solutions',
+        title: 'Skills',
+        tags: ['kubernetes', 'observability'],
+      },
+    },
+  ];
+
+  const ids = (question: string, options?: { role?: string }) =>
+    selectContext(question, TIED, options).map((entry) => entry.id);
+
+  it('prefers the matching variant when two entries tie', () => {
+    expect(ids('kubernetes observability', { role: 'solutions' })[0]).toBe(
+      'resume/skills/solutions',
+    );
+  });
+
+  it('leaves the order alone when no role is given', () => {
+    // Falls back to the id tie-break, which is what keeps retrieval stable.
+    expect(ids('kubernetes observability')[0]).toBe('resume/skills/default');
+  });
+
+  /*
+   * A boost, never a filter. The best answer to a question wins on relevance
+   * regardless of lane — a solutions visitor asking about agents in production
+   * should still get the agents answer, because that is the true answer to what
+   * they asked.
+   */
+  it('does not drop entries belonging to another variant', () => {
+    expect(ids('kubernetes observability', { role: 'solutions' })).toContain(
+      'resume/skills/default',
+    );
+  });
+
+  it('admits nothing extra on the strength of a role alone', () => {
+    // The role reorders what cleared the floor; it never clears it.
+    expect(ids('what is his favourite restaurant', { role: 'solutions' })).toEqual(
+      [],
+    );
+  });
+
+  it('ignores a role that matches nothing', () => {
+    expect(ids('kubernetes observability', { role: 'nope' })).toEqual(
+      ids('kubernetes observability'),
+    );
+  });
+});

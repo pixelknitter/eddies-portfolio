@@ -1,0 +1,67 @@
+---
+import ResumeSection from './ResumeSection.astro';
+
+import type { Resume } from '@util/resume/load';
+
+/**
+ * The Skills section of the visual resume.
+ *
+ * Extracted from `ResumeVisual` so that it and `ResumeSpeaking` can be rendered
+ * in either order without the markup existing twice. A variant may ask for
+ * Speaking first — presentation is a core competency in the solutions framing
+ * rather than a footnote — and a conditional pair written inline would mean two
+ * copies of each block drifting apart.
+ */
+interface Props {
+  resume: Resume;
+  print?: boolean;
+}
+
+const { resume: RESUME, print = false } = Astro.props;
+---
+
+<ResumeSection open={print} title="Skills" id="skills">
+  <div class="resume-skills">
+    {
+      RESUME.skills.map((group) => (
+        <div class="resume-skill-group">
+          <span class="resume-skill-label">{group.group}</span>
+          <div class="resume-tags">
+            {group.items.map((item) => (
+              <span class={`tag tag-${group.tone} resume-chip`}>{item}</span>
+            ))}
+          </div>
+        </div>
+      ))
+    }
+  </div>
+</ResumeSection>
+
+<style>
+  /*
+   * Moved here from ResumeVisual when this section became its own component.
+   * Astro scopes a component's styles to that component, so these rules stopped
+   * reaching the markup the moment it moved out — the section rendered with no
+   * gaps at all, on the page and in the PDF.
+   */
+  .resume-skills {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .resume-skill-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .resume-skill-label {
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-accent-700);
+  }
+</style>

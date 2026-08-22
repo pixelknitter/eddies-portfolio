@@ -46,15 +46,24 @@ export const FINGERPRINTED_FILES = [
   'util/resume/resume.data.ts',
   'util/resume/markup.ts',
   'util/resume/watermark.mjs',
+  // The registry decides which slugs are printable and what each generated file
+  // is called, so a change here changes the artifacts even when no prose moved.
+  'util/resume/variants.mjs',
+  // The assembly rules, including how a variant's emphasis overrides apply. A
+  // change here can reselect which bullets reach paper without touching a
+  // single word of content.
+  'util/resume/assemble.ts',
   'components/resume/ResumeVisual.astro',
   'components/resume/ResumeFull.astro',
   'components/resume/ResumeSection.astro',
+  'components/resume/ResumeSkills.astro',
+  'components/resume/ResumeSpeaking.astro',
   'components/resume/PrintContact.astro',
   'layouts/PrintLayout.astro',
   'styles/print.css',
   'styles/resume-organic.css',
-  'pages/cv/print/human.astro',
-  'pages/cv/print/bot.astro',
+  'pages/cv/print/[variant]/human.astro',
+  'pages/cv/print/[variant]/bot.astro',
 ];
 
 /**

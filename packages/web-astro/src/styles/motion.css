@@ -47,3 +47,170 @@
     translate: 0 0;
   }
 }
+
+/*
+ * Seed-question rotation on the CV chooser.
+ *
+ * A two-phase flip, because the swap has to happen while the card is edge-on:
+ * the text changing in full view is the stiff jump this replaces. `flip-out`
+ * holds its end state (`forwards`) so the card stays invisible for the instant
+ * React needs to render the next question, then `flip-in` brings it back from
+ * the opposite side — which is what makes it read as one card turning over
+ * rather than two cards swapping.
+ *
+ * Two keyframes rather than a transition: transitioning to -90deg and then
+ * needing to *start* the next one from +90deg has no resting state to
+ * transition from, and mixing a transition with an animation on the same
+ * properties fights itself.
+ *
+ * Out is quicker than in. Leaving should feel decisive and arriving should
+ * settle, and equal timings read as mechanical.
+ */
+@keyframes flip-out {
+  from {
+    opacity: 1;
+    transform: rotateX(0deg);
+  }
+  to {
+    opacity: 0;
+    transform: rotateX(-90deg);
+  }
+}
+
+@keyframes flip-in {
+  from {
+    opacity: 0;
+    transform: rotateX(90deg);
+  }
+  to {
+    opacity: 1;
+    transform: rotateX(0deg);
+  }
+}
+
+/*
+ * The rotation is already switched off in JavaScript under reduced motion, so
+ * these never fire there. Guarded anyway: the JS reads the preference once on
+ * mount, and someone who changes the system setting mid-session should not have
+ * to reload to be taken at their word.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .seed-card[data-phase='out'] {
+    animation: flip-out 170ms ease-in forwards;
+  }
+
+  .seed-card[data-phase='in'] {
+    animation: flip-in 240ms ease-out;
+  }
+}
+
+/* ══ Shared motion vocabulary ═══════════════════════════════════════════════
+ *
+ * Named for intent, not for the component that first needed them, because the
+ * point is that a dialog and a confirmation panel agree about what "arriving"
+ * looks like. The grammar is small on purpose:
+ *
+ *   rise to arrive, sink to leave   — anything that overlays the page
+ *   pop                             — an arrival worth noticing (a result)
+ *   nudge                           — a refusal, said without alarm
+ *   flip                            — a swap in place (the rotating seeds)
+ *
+ * Every class below is inert under `prefers-reduced-motion: reduce`; the whole
+ * block is gated once at the bottom rather than per rule. Components should use
+ * these rather than `animate-[…]` with their own numbers, so timings stay
+ * consistent and there is one place to change them.
+ */
+
+@keyframes sink-out {
+  from {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+  to {
+    opacity: 0;
+    translate: 0 16px;
+    scale: 0.98;
+  }
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/*
+ * A short overshoot, then settle. The scale never exceeds 1.02: a result
+ * arriving should feel like it landed, not like it bounced in from off-screen,
+ * and larger values read as a notification demanding to be dismissed.
+ */
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    scale: 0.96;
+    translate: 0 6px;
+  }
+  60% {
+    opacity: 1;
+    scale: 1.02;
+    translate: 0 0;
+  }
+  100% {
+    opacity: 1;
+    scale: 1;
+    translate: 0 0;
+  }
+}
+
+/*
+ * Two small horizontal moves, decaying. Deliberately `translate` rather than
+ * margin or position: a refusal must not reflow the form it is attached to —
+ * `a rejected request reports why without shifting the layout` is an e2e test,
+ * and a layout-affecting shake would fail it for the right reason.
+ */
+@keyframes nudge {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  20% {
+    translate: -5px 0;
+  }
+  45% {
+    translate: 4px 0;
+  }
+  70% {
+    translate: -2px 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .motion-fade-in {
+    animation: fade-in 150ms ease-out;
+  }
+
+  .motion-fade-out {
+    animation: fade-out 160ms ease-in forwards;
+  }
+
+  .motion-lift-in {
+    animation: lift-in 180ms ease-out;
+  }
+
+  /* `forwards`, so the panel stays gone for the beat before it unmounts. */
+  .motion-sink-out {
+    animation: sink-out 180ms ease-in forwards;
+  }
+
+  .motion-pop-in {
+    animation: pop-in 260ms cubic-bezier(0.34, 1.4, 0.64, 1);
+  }
+
+  .motion-nudge {
+    animation: nudge 320ms ease-in-out;
+  }
+}

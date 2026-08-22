@@ -1,0 +1,49 @@
+---
+/**
+ * One role card on the CV chooser.
+ *
+ * Presentation only: every word comes from the variant's sealed profile, so
+ * this file never needs editing to add a variant.
+ *
+ * The whole card is the link rather than a link inside it. A card that looks
+ * clickable and is not is a small betrayal, and a nested interactive element
+ * would leave the target ambiguous to a screen reader.
+ */
+interface Props {
+  href: string;
+  headline: string;
+  pitch: string;
+}
+
+const { href, headline, pitch } = Astro.props;
+---
+
+<!--
+  `data-glow` is the whole opt-in: GlowBorder, included once by the page, lights
+  this border from the pointer. The card knows nothing else about it.
+
+  Deliberately no `hover:border-…`. A hover colour switch fires the instant the
+  cursor crosses the edge, so the border snapped to full strength while the ring
+  was still fading up behind it — two answers to the same question, arriving at
+  different speeds. The ring is the whole hover affordance now, and it starts
+  responding well before the pointer arrives.
+-->
+<a
+  href={href}
+  data-glow
+  class="group flex flex-col gap-3 rounded-2xl border border-hairline bg-surface p-6 no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-underline dark:border-hairline-dark dark:bg-surface-dark dark:focus-visible:outline-link"
+>
+  <h3 class="font-header text-xl leading-tight">{headline}</h3>
+  {pitch && <p class="font-body leading-relaxed opacity-80">{pitch}</p>}
+  {
+    /*
+    The affordance, said in words. The card is a link but reads as a panel, and
+    "Read this version" is what tells a visitor the whole thing is pressable.
+    aria-hidden on the arrow because the accessible name already carries the
+    headline and this line; an arrow read aloud is noise.
+  */
+  }
+  <span class="mt-auto font-body text-sm opacity-70 group-hover:opacity-100">
+    Read this version <span aria-hidden="true">&rarr;</span>
+  </span>
+</a>

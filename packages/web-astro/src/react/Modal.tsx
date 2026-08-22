@@ -1,5 +1,15 @@
 import React from 'react';
 
+import { useReducedMotion } from './useReducedMotion';
+
+/**
+ * How long the panel takes to run out, and therefore how long it stays mounted
+ * after `open` goes false. Must match `.motion-sink-out` in motion.css — too
+ * short and the panel is deleted mid-animation, too long and the page waits on
+ * nothing.
+ */
+const EXIT_MS = 180;
+
 /**
  * A modal dialog: contains focus, closes on Escape and backdrop, restores focus
  * on close, and locks scrolling behind it.
@@ -130,6 +140,35 @@ export function Modal({
     setAlignOffset((previous) => previous + residual);
   }, [open, anchorTop, alignOffset]);
 
+  /*
+   * Runs the panel out rather than deleting it.
+   *
+   * Skipped entirely under reduced motion: lingering for 180ms with no
+   * animation to show for it is worse than the abrupt close it replaced,
+   * because nothing explains the delay.
+   */
+  const reducedMotion = useReducedMotion();
+  const [exiting, setExiting] = React.useState(false);
+  const hasOpened = React.useRef(false);
+
+  React.useEffect(() => {
+    if (open) {
+      hasOpened.current = true;
+      setExiting(false);
+      return;
+    }
+    // Never opened, so there is nothing to run out — this also stops a fresh
+    // mount animating a dialog nobody asked for.
+    if (!hasOpened.current) return;
+    hasOpened.current = false;
+
+    if (reducedMotion) return;
+
+    setExiting(true);
+    const id = setTimeout(() => setExiting(false), EXIT_MS);
+    return () => clearTimeout(id);
+  }, [open, reducedMotion]);
+
   // Remember what had focus so it can be handed back on close. Without this,
   // dismissing the dialog drops focus to the top of the document and a keyboard
   // user has to tab all the way back to where they were.
@@ -217,15 +256,31 @@ export function Modal({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  /*
+   * Kept mounted for the length of the exit.
+   *
+   * Unmounting on `open === false` is what made dismissal abrupt: the dialog
+   * simply ceased to exist, with no counterpart to the lift it arrived on. The
+   * effect above still runs its cleanup the moment `open` flips, so focus goes
+   * back to the opener and the page unlocks immediately — only the pixels
+   * linger, which is the part that should.
+   */
+  if (!open && !exiting) return null;
 
   return (
     <div
+      /*
+        Inert while it runs out. Focus has already gone back to the opener by
+        this point, so hiding it from the accessibility tree traps nobody — and
+        without this a click landing on the fading backdrop would fire `onClose`
+        at a dialog that is already closing.
+      */
+      aria-hidden={exiting || undefined}
       // Fills the viewport and centres the panel; `items-end sm:items-center`
       // puts it within thumb reach on a phone and centres it on a desktop.
       className={`fixed inset-0 z-50 flex items-end justify-center p-0 sm:p-4 ${
-        anchorTop === undefined ? 'sm:items-center' : 'sm:items-start'
-      }`}
+        exiting ? 'pointer-events-none' : ''
+      } ${anchorTop === undefined ? 'sm:items-center' : 'sm:items-start'}`}
     >
       {/* Backdrop. A separate element so a click on it closes without the panel's
           own clicks bubbling out and dismissing what the user is filling in. */}
@@ -234,7 +289,9 @@ export function Modal({
         aria-label="Close"
         tabIndex={-1}
         onClick={onClose}
-        className="absolute inset-0 h-full w-full cursor-default bg-dark/70 motion-safe:animate-[fade-in_150ms_ease-out]"
+        className={`absolute inset-0 h-full w-full cursor-default bg-dark/70 ${
+          exiting ? 'motion-fade-out' : 'motion-fade-in'
+        }`}
       />
 
       <div
@@ -259,7 +316,9 @@ export function Modal({
         // max-h with overflow so a long form stays reachable on a short
         // viewport — the failure mode of a centred fixed panel is a submit
         // button below the fold with no way to scroll to it.
-        className={`relative flex max-h-[92dvh] w-full flex-col motion-safe:animate-[lift-in_180ms_ease-out] ${widthClass} ${
+        className={`relative flex max-h-[92dvh] w-full flex-col ${
+          exiting ? 'motion-sink-out' : 'motion-lift-in'
+        } ${widthClass} ${
           anchorTop === undefined ? '' : 'sm:mt-[var(--anchor-top)]'
         } ${
           surface ? 'surface rounded-t-2xl p-4 sm:rounded-2xl sm:p-6' : ''

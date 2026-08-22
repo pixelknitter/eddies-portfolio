@@ -42,7 +42,7 @@ test.describe('the resume pages', () => {
   test('renders collapsed, with every section present but closed', async ({
     page,
   }) => {
-    await page.goto('/cv/');
+    await page.goto('/cv/product/');
 
     await expect(
       page.getByRole('heading', { level: 1, name: 'Eddie Freeman' }),
@@ -57,7 +57,7 @@ test.describe('the resume pages', () => {
   test('expands and collapses every section, from either control', async ({
     page,
   }) => {
-    await page.goto('/cv/');
+    await page.goto('/cv/product/');
 
     // Two controls now — one above the sections, one at their foot. The foot
     // one is hidden while everything is collapsed, so that two buttons reading
@@ -92,7 +92,7 @@ test.describe('the resume pages', () => {
   // The premise of the whole feature: the page publishes no way to contact him
   // except the request form.
   test('publishes no contact details', async ({ page }) => {
-    await page.goto('/cv/');
+    await page.goto('/cv/product/');
     const html = await page.content();
 
     expect(html).not.toMatch(/mailto:/);
@@ -161,6 +161,8 @@ test.describe('the download gate', () => {
       '/resume.pdf',
       '/Eddie-Freeman-Resume.pdf',
       '/Eddie-Freeman-Resume-ATS.pdf',
+      '/Eddie-Freeman-Resume-Solutions.pdf',
+      '/Eddie-Freeman-Resume-Solutions-ATS.pdf',
       '/resume/human.pdf',
       '/cv/resume.pdf',
       '/_astro/resume.pdf',
@@ -199,7 +201,15 @@ test.describe('the download gate', () => {
   test('keeps the print render routes unreachable in a normal build', async ({
     request,
   }) => {
-    for (const path of ['/cv/print/human', '/cv/print/bot']) {
+    for (const path of [
+      '/cv/print/product/human',
+      '/cv/print/product/bot',
+      '/cv/print/solutions/human',
+      '/cv/print/solutions/bot',
+      // The pre-variant paths, which must not have been left answering.
+      '/cv/print/human',
+      '/cv/print/bot',
+    ]) {
       expect((await request.get(path)).status(), path).toBe(404);
     }
   });

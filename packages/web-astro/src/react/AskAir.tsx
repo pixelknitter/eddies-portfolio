@@ -40,9 +40,14 @@ import { AIResume } from './AIResume';
 interface Props {
   /** The standalone page, followed when JavaScript is unavailable. */
   href: string;
+  /**
+   * What the visitor is hiring for, when this trigger sits on a page that says
+   * so. Passed through to the dialog; see AIResume.
+   */
+  role?: string;
 }
 
-export function AskAir({ href }: Props) {
+export function AskAir({ href, role }: Props) {
   const [open, setOpen] = React.useState(false);
   const triggerRef = React.useRef<HTMLAnchorElement>(null);
   /**
@@ -173,7 +178,7 @@ export function AskAir({ href }: Props) {
         widthClass="sm:max-w-3xl"
         anchorTop={anchorTop}
       >
-        <AIResume variant="dialog" titleId="air-dialog-title" />
+        <AIResume variant="dialog" titleId="air-dialog-title" role={role} />
       </Modal>
     </>
   );

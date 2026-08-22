@@ -16,7 +16,14 @@ type Node = Record<string, unknown>;
  * in the e2e suite, which reads the actual pages.
  */
 const graph = buildResumeJsonLd({
-  resume: RESUME,
+  /*
+   * `RESUME` is the pre-collection snapshot and carries no variant, because it
+   * predates them. Named here rather than added to resume.data.ts, which is
+   * fingerprinted: a field only this spec needs is not worth regenerating four
+   * PDFs for. The graph is built from the default variant in any case — see
+   * for-bots.astro, which is deliberately one canonical record.
+   */
+  resume: { ...RESUME, variant: 'product' },
   siteUrl: 'https://eddie.engineering',
   pagePath: '/cv/for-bots',
 }) as Node;

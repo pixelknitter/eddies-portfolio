@@ -2,248 +2,143 @@ import { getCollection } from 'astro:content';
 
 import { showFixtures } from '../visibility.mjs';
 
-import type {
-  ResumeEducation,
-  ResumeRole,
-  ResumeSkillGroup,
-  ResumeStat,
-  ResumeStrength,
-  ResumeTalk,
-} from './resume.data';
+import { assembleVariant, hasVariantProfile } from './assemble';
+import { DEFAULT_VARIANT, VARIANTS, isVariantSlug } from './variants.mjs';
+
+import type { Resume, ResumeEntry } from './assemble';
 
 /**
- * Assemble the resume from the content collection.
+ * Read the resume out of the content collection, in a given framing.
  *
- * Returns the same shape `resume.data.ts` used to export, so the four rendering
- * surfaces — the visual page, the machine-readable page and both print routes —
- * changed only their import. That was the point of keeping the shape: the
- * migration is a change of *source*, not of everything downstream.
- *
- * ## Why bullets come from the body
- *
- * Frontmatter holds what a machine needs and can validate: ISO dates for the
- * JSON-LD graph, the tier the visual page groups by, tags for retrieval. The
- * bullets are prose, so they live in the markdown body — which is also what makes
- * them reachable by A.I.R., since `ask.ts` now carries bodies into the prompt.
+ * The assembly rules live in `assemble.ts`, which depends on `astro:content`
+ * for types only and is therefore testable. This file is the half that cannot
+ * be: it calls `getCollection`, which resolves only inside an Astro build.
  *
  * ## Empty means missing, not empty
  *
- * The content is sealed. A build with no `CONTENT_SEAL_KEY` and no fixtures loads
- * zero entries, and every resume route 404s rather than publishing a header with
- * seven empty sections and a JSON-LD graph asserting a person with no work
- * history. `loadResume` returns null for that case; the routes check it.
+ * The content is sealed. A build with no `CONTENT_SEAL_KEY` and no fixtures
+ * loads zero entries, and every resume route 404s rather than publishing a
+ * header with seven empty sections and a JSON-LD graph asserting a person with
+ * no work history. `loadResume` returns null for that case; the routes check it.
  */
 
-/** What the rendering surfaces consume. Mirrors the old `RESUME` export. */
-export interface Resume {
-  name: string;
+export type { Resume, SectionName } from './assemble';
+export { assembleVariant } from './assemble';
+
+/** One chooser card on /cv. */
+export interface VariantCard {
+  slug: string;
+  path: string;
   headline: string;
-  location: string;
-  summary: string;
-  longSummary: string;
-  stats: ResumeStat[];
-  strengths: ResumeStrength[];
-  now: ResumeRole;
-  experience: ResumeRole[];
-  earliest: string;
-  skills: ResumeSkillGroup[];
-  speaking: {
-    evaluation: string;
-    talks: ResumeTalk[];
-    footer: string;
-    writing: { label: string; url: string; detail: string };
-  };
-  education: ResumeEducation[];
+  pitch: string;
 }
 
 /**
- * Bullets from a markdown body.
+ * Every entry that is real, or every fixture, but never a mix.
  *
- * Deliberately not a markdown parser: the body is a flat list of `- ` items by
- * schema, and pulling in a parser to find them would be machinery for one
- * construct. Continuation lines are joined, because a long bullet wraps.
+ * Split out because three callers need the same selection — loading a variant,
+ * listing which variants exist, and building the chooser cards — and repeating
+ * the rule is how it would drift.
  */
-function parseBullets(body: string): string[] {
-  const bullets: string[] = [];
-  for (const rawLine of body.split('\n')) {
-    const line = rawLine.trimEnd();
-    const item = line.match(/^\s*[-*]\s+(.*)$/);
-    if (item) {
-      bullets.push(item[1].trim());
-    } else if (line.trim() && bullets.length > 0) {
-      // A wrapped continuation of the previous bullet.
-      bullets[bullets.length - 1] += ` ${line.trim()}`;
-    }
-  }
-  return bullets;
-}
-
-/** The pre-2012 line, kept out of the role list because it carries no detail. */
-const EARLIEST =
-  'Technology Evangelist, **ngmoco/DeNA** (mobile gaming & social platform) · Software Engineer, **Noblis** (healthcare & government).';
-
-/**
- * @returns The assembled resume, or null when the collection is empty — which
- *   means the seal key is absent, not that the resume is blank.
- */
-export async function loadResume(): Promise<Resume | null> {
+async function selectEntries(): Promise<ResumeEntry[]> {
   const all = await getCollection('resume');
-  if (all.length === 0) return null;
+  if (all.length === 0) return [];
 
   /*
    * Fixtures fill in only when there is nothing real — the rule
    * `scripts/air-eval.mjs` already uses on its corpus. Without it, a build with
    * both (seal key present *and* PUBLIC_SHOW_FIXTURES on) could pick the sample
    * profile over the real one, because the singleton sections take the first
-   * match. A sample headline mixed into a real resume is worse than either alone,
-   * and invisible until someone reads the page.
+   * match. A sample headline mixed into a real resume is worse than either
+   * alone, and invisible until someone reads the page.
    *
-   * The flag is checked *here* rather than left to `CONTENT_GLOB`, which cannot do
-   * it for this collection: its negation pattern for `sample-` files excludes a fixture at a
-   * collection's root — star's does not reach the bundle — but not one a directory
-   * deep, and the resume uses a directory per section. Measured, not assumed. So
-   * the filename convention is not load-bearing here; this check is.
+   * The flag is checked *here* rather than left to `CONTENT_GLOB`, which cannot
+   * do it for this collection: its negation pattern for `sample-` files excludes
+   * a fixture at a collection's root — star's does not reach the bundle — but
+   * not one a directory deep, and the resume uses a directory per section.
+   * Measured, not assumed. So the filename convention is not load-bearing here;
+   * this check is.
    */
   const real = all.filter((entry) => !entry.id.includes('sample-'));
-  if (real.length > 0) return assemble(real);
+  if (real.length > 0) return real;
 
-  const fixtures = showFixtures(import.meta.env) ? all : [];
-  if (fixtures.length === 0) return null;
-  return assemble(fixtures);
+  return showFixtures(import.meta.env) ? all : [];
 }
 
-/** @param entries Either the real resume or the fixtures, never a mix. */
-function assemble(
-  entries: Awaited<ReturnType<typeof getCollection<'resume'>>>,
-): Resume {
-  const bySection = <T extends string>(section: T) =>
-    entries
-      .filter((entry) => entry.data.section === section)
-      .sort((a, b) => a.data.order - b.data.order);
+/**
+ * @param variant A registered variant slug. An unknown slug returns null rather
+ *   than falling back, so a typo in a link is a 404 and not a silent redirect to
+ *   a different framing of the same career.
+ * @returns The assembled resume, or null when there is nothing to assemble —
+ *   which means the seal key is absent, or this variant is unwritten.
+ */
+export async function loadResume(
+  variant: string = DEFAULT_VARIANT,
+): Promise<Resume | null> {
+  if (!isVariantSlug(variant)) return null;
 
-  const profile = bySection('profile')[0];
-  const strengths = bySection('strengths')[0];
-  const skills = bySection('skills')[0];
-  const speaking = bySection('speaking')[0];
-  const education = bySection('education')[0];
-  const roleEntries = bySection('experience');
+  const entries = await selectEntries();
+  if (entries.length === 0) return null;
 
-  // A partial collection is a broken build, not a degraded one. Saying which
-  // section is missing beats a downstream "cannot read property of undefined".
-  const missing = [
-    ['profile', profile],
-    ['strengths', strengths],
-    ['skills', skills],
-    ['speaking', speaking],
-    ['education', education],
-  ]
-    .filter(([, value]) => !value)
-    .map(([name]) => name);
-
-  if (missing.length > 0 || roleEntries.length === 0) {
-    throw new Error(
-      `resume collection is incomplete — missing: ${[
-        ...missing,
-        ...(roleEntries.length === 0 ? ['experience'] : []),
-      ].join(', ')}`,
-    );
+  // A registered variant with no profile of its own is not published. Only the
+  // default falls back, because the default *is* the fallback.
+  if (variant !== DEFAULT_VARIANT && !hasVariantProfile(entries, variant)) {
+    return null;
   }
 
-  const roles: ResumeRole[] = roleEntries.map((entry) => {
-    const data = entry.data as Extract<
-      typeof entry.data,
-      { section: 'experience' }
-    >;
-    const bullets = parseBullets(entry.body ?? '');
+  return assembleVariant(entries, variant);
+}
 
-    // An index past the end would silently drop emphasis on the visual page,
-    // which is exactly the drift indices are vulnerable to when bullets are
-    // edited. Fail the build instead.
-    for (const index of data.featured) {
-      if (index >= bullets.length) {
-        throw new Error(
-          `${entry.id}: featured index ${index} is past the last bullet (${bullets.length})`,
-        );
-      }
+/**
+ * Which variants are actually publishable right now.
+ *
+ * Registry order, so the chooser lays cards out deliberately rather than in
+ * whatever order the content glob happened to return. The default is included
+ * whenever there is any content at all; the others have to earn it with a
+ * profile entry. That is what keeps an unwritten variant off the landing
+ * instead of leaving a card that leads to a 404.
+ */
+export async function availableVariants(): Promise<string[]> {
+  const entries = await selectEntries();
+  if (entries.length === 0) return [];
+
+  return VARIANTS.filter(
+    (variant) =>
+      variant.slug === DEFAULT_VARIANT ||
+      hasVariantProfile(entries, variant.slug),
+  ).map((variant) => variant.slug);
+}
+
+/**
+ * The chooser cards, in registry order.
+ *
+ * Card copy comes from each variant's sealed profile rather than from the
+ * landing page, so a new variant appears the moment its prose is sealed and no
+ * code change is needed to introduce it.
+ */
+export async function variantCards(): Promise<VariantCard[]> {
+  const entries = await selectEntries();
+  if (entries.length === 0) return [];
+
+  const cards: VariantCard[] = [];
+
+  for (const variant of VARIANTS) {
+    if (
+      variant.slug !== DEFAULT_VARIANT &&
+      !hasVariantProfile(entries, variant.slug)
+    ) {
+      continue;
     }
 
-    return {
-      org: data.org,
-      role: data.role,
-      location: data.location,
-      dates: data.dates,
-      start: data.start,
-      ...(data.end ? { end: data.end } : {}),
-      ...(data.period ? { period: data.period } : {}),
-      ...(data.lede ? { lede: data.lede } : {}),
-      ...(data.summary ? { summary: data.summary } : {}),
-      ...(data.compact ? { compact: data.compact } : {}),
-      ...(data.chips.length ? { tags: [...data.chips] } : {}),
-      ...(data.highlights.length ? { highlights: [...data.highlights] } : {}),
-      tier: data.tier,
-      bullets: bullets.map((text, index) => ({
-        text,
-        ...(data.featured.includes(index) ? { featured: true } : {}),
-      })),
-    };
-  });
+    const resume = assembleVariant(entries, variant.slug);
+    cards.push({
+      slug: variant.slug,
+      path: variant.path,
+      headline: resume.headline,
+      // A card with no pitch still renders; the headline carries it.
+      pitch: resume.pitch ?? '',
+    });
+  }
 
-  // The current role is the one with no end date. Derived rather than flagged,
-  // so it cannot disagree with the dates the JSON-LD graph publishes.
-  const now = roles.find((role) => !role.end);
-  if (!now)
-    throw new Error(
-      'resume collection has no current role (every entry has an end date)',
-    );
-
-  const profileData = profile.data as Extract<
-    typeof profile.data,
-    { section: 'profile' }
-  >;
-  const strengthsData = strengths.data as Extract<
-    typeof strengths.data,
-    { section: 'strengths' }
-  >;
-  const skillsData = skills.data as Extract<
-    typeof skills.data,
-    { section: 'skills' }
-  >;
-  const speakingData = speaking.data as Extract<
-    typeof speaking.data,
-    { section: 'speaking' }
-  >;
-  const educationData = education.data as Extract<
-    typeof education.data,
-    { section: 'education' }
-  >;
-
-  return {
-    name: profileData.title.split('—')[0].trim(),
-    headline: profileData.headline,
-    location: profileData.location,
-    summary: profileData.summary,
-    // The profile body is the long form, for the machine page and the PDFs.
-    longSummary: (profile.body ?? '').trim(),
-    stats: [...profileData.stats],
-    strengths: strengthsData.items.map((item) => ({
-      title: item.title,
-      detail: item.detail,
-      ...(item.wide ? { wide: true } : {}),
-    })),
-    now,
-    experience: roles.filter((role) => role !== now),
-    earliest: EARLIEST,
-    skills: skillsData.groups.map((group) => ({
-      group: group.group,
-      tone: group.tone,
-      items: [...group.items],
-    })),
-    speaking: {
-      evaluation: speakingData.evaluation,
-      talks: [...speakingData.talks],
-      footer: speakingData.footer ?? '',
-      writing: speakingData.writing ?? { label: '', url: '', detail: '' },
-    },
-    education: [...educationData.entries],
-  };
+  return cards;
 }

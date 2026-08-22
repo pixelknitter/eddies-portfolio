@@ -6,6 +6,11 @@ import { readSecret } from '@util/air/runtime.mjs';
 import { verifyPurposeToken } from '@util/air/requests.mjs';
 import { escapeHtml } from '@util/html.mjs';
 import { RESUME_PDFS, GENERATED_AT } from '@util/resume/pdfs.generated.mjs';
+import {
+  DEFAULT_VARIANT,
+  isVariantSlug,
+  pdfKey,
+} from '@util/resume/variants.mjs';
 import { applyWatermark, composeWatermark } from '@util/resume/watermark.mjs';
 
 /**
@@ -37,16 +42,17 @@ const limiter = createRateLimiter({ limit: 12, windowMs: 10 * 60_000 });
  */
 const decoded = new Map<string, Uint8Array>();
 
-function decode(format: 'human' | 'bot'): Uint8Array {
-  const cached = decoded.get(format);
+/** @param key `variant:kind`, as owned by util/resume/variants.mjs. */
+function decode(key: string): Uint8Array {
+  const cached = decoded.get(key);
   if (cached) return cached;
 
-  const base64 = RESUME_PDFS[format].base64;
+  const base64 = RESUME_PDFS[key].base64;
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 
-  decoded.set(format, bytes);
+  decoded.set(key, bytes);
   return bytes;
 }
 
@@ -89,7 +95,7 @@ function fail(
   return page(
     title,
     `<p style="line-height:1.6;">${escapeHtml(detail)}</p>
-     <p style="line-height:1.6;"><a href="/cv/" style="color:#5dd39e;">Request a fresh copy</a></p>`,
+     <p style="line-height:1.6;"><a href="/cv/product/#download" style="color:#5dd39e;">Request a fresh copy</a></p>`,
     status,
   );
 }
@@ -116,6 +122,22 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const requested = context.url.searchParams.get('format');
   if (requested !== 'human' && requested !== 'bot') {
+    return fail(
+      context,
+      400,
+      'That link is incomplete',
+      'Unknown download format.',
+    );
+  }
+
+  /*
+   * An older link carries no variant. Defaulting rather than rejecting keeps
+   * every link issued before variants existed working, and the default is the
+   * document those links were issued for.
+   */
+  const requestedVariant =
+    context.url.searchParams.get('variant') ?? DEFAULT_VARIANT;
+  if (!isVariantSlug(requestedVariant)) {
     return fail(
       context,
       400,
@@ -164,11 +186,28 @@ export async function GET(context: APIContext): Promise<Response> {
     );
   }
 
-  const pdf = RESUME_PDFS[requested];
-  if (pdf.bytes === 0) {
-    console.error(
-      '[resume] pdfs.generated.mjs is a stub — run `yarn resume:pdf`',
+  /*
+   * The token names the variant it was issued for, for the same reason it names
+   * the format: the signature covers the claim, but only if someone checks it.
+   * A token with no variant claim is an older one, good for the default.
+   */
+  const grantedVariant =
+    typeof verified.claims.variant === 'string'
+      ? verified.claims.variant
+      : DEFAULT_VARIANT;
+  if (grantedVariant !== requestedVariant) {
+    return fail(
+      context,
+      403,
+      'That link is for a different file',
+      'This link does not open that download.',
     );
+  }
+
+  const key = pdfKey(requestedVariant, requested);
+  const pdf = RESUME_PDFS[key];
+  if (!pdf || pdf.bytes === 0) {
+    console.error(`[resume] ${key} is not generated — run \`yarn resume:pdf\``);
     return fail(
       context,
       503,
@@ -180,7 +219,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const email =
     typeof verified.claims.email === 'string' ? verified.claims.email : '';
   const body = applyWatermark(
-    decode(requested),
+    decode(key),
     pdf.watermarkOffsets,
     composeWatermark({ email, date: GENERATED_AT }),
   );
@@ -188,7 +227,7 @@ export async function GET(context: APIContext): Promise<Response> {
   // The second attribution channel, and the one that survives if watermarking ever
   // degrades: who fetched what, from where.
   console.log(
-    `[resume] served ${requested} to ${email} (${clientId}, ${pdf.pages}pp, ${pdf.bytes}b)`,
+    `[resume] served ${key} to ${email} (${clientId}, ${pdf.pages}pp, ${pdf.bytes}b)`,
   );
 
   return new Response(body, {

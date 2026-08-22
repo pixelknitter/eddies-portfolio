@@ -105,10 +105,11 @@ src/
 │   ├── works.astro        # Projects listing
 │   ├── projects/[...slug].astro # Dynamic project pages (prerendered)
 │   ├── cv/                # Resume surfaces + A.I.R.
-│   │   ├── index.astro    #   Visual resume
-│   │   ├── for-bots.astro #   Complete resume + JSON-LD graph
+│   │   ├── index.astro    #   Role chooser: one card per available variant
+│   │   ├── [variant].astro #  Visual resume, in one framing (/cv/product…)
+│   │   ├── for-bots.astro #   Complete resume + JSON-LD graph (default only)
 │   │   ├── air/           #   AI Resume (A.I.R.) chat page
-│   │   └── print/         #   Print-only routes the PDF generator prints
+│   │   └── print/[variant]/ # Print-only routes the PDF generator prints
 │   ├── api/               # SSR endpoints (air/*, resume/*)
 │   ├── privacy.astro      # Privacy notice
 │   ├── robots.txt.ts      # Per-tier robots policy
@@ -246,6 +247,10 @@ yarn install
 
 ```bash
 # Start development server (http://localhost:4321)
+yarn dev                    # preferred — see the note below
+yarn dev --port 4322 --all  # every gated section on, plus fixtures
+
+# The raw commands, which do not guard against the singleton trap:
 yarn astro:dev
 # or
 nx dev web-astro
@@ -285,6 +290,15 @@ Nx caches build outputs, lint results, and test runs for faster rebuilds:
 - Cache: local only (`.nx/cache`); Nx Cloud has been removed
 - Clear cache: `nx reset`
 - CI disables the daemon (`NX_DAEMON=false`) for deterministic runs
+
+> **Use `yarn dev`, not `astro dev` directly.** `astro dev` daemonises and is a
+> **singleton**: a second start does not fail, does not honour `--port`, and
+> exits 0 after printing "Dev server already running at …". Whatever you open is
+> then served by the *first* daemon, built from the environment **that** one was
+> started with — which is how a run with `PUBLIC_SHOW_RESUME=true` 404s every
+> resume route while the flags look correct. `scripts/dev-server.mjs` stops any
+> existing daemon, sweeps a stale one the registry has forgotten, and confirms
+> the port answers before returning.
 
 ### File Watching
 
@@ -924,10 +938,10 @@ commits.
 yarn resume:pdf     # then commit src/util/resume/pdfs.generated.mjs
 ```
 
-Regenerating needs the plaintext *materialized in the section dirs* —
-`.local-*/` working copies alone load zero entries; without `CONTENT_SEAL_KEY`
-the run fails with a 404 on `/cv/print/human` rather than naming the missing
-key. **Editing a working copy also makes the vault stale, and nothing goes
+`yarn resume:pdf` now materializes the sealed content itself and cleans up after,
+so it is one command — do not run `unseal-all` first. It needs the key, which it
+reads from `$CONTENT_SEAL_KEY` or `~/.config/eddies-portfolio/content-seal.token`.
+**Editing a working copy makes the vault stale, and nothing goes
 red** — resealing is key-gated and operator-run: see
 [Reseal the content vault](./docs/RUNBOOK.md#reseal-the-content-vault) in the
 runbook. **[docs/RESUME.md](./docs/RESUME.md) is the source of truth** for the

@@ -1,0 +1,190 @@
+---
+/**
+ * Lights the border of any `[data-glow]` element nearest the pointer.
+ *
+ * Renders nothing. Include it once on a page and mark the cards with
+ * `data-glow`; the styling lives in `.glow-card` in global.css, and this only
+ * supplies the two things CSS cannot know — that JavaScript is available, and
+ * where the cursor is.
+ *
+ * ## Why one listener on the document, not one per card
+ *
+ * The first version tracked `pointermove` on each card and lit it with
+ * `:hover`, which meant a card was either fully lit or not lit at all, and
+ * nothing happened until the cursor was already inside it. Cards do not exist
+ * alone: the interesting moment is the approach, when the pointer is between
+ * two of them and both should answer to how near it is.
+ *
+ * `:hover` cannot express that — it knows inside from outside and nothing else.
+ * So the pointer is tracked once, for the page, and every card computes its own
+ * distance to it. Cards light by proximity, and the one being approached is
+ * brightest before it is reached.
+ *
+ * ## Why a component rather than a line in Layout
+ *
+ * Every page would carry it, to serve the two that want it. Opt-in keeps the
+ * cost on the pages that spend it, and makes the effect greppable: the pages
+ * using it are the pages importing it.
+ */
+---
+
+<script>
+  /**
+   * How far outside a card the pointer still lights it, in CSS pixels.
+   *
+   * Comfortably wider than a card, so a card starts answering while the pointer
+   * is still crossing its neighbour. Much less and the ring only appears once
+   * the pointer is nearly touching, which is the hover behaviour this replaced;
+   * much more and every card on the page sits permanently half-lit, which says
+   * as little as none of them being lit.
+   */
+  const PROXIMITY = 360;
+
+  /** Every card currently opted in. Re-queried rather than held: see `paint`. */
+  const glowCards = () =>
+    Array.from(document.querySelectorAll<HTMLElement>('[data-glow]'));
+
+  /**
+   * Attach the pointer-tracked border glow.
+   *
+   * Bound on `astro:page-load` rather than at module scope: that event fires on
+   * the first load *and* after every view transition, and the site persists its
+   * nav across swaps. A plain top-level listener would go stale on navigation —
+   * the same reason the resume's expand control binds this way.
+   */
+  function initGlowBorders() {
+    // `Array.from`, not the NodeList directly: iterating one needs
+    // downlevelIteration under this tsconfig — the same reason the resume's
+    // expand control wraps its query.
+    const cards = glowCards();
+    if (cards.length === 0) return;
+
+    // The class is what makes the ring exist at all, so a page with no
+    // JavaScript renders the card exactly as it did before this feature.
+    for (const card of cards) card.classList.add('glow-card');
+
+    /*
+     * A ring that chases the cursor is movement, and someone who asked the
+     * system to stop moving things has asked for this too. They still get the
+     * ring — `.glow-card:hover` in global.css lights it, centred — because that
+     * is presence rather than motion, and losing it would cost them the
+     * affordance as well as the animation.
+     */
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    // One set of listeners for the page, however many cards it holds. A view
+    // transition can hand back a document that is already wired.
+    if (document.documentElement.dataset.glowReady === 'true') return;
+    document.documentElement.dataset.glowReady = 'true';
+
+    let frame = 0;
+    let pointerX = -Infinity;
+    let pointerY = -Infinity;
+
+    function paint() {
+      frame = 0;
+
+      /*
+       * Re-queried every pass rather than captured once. Cards move under a
+       * still pointer — scrolling, a reflow, the dialog's scrollbar
+       * compensation — and a cached list would also miss any card added after
+       * this ran. It is a handful of elements.
+       */
+      for (const card of glowCards()) {
+        const rect = card.getBoundingClientRect();
+
+        /*
+         * Distance from the pointer to the *rectangle*, not to its centre:
+         * zero anywhere inside, growing only once past an edge. Centre-distance
+         * would dim the corners of a wide card while the pointer was still on
+         * it.
+         */
+        const dx = Math.max(rect.left - pointerX, 0, pointerX - rect.right);
+        const dy = Math.max(rect.top - pointerY, 0, pointerY - rect.bottom);
+        const distance = Math.hypot(dx, dy);
+
+        /*
+         * Inside the card, the gradient grows to cover it.
+         *
+         * At the base radius a pointer in the middle of a card is further from
+         * its own border than the gradient reaches, so the ring went out
+         * exactly where the visitor was most committed to it — the card looked
+         * unlit at the moment it was being read. Spanning the diagonal keeps
+         * the whole border lit, and because the falloff is unchanged the near
+         * edge is still the brightest: a lit card with a bright spot, rather
+         * than a spotlight that lost its subject.
+         *
+         * `--glow-size` is a registered property (see global.css), so this is a
+         * transition rather than a jump — the expansion on arrival and the
+         * contraction on leaving are the same 420ms curve, which overshoots
+         * just enough to read as a pulse.
+         */
+        const inside = distance === 0;
+        if (inside) {
+          card.style.setProperty(
+            '--glow-size',
+            `${Math.round(Math.hypot(rect.width, rect.height))}px`,
+          );
+        } else {
+          // Removed rather than set back: the registered initial value is the
+          // one number that should decide the resting radius.
+          card.style.removeProperty('--glow-size');
+        }
+
+        const nearness = Math.max(0, 1 - distance / PROXIMITY);
+        /*
+         * Squared, so the falloff is gentle close in and steep further out.
+         * Linear left every card within range at a permanent half-glow, which
+         * is the same evenness the three-stop gradient was fixing.
+         */
+        card.style.setProperty('--glow-opacity', String(nearness * nearness));
+        card.style.setProperty('--glow-x', `${pointerX - rect.left}px`);
+        card.style.setProperty('--glow-y', `${pointerY - rect.top}px`);
+      }
+    }
+
+    /*
+     * Coalesced into one frame. `pointermove` fires far faster than the screen
+     * redraws and each pass reads `getBoundingClientRect` per card, which
+     * forces layout — left unthrottled that is a layout storm on a path the
+     * visitor is actively moving through.
+     */
+    function schedule() {
+      if (frame === 0) frame = requestAnimationFrame(paint);
+    }
+
+    document.addEventListener(
+      'pointermove',
+      (event: PointerEvent) => {
+        pointerX = event.clientX;
+        pointerY = event.clientY;
+        schedule();
+      },
+      { passive: true },
+    );
+
+    // Scrolling moves the cards under a stationary pointer, so the ring has to
+    // follow even when nothing moved the mouse.
+    document.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule, { passive: true });
+
+    /*
+     * The pointer leaving the window is the one case with no coordinates to
+     * reason from. Left alone every card keeps whatever glow it had when the
+     * cursor crossed the edge, indefinitely.
+     */
+    document.addEventListener('pointerleave', () => {
+      if (frame !== 0) {
+        cancelAnimationFrame(frame);
+        frame = 0;
+      }
+      pointerX = -Infinity;
+      pointerY = -Infinity;
+      for (const card of glowCards()) {
+        card.style.setProperty('--glow-opacity', '0');
+      }
+    });
+  }
+
+  document.addEventListener('astro:page-load', initGlowBorders);
+</script>

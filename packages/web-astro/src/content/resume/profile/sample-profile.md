@@ -7,6 +7,8 @@ order: 90
 summary: >-
   Sample summary. The real resume is sealed; this fixture exists so a build
   without the seal key still has a resume to render and assert against.
+pitch: >-
+  Sample pitch for the default variant, so the chooser has a card to lay out.
 stats: [{ value: '15+', label: 'years building production systems' }, { value: '2', label: 'sample stat tiles' }]
 tags: ['sample', 'fixture', 'summary', 'overview']
 ---

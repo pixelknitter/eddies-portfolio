@@ -1,57 +1,74 @@
 ---
 import Layout from '@layouts/Layout.astro';
-import ResumeVisual from '@components/resume/ResumeVisual.astro';
-import { ResumeDownload } from '../../react/ResumeDownload';
-import { AskAir } from '../../react/AskAir';
-import { loadResume } from '@util/resume/load';
+import RoleCard from '@components/cv/RoleCard.astro';
+import GlowBorder from '@components/GlowBorder.astro';
+import { SeedQuestions } from '../../react/SeedQuestions';
+import { variantCards } from '@util/resume/load';
+import { LANES, seedsForLane } from '@util/air/suggested.mjs';
 import { resolveSections } from '@util/flags/sections.mjs';
 import '../../styles/resume-organic.css';
-// Carries the rules that swap this page for a notice when printed. The other
-// half of that file styles the print routes; see the note at its top.
-import '../../styles/print.css';
 
 /**
- * The visual resume.
+ * The CV chooser.
  *
- * Has its own flag rather than riding `showAIR`. A.I.R. is deliberately held back
- * in production; the resume is meant to be found. Sharing a flag would mean the
- * resume could not go live without also exposing the chat.
+ * ## Why this is a page and not a menu
  *
- * The route is guarded, not just the nav link. An unlisted page is still a public
- * page if it responds.
+ * The same career reads differently depending on what someone is hiring for,
+ * and the visitor knows which they are while we do not. Asking is cheaper than
+ * guessing, and cheaper than one CV that hedges.
+ *
+ * The cards are content, not navigation: every word on them comes from the
+ * variant's own sealed profile, which is what lets a new framing arrive as a
+ * content drop rather than a code change.
+ *
+ * The resume that used to live here is now at `/cv/product`. The site had been
+ * live about a week when this changed, so there was no accumulated equity to
+ * protect, and a pure chooser reads cleaner than a chooser bolted above a full
+ * document.
+ *
+ * The route is guarded, not just the nav link. An unlisted page is still a
+ * public page if it responds.
  */
-const sections = await resolveSections(import.meta.env);
+export const prerender = false;
 
+const sections = await resolveSections(import.meta.env);
 if (!sections.resume) {
   return new Response(null, { status: 404, statusText: 'Not found' });
 }
 
 /*
- * An empty collection means the seal key is absent, not that the resume is blank.
- * 404 rather than publish a header with empty sections — and, for the machine
- * page, a JSON-LD graph asserting a person with no work history.
+ * No cards means no content, which means the seal key is absent. 404 rather
+ * than publish a chooser with nothing to choose between.
  */
-const resume = await loadResume();
-if (!resume) {
+const cards = await variantCards();
+if (cards.length === 0) {
   return new Response(null, { status: 404, statusText: 'Not found' });
 }
 
-const pageTitle = `${resume.name} — ${resume.headline}`;
-const description = `${resume.name}: ${resume.summary}`;
-const botsPath = '/cv/for-bots';
-// Offer the chat only where it exists: the two features ship independently, and a
-// prominent link to a 404 is worse than no link.
-const airPath = sections.air ? '/cv/air/' : undefined;
+/*
+ * Every lane, not only the lanes with a CV behind them.
+ *
+ * A seed has to be answerable from the corpus, not from a particular document —
+ * so the leadership questions belong here even though the leadership CV is
+ * unwritten. Filtering these by `availableVariants` would withhold answers the
+ * record can already give.
+ */
+const seeds = Object.fromEntries(
+  LANES.map((lane) => [lane, seedsForLane(lane)]),
+);
+
+const pageTitle = 'Eddie Freeman — CV';
+const description =
+  'Eddie Freeman’s CV, in the framing that fits what you are hiring for.';
 ---
 
-<Layout pageTitle={pageTitle} {description}>
+<Layout {pageTitle} {description}>
   <Fragment slot="head">
     {
       /*
-      The two families the organic design needs. Loaded here rather than in
-      Layout.astro so no other route pays for them. The stylesheet also
-      @imports them, which covers the print routes; this link is what lets the
-      browser start fetching before the CSS has parsed.
+      The two families the organic design needs, matching the variant pages so
+      moving between them costs no font swap. Loaded here rather than in
+      Layout.astro so no other route pays for them.
     */
     }
     <link
@@ -63,226 +80,98 @@ const airPath = sections.air ? '/cv/air/' : undefined;
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Caprasimo:wght@400&family=Figtree:wght@400;600;700&display=swap"
     />
-    {
-      /*
-      Points machines at the complete version. The visible page is collapsed and
-      curated; `for-bots` carries every bullet plus the JSON-LD graph.
-    */
-    }
-    <link
-      rel="alternate"
-      type="text/html"
-      href={botsPath}
-      title="Complete resume, machine-readable"
-    />
   </Fragment>
 
-  {
-    /*
-    Shown only on paper. Print-to-PDF is the easiest way around the download
-    gate, so printing this page yields the pointer rather than the document.
-    This is a deterrent against convenience, not a security control — the
-    protection that matters is that no PDF exists at a public URL, plus the
-    per-requester watermark on the file that is served.
-  */
-  }
-  <div class="resume-print-notice">
-    <h1>{resume.name}</h1>
-    <p>{resume.headline}</p>
-    <p>
-      Available as a PDF — human-readable or ATS-friendly — at
-      <strong>eddie.engineering/cv</strong>.
-    </p>
-  </div>
+  {/* No <main> here: Layout.astro already renders one, and nesting a second
+      is invalid and leaves `locator('main')` matching two elements. */}
+  <div class="mx-auto max-w-3xl px-4 py-10">
+    {
+      /*
+      `organic` scopes the resume document's own typography, so the masthead and
+      the cards read as the same family as the CV they lead to. It is applied to
+      these two bands rather than to `main` on purpose: the seed questions below
+      open a dialog that renders inside whatever wrapper its trigger sits in,
+      and inheriting the document's display face there overlapped the dialog's
+      heading with the label beneath it. Same lesson `[variant].astro` records
+      about the A.I.R. trigger.
+    */
+    }
+    <div class="organic">
+      <section class="mb-10">
+        <h1 class="mb-4 font-header text-3xl leading-tight sm:text-4xl">
+          What are you hiring for?
+        </h1>
+        <p class="font-body text-lg leading-relaxed">
+          The work is the same either way. What changes is which parts of it
+          matter to you, so pick the version that fits the problem you are
+          trying to solve and read that one.
+        </p>
+      </section>
 
-  {
-    /*
-    The action bar. Sticky under the site nav so the download stays reachable in a
-    long document, and separated from the nav by real space — the header used to
-    butt straight against the page chrome.
+      <section aria-labelledby="cv-versions" class="mb-12">
+        <h2 id="cv-versions" class="sr-only">Versions of this CV</h2>
+        <div class="grid gap-4 sm:grid-cols-2">
+          {
+            cards.map((card) => (
+              <RoleCard
+                href={card.path}
+                headline={card.headline}
+                pitch={card.pitch}
+              />
+            ))
+          }
+        </div>
+      </section>
 
-    `organic` on the wrapper so the CTA classes resolve their tokens; the bar sits
-    outside the document card deliberately, because it is page chrome rather than
-    part of the resume.
-  */
-  }
-  {
-    /*
-    Centred by an outer wrapper rather than by a utility on the bar itself.
-    `.resume-action-bar` carries its own box metrics from resume-organic.css,
-    which won over `mx-auto` and left the bar 48px left of the ask row beneath
-    it — same width, different origin, which reads worse than either being
-    wrong alone. The wrapper does the centring; the bar keeps its own styling.
-
-    Constrained from the page rather than in resume-organic.css, which is
-    fingerprinted: doing it there would cost a PDF regeneration for a change
-    that never reaches paper.
-  */
-  }
-  <div class="mx-auto max-w-2xl">
-    {/* `id` is the target of REQUEST_PATH ('/cv/#download') — the footer's
-        "Request a copy" and the for-bots page both land here. */}
-    <div id="download" class="organic resume-action-bar resume-no-print">
-      <ResumeDownload client:visible />
+      {/* Renders nothing; wires the cards' pointer-tracked border. */}
+      <GlowBorder />
     </div>
-  </div>
 
-  {
-    /*
-    A.I.R.'s front door, in the slot `Expand all` used to occupy. Rendered only
-    when the feature is on: with it off, the top zone is the two download
-    buttons and nothing else, rather than a control that leads to a 404.
+    {
+      /*
+      Hidden entirely when A.I.R. is off. The two features ship independently,
+      and a band of questions that open nothing is worse than no band.
 
-    Deliberately NOT `organic`. That class scopes the résumé document's own
-    typography — `.organic h2` and friends, at a specificity utilities cannot
-    beat — and the dialog this trigger opens renders inside whatever wrapper the
-    trigger sits in. With `organic` here, the dialog's heading inherited the
-    document's display face and leading, overlapping the label beneath it.
-    Nothing in the trigger or the dialog needs the scope: both are styled
-    entirely with utilities.
-
-    `max-w-2xl` rather than `3xl`: the row used to run wider than the résumé's
-    own text column, so the page read as two documents rather than one with a
-    control on top.
-
-    The negative bottom margin cancels the résumé card's own 20px top margin.
-    Measured, not guessed: the 61px between this control and the name was the
-    card's margin plus its 41px top padding, none of it mine to set — the card
-    is styled in resume-organic.css, which is fingerprinted, so reaching in
-    there would cost a PDF regeneration for space that never reaches paper.
-  */
-  }
-  {
-    airPath && (
-      <div class="resume-no-print mx-auto mt-2 -mb-5 max-w-2xl">
-        <AskAir client:visible href={airPath} />
-      </div>
-    )
-  }
-
-  <div class="resume-no-print">
-    <ResumeVisual {resume}>
-      {
-        /*
-        `Expand all`, immediately above the first section it expands.
-
-        It began 628px above that section and outside the résumé card, where it
-        offered to expand something the visitor had not yet seen. Moving it into
-        the `actions` slot closed that to 372px but left it above the metric
-        cards, still a full band away — measured, not assumed. `sections-lead`
-        exists so the control and its target are actually adjacent.
-
-        A matching control at the foot serves someone who has read to the bottom
-        and wants to fold it back up without scrolling to the top.
-
-        Both are excluded from print: they toggle <details> elements that print
-        open regardless, so on paper they are two dead buttons.
-      */
-      }
-      {
-        /*
-        Spaced with utilities rather than a rule in resume-organic.css, which is
-        itself fingerprinted — styling it there would tie every future spacing
-        tweak to a PDF regeneration. Slot content lives in this file precisely
-        so it does not.
-      */
-      }
-      <div slot="sections-lead" class="resume-no-print mt-2 mb-4">
-        <button
-          type="button"
-          class="resume-cta resume-cta-secondary"
-          data-resume-expand
-          aria-expanded="false"
-        >
-          Expand all
-        </button>
-      </div>
-
-      {
-        /*
-        The foot control, inside the card rather than after it.
-
-        Outside, it inherited neither the card's padding nor its `.organic`
-        scope: it landed 48px left of its own twin, and every `.resume-cta` rule
-        is scoped `.organic .resume-cta`, so it rendered as a bare user-agent
-        button until the class was added by hand. Both problems were the same
-        problem — the control had been separated from the document it belongs
-        to. In the slot it inherits both, and the pair aligns.
-      */
-      }
-      <div slot="sections-trail" class="resume-no-print mt-6">
-        <button
-          type="button"
-          class="resume-cta resume-cta-secondary"
-          data-resume-expand
-          aria-expanded="false"
-        >
-          Expand all
-        </button>
-      </div>
-    </ResumeVisual>
-  </div>
-</Layout>
-<script>
-  /**
-   * "Expand all" / "Collapse all".
-   *
-   * Bound on `astro:page-load` rather than at module scope: that event fires on
-   * the first load *and* after every view transition, and the site persists its
-   * nav across swaps. A plain top-level listener would go stale on navigation.
-   */
-  function initResumeExpand() {
-    // Two controls now — one above the sections and one below — and they must
-    // report the same state, so a click on either updates both labels.
-    const buttons = Array.from(
-      document.querySelectorAll<HTMLButtonElement>('[data-resume-expand]'),
-    );
-    const scope = document.querySelector<HTMLElement>('[data-resume-sections]');
-    if (buttons.length === 0 || !scope) return;
-
-    const sections = Array.from(
-      scope.querySelectorAll<HTMLDetailsElement>('details'),
-    );
-    if (sections.length === 0) return;
-
-    /**
-     * The foot control, if there is one.
-     *
-     * It is hidden while everything is collapsed, and that is the whole reason
-     * it is tolerable to have two. Two buttons both reading "Expand all" is
-     * duplication a reader has to resolve; a "Collapse all" that appears at the
-     * bottom of a document they have just expanded is the shortest path back,
-     * and it is never on screen at the same time as an identical twin.
-     */
-    const foot = buttons.length > 1 ? buttons[buttons.length - 1] : null;
-
-    const sync = () => {
-      const allOpen = sections.every((section) => section.open);
-      const anyOpen = sections.some((section) => section.open);
-      for (const button of buttons) {
-        button.textContent = allOpen ? 'Collapse all' : 'Expand all';
-        button.setAttribute('aria-expanded', String(allOpen));
-      }
-      // `hidden` rather than a class: it removes the control from the
-      // accessibility tree too, so a screen reader is not offered a button
-      // that would collapse nothing.
-      if (foot) foot.parentElement?.toggleAttribute('hidden', !anyOpen);
-    };
-
-    for (const button of buttons) {
-      button.addEventListener('click', () => {
-        const allOpen = sections.every((section) => section.open);
-        for (const section of sections) section.open = !allOpen;
-        sync();
-      });
+      Deliberately outside the `organic` scope above: that class carries the
+      resume document's own typography at a specificity utilities cannot beat,
+      and the dialog these open renders inside whatever wrapper its trigger sits
+      in. `[variant].astro` records the same lesson about the A.I.R. trigger.
+    */
+    }
+    {
+      sections.air && (
+        <section aria-labelledby="cv-seeds" class="mb-12">
+          <h2 id="cv-seeds" class="mb-3 font-header text-xl">
+            Or start with a question
+          </h2>
+          <p class="mb-4 font-body leading-relaxed">
+            Tell it the problem you are trying to solve. It answers from a fixed
+            record of the work, and says so when the record does not cover it.
+          </p>
+          <SeedQuestions client:visible seeds={seeds} />
+        </section>
+      )
     }
 
-    // Toggling any one section can complete or break "all open", so the label
-    // has to follow individual toggles too, not just its own clicks.
-    for (const section of sections) section.addEventListener('toggle', sync);
+    {
+      /*
+      Adapted from the A.I.R. prototype. It belongs at the foot of the page a
+      visitor is about to ask questions from: the promise is worth making before
+      the first question rather than after the first answer.
 
-    sync();
-  }
-
-  document.addEventListener('astro:page-load', initResumeExpand);
-</script>
+      Gated with the seeds above, and for the same reason. This sentence is
+      about answers; with A.I.R. off there is nothing on this page to ask, so it
+      promises a thing that does not exist and reads as leftover copy. The two
+      features ship independently, and the chooser has to be complete on its own
+      with the chat switched off.
+    */
+    }
+    {
+      sections.air && (
+        <footer class="border-t border-hairline pt-6 font-body text-sm leading-relaxed opacity-75 dark:border-hairline-dark">
+          <p>Answers are drawn from a fixed record. Nothing is invented.</p>
+        </footer>
+      )
+    }
+  </div>
+</Layout>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { EVENTS } from '@pk/telemetry/events';
 import { ensureClient, getClient } from '../util/telemetry/client.mjs';
+import { DEFAULT_VARIANT } from '../util/resume/variants.mjs';
 
 /**
  * The lead-capture gate on the resume page.
@@ -59,7 +60,18 @@ function triggerDownload(url: string, filename: string) {
   anchor.remove();
 }
 
-export function ResumeDownload() {
+interface Props {
+  /**
+   * Which CV this bar belongs to.
+   *
+   * Sent with the request so the issued token names the variant, and the
+   * download endpoint can refuse a token minted for a different document. The
+   * visitor never sees it: they asked for the CV they are reading.
+   */
+  variant?: string;
+}
+
+export function ResumeDownload({ variant = DEFAULT_VARIANT }: Props = {}) {
   const [wanted, setWanted] = useState<Wanted | null>(null);
   const [state, setState] = useState<State>({ status: 'idle' });
   const emailRef = useRef<HTMLInputElement>(null);
@@ -98,7 +110,7 @@ export function ResumeDownload() {
       const response = await fetch('/api/resume/request', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email, reason, format: wanted }),
+        body: JSON.stringify({ email, reason, format: wanted, variant }),
       });
       const body = (await response.json()) as {
         ok?: boolean;
@@ -152,7 +164,15 @@ export function ResumeDownload() {
   }
 
   return (
-    <div className="font-body">
+    /*
+      `w-full`, because this island is a flex child of `.resume-action-bar`.
+      Without it the island sizes to its content, so the confirmation panel and
+      the form ended up narrower than the buttons above them and narrower than
+      the ask row below — three controls in one column, none of them agreeing
+      on where that column ends. Full width settles everything on the bar's own
+      measure.
+    */
+    <div className="w-full font-body">
       {/*
         `resume-cta`, not the site's `.btn`. The unlayered organic stylesheet
         outranks `@layer components`, so `.btn` arrived here stripped of its border
@@ -252,12 +272,21 @@ export function ResumeDownload() {
 
       {/* Announced, because the outcome is the whole point of the interaction. */}
       <div aria-live="polite" aria-busy={state.status === 'sending'}>
+        {/*
+          A refusal is nudged rather than popped: it is not an arrival to
+          celebrate, and the shake is transform-only so the form beneath it does
+          not move. `a rejected request reports why without shifting the layout`
+          is an e2e test, and a layout-affecting shake would fail it correctly.
+        */}
         {state.status === 'failed' && (
-          <p className="surface mt-4 p-4 text-sm">{state.message}</p>
+          <p className="motion-nudge surface mt-4 p-4 text-sm">
+            {state.message}
+          </p>
         )}
 
+        {/* The one moment in this flow worth a small overshoot. */}
         {state.status === 'sent' && (
-          <div className="surface mt-4 p-4">
+          <div className="motion-pop-in surface mt-4 p-4">
             <p className="text-sm">{state.message}</p>
             {/* The fallback that matters: if the programmatic click was blocked,
                 these are still here to press. */}

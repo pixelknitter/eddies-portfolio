@@ -35,7 +35,7 @@ type Answer = {
  * an interactive resume, and a blank box gets a blank response.
  */
 // Shared with the decline message in api/air/ask.ts.
-import { SUGGESTED } from '../util/air/suggested.mjs';
+import { suggestionsFor } from '../util/air/suggested.mjs';
 import { readStoredCode, storeCode } from '../util/air/access-code.mjs';
 
 interface Props {
@@ -53,11 +53,38 @@ interface Props {
    * labelling the gap between them.
    */
   titleId?: string;
+  /**
+   * What the asker is hiring for, when the page knows.
+   *
+   * Sent with the question and used as a retrieval hint. Never rendered: the
+   * page the visitor is on already established it, and repeating it back would
+   * read as the site telling them what they want.
+   */
+  role?: string;
+  /**
+   * A question to open with, from a seed the visitor picked.
+   *
+   * Prefilled rather than submitted. The visitor chose a starting point, not a
+   * final wording, and sending it for them removes the edit they may want to
+   * make — and would make the first model call something the page did rather
+   * than something they did.
+   */
+  seed?: string;
 }
 
-export function AIResume({ variant = 'page', titleId }: Props = {}) {
+export function AIResume({
+  variant = 'page',
+  titleId,
+  role,
+  seed,
+}: Props = {}) {
   const [accessCode, setAccessCode] = React.useState('');
-  const [draft, setDraft] = React.useState('');
+  /*
+   * Seeded from the picked question, if there was one. Safe in the initialiser
+   * unlike the stored code below: `seed` is a prop, so the server render and
+   * the first client render agree on it.
+   */
+  const [draft, setDraft] = React.useState(seed ?? '');
   /**
    * A question that has been asked but cannot be sent yet, because no code is
    * stored. `null` means nothing is waiting.
@@ -200,7 +227,7 @@ export function AIResume({ variant = 'page', titleId }: Props = {}) {
           // captured the previous render's `accessCode`, which is still ''.
           'x-air-access': withCode ?? currentCode,
         },
-        body: JSON.stringify({ question: trimmed }),
+        body: JSON.stringify({ question: trimmed, ...(role ? { role } : {}) }),
       });
 
       /*
@@ -468,7 +495,7 @@ export function AIResume({ variant = 'page', titleId }: Props = {}) {
             <>
               <p className="mb-2 font-body text-sm font-semibold">Not sure where to start?</p>
               <ul className="flex list-none flex-col gap-2 pl-0">
-                {SUGGESTED.map((item) => (
+                {suggestionsFor(role).map((item) => (
                   <li key={item.question}>
                     {/*
                       Live without a code, not disabled.

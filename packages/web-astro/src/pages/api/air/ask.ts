@@ -5,7 +5,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import { resolveSections } from '@util/flags/sections.mjs';
 import { selectContext } from '@util/air/retrieval.mjs';
 import { buildCorpus } from '@util/air/corpus.mjs';
-import { suggestionSentence } from '@util/air/suggested.mjs';
+import { GENERAL_LANE, suggestionSentence } from '@util/air/suggested.mjs';
+import { isVariantSlug } from '@util/resume/variants.mjs';
 import {
   ANSWER_SCHEMA,
   buildSystemPrompt,
@@ -136,6 +137,14 @@ export async function POST(context: APIContext): Promise<Response> {
       outcome: string;
       grounded?: boolean;
       questionLength?: number;
+      /**
+       * The lane the question was asked from, when the visitor told us.
+       *
+       * Recorded so the funnel can tell the lanes apart: which framing people
+       * arrive under, and whether a lane's seeds lead anywhere. Never the
+       * question itself — that is captured separately and only on a decline.
+       */
+      role?: string;
       grantType?: 'shared' | 'personal';
       model?: string;
     },
@@ -210,6 +219,27 @@ export async function POST(context: APIContext): Promise<Response> {
   if (!validated.ok) return json({ error: validated.reason }, 400);
 
   /*
+   * What the asker is hiring for, as a hint from the page the question came
+   * from or the lane of the seed they picked.
+   *
+   * Validated against the variant registry and dropped otherwise. This value
+   * reaches the prompt, so an unvalidated string would be a free line of
+   * caller-supplied text sitting in the system's half of the message — the one
+   * place the model is told it may take instruction from. Rejecting silently
+   * rather than 400ing: the role is an optimisation, and a stale client sending
+   * a slug we have since retired should still get its answer.
+   *
+   * The catch-all lane means "no particular role" and is treated as absent.
+   */
+  const rawRole = (payload as { role?: unknown })?.role;
+  const role =
+    typeof rawRole === 'string' &&
+    rawRole !== GENERAL_LANE &&
+    isVariantSlug(rawRole)
+      ? rawRole
+      : undefined;
+
+  /*
    * The corpus A.I.R. may answer from, bundled at build time.
    *
    * Loading is here because `getCollection` needs the Astro runtime; every
@@ -241,7 +271,7 @@ export async function POST(context: APIContext): Promise<Response> {
     { reveal },
   );
 
-  const selected = selectContext(validated.question, corpus);
+  const selected = selectContext(validated.question, corpus, { role });
 
   // Nothing relevant retrieved: decline here rather than asking the model to
   // answer from an empty context. This is the boundary guarantee — it holds
@@ -297,7 +327,7 @@ export async function POST(context: APIContext): Promise<Response> {
     console.error('[air] ANTHROPIC_API_KEY is not configured');
     return finish(
       json({ error: 'A.I.R. is not configured right now.' }, 503),
-      { outcome: 'misconfigured', questionLength, grantType },
+      { outcome: 'misconfigured', questionLength, role, grantType },
       { retrieval },
     );
   }
@@ -320,7 +350,7 @@ export async function POST(context: APIContext): Promise<Response> {
       messages: [
         {
           role: 'user',
-          content: buildUserMessage(validated.question, selected),
+          content: buildUserMessage(validated.question, selected, { role }),
         },
       ],
     });
@@ -332,7 +362,7 @@ export async function POST(context: APIContext): Promise<Response> {
     telemetry.recordError(error, { outcome: 'upstream_error', model });
     return finish(
       json({ error: 'A.I.R. could not answer that just now.' }, 502),
-      { outcome: 'upstream_error', questionLength, grantType, model },
+      { outcome: 'upstream_error', questionLength, role, grantType, model },
       { retrieval },
     );
   }
@@ -362,7 +392,7 @@ export async function POST(context: APIContext): Promise<Response> {
           "I can't answer that one. Ask me about Eddie's work and I'll do better.",
         citations: [],
       }),
-      { outcome: 'refusal', grounded: false, questionLength, grantType, model },
+      { outcome: 'refusal', grounded: false, questionLength, role, grantType, model },
       { retrieval, generation },
     );
   }
@@ -382,6 +412,7 @@ export async function POST(context: APIContext): Promise<Response> {
       {
         outcome: response.stop_reason === 'max_tokens' ? 'truncated' : 'unparseable',
         questionLength,
+        role,
         grantType,
         model,
       },
@@ -406,6 +437,7 @@ export async function POST(context: APIContext): Promise<Response> {
         outcome: 'verification_failed',
         grounded: false,
         questionLength,
+        role,
         grantType,
         model,
       },
@@ -435,6 +467,7 @@ export async function POST(context: APIContext): Promise<Response> {
       outcome: 'answered',
       grounded: answer.grounded,
       questionLength,
+      role,
       grantType,
       model,
     },
