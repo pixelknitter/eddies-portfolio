@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import { resolveSections } from '@util/flags/sections.mjs';
+import { isRenderable } from '@util/stage.mjs';
 
 const sections = await resolveSections(import.meta.env);
 
@@ -8,7 +9,7 @@ const sections = await resolveSections(import.meta.env);
 const entries = sections.highlights
   ? await getCollection(
       'star',
-      ({ data }) => sections.unpublished || data.draft !== true,
+      ({ data }) => sections.unpublished || isRenderable(data),
     )
   : [];
 

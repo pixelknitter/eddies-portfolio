@@ -158,6 +158,39 @@ field means adding a `summaryFrom` entry, not renaming anything.
 
 ---
 
+## `stage` — how far along an entry is
+
+`draft` was a binary: not ready for anything, or on the website. That left no
+way to say the true and useful thing about most of this corpus — *this is
+accurate, cite it, the page is not finished* — which is why ten of ten STAR
+stories sat at `draft: true` while A.I.R. answered from the résumé alone.
+
+| `stage` | Site renders | A.I.R. may cite |
+| --- | --- | --- |
+| `draft` | no | no |
+| `reviewed` | **no** | **yes** |
+| `published` | yes | yes |
+
+```yaml
+stage: reviewed   # accurate enough to quote; the page is not ready
+```
+
+Two rules worth knowing before you promote anything:
+
+1. **`reviewed` is a claim about accuracy, not about timing.** A blog post
+   dated in the future stays unquotable until its date whatever its stage —
+   otherwise A.I.R. publishes it in prose to anyone who asks the right
+   question.
+2. **A reviewed entry is quoted, not linked.** A.I.R. renders its citations as
+   title-only badges, so there is no broken link — but its words can reach a
+   visitor. Promote an entry only once you would stand behind what it says.
+
+`stage` is optional and `draft` remains the fallback (`draft: true` reads as
+`draft`, anything else as `published`), because the content is sealed and
+entries are promoted one at a time as they are actually reviewed. Where both
+are present, `stage` wins. The two predicates are `isRenderable` and
+`isCitable` in `util/stage.mjs`; nothing else should read the field directly.
+
 ## Per-collection reference
 
 ### `blog`

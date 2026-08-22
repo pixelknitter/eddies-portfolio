@@ -18,6 +18,7 @@
  */
 import { getEntry } from 'astro:content';
 import { isPublished } from '@util/posts.mjs';
+import { isRenderable } from '@util/stage.mjs';
 import { resolveSections } from '@util/flags/sections.mjs';
 
 interface Props {
@@ -45,7 +46,7 @@ const resolved = (
         if (!sections.projects) return null;
         const entry = await getEntry('projects', slug);
         if (!entry) return null;
-        if (!sections.unpublished && entry.data.draft === true) return null;
+        if (!sections.unpublished && !isRenderable(entry.data)) return null;
         return {
           href: `/projects/${entry.id}/`,
           title: entry.data.title,

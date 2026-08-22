@@ -5,6 +5,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { resolveSections } from '@util/flags/sections.mjs';
 import { selectContext } from '@util/air/retrieval.mjs';
 import { buildCorpus } from '@util/air/corpus.mjs';
+import { isCitable } from '@util/stage.mjs';
 import { GENERAL_LANE, suggestionSentence } from '@util/air/suggested.mjs';
 import { isVariantSlug } from '@util/resume/variants.mjs';
 import {
@@ -249,8 +250,13 @@ export async function POST(context: APIContext): Promise<Response> {
    * on `draft` alone would let A.I.R. read out a scheduled post early.
    */
   const reveal = sections.unpublished;
-  const draftFilter = ({ data }: { data: { draft?: boolean } }) =>
-    reveal || data.draft !== true;
+  /*
+   * `isCitable`, not a draft check: a `reviewed` entry is accurate enough to
+   * quote and deliberately not rendered, which is the whole point of the stage.
+   * `buildCorpus` applies the scheduled rule on top for blog.
+   */
+  const draftFilter = ({ data }: { data: { stage?: string; draft?: boolean } }) =>
+    reveal || isCitable(data);
 
   const [star, projects, challenges, resume, blog] = await Promise.all([
     getCollection('star', draftFilter),

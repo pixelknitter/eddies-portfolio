@@ -22,7 +22,8 @@
  * @see {@link file://./../../../../../docs/CONTENT-MODEL.md} for the field shapes.
  */
 
-import { isPublished } from '../posts.mjs';
+import { isDue } from '../posts.mjs';
+import { isCitable } from '../stage.mjs';
 
 /**
  * @typedef {{id: string, data: Record<string, any>, body?: string}} Entry
@@ -68,7 +69,18 @@ export const CORPUS_COLLECTIONS = Object.freeze([
 export function isAnswerable(data = {}, spec = {}, options = {}) {
   const { reveal = false, now = new Date() } = options;
   if (reveal) return true;
-  return spec.scheduled ? isPublished(data, now) : data.draft !== true;
+
+  /*
+   * `reviewed` is the state this gate exists for: accurate enough to quote,
+   * not yet ready to read as a page. It is the difference between A.I.R.
+   * answering from the résumé alone and answering from the whole record.
+   *
+   * The scheduled rule still applies on top for blog: a post the site refuses
+   * to serve until its date must not be read out early, and `reviewed` is not
+   * a way around that — it is a claim about accuracy, not about timing.
+   */
+  if (!isCitable(data)) return false;
+  return spec.scheduled ? isDue(data, now) : true;
 }
 
 /**
