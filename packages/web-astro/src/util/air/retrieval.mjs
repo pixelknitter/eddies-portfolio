@@ -455,6 +455,11 @@ function overviewSelection(entries, limit) {
             0,
           ),
           data: entry.data,
+          // Same reason as the matched path above: an overview answer needs the
+          // prose and the constraints just as much, arguably more, since it is
+          // the path that answers "why work with him".
+          ...(entry.content ? { content: entry.content } : {}),
+          ...(entry.constraints ? { constraints: entry.constraints } : {}),
         };
       })
       // An entry with no tags tells us nothing about the through-line.
@@ -652,13 +657,21 @@ export function distinctiveTerms(question, entries) {
  * called, so the guarantee holds even if the prompt is ignored entirely.
  *
  * @param {string} question
- * @param {Array<{id: string, data: Record<string, unknown>}>} entries
+ * @param {Array<{id: string, data: Record<string, unknown>, content?: string, constraints?: string}>} entries
+ *   As `buildCorpus` shapes them: `content` is the markdown body where the body
+ *   *is* the content, `constraints` where it is the author's rules about the
+ *   entry. Scoring reads neither — see `WEIGHTS` — but both are carried out.
  * @param {{limit?: number, role?: string}} [options] `role` is a variant slug
  *   the asker arrived under. It reorders entries that already cleared the
  *   floor and admits nothing on its own — see `ROLE_BOOST`.
- * @returns {Array<{id: string, score: number, data: Record<string, unknown>}>}
+ * @returns {Array<{id: string, score: number, data: Record<string, unknown>, content?: string, constraints?: string}>}
  *   Ordered most-relevant first. Empty when nothing is admitted — the caller
  *   must treat that as "decline", not as "answer with no context".
+ *
+ *   `content` and `constraints` are passed through because `buildUserMessage`
+ *   renders them: dropping them here left two blocks of the prompt permanently
+ *   empty, which is a failure with no symptom — the prompt still builds and the
+ *   answer is merely thinner than the corpus could support.
  */
 export function selectContext(question, entries, options = {}) {
   const { limit = MAX_ENTRIES, role } = options;
@@ -700,7 +713,8 @@ export function selectContext(question, entries, options = {}) {
         return covered >= MIN_COVERED_TERMS;
       })
       .map((result) => {
-        const data = byId.get(String(result.id))?.data ?? {};
+        const entry = byId.get(String(result.id));
+        const data = entry?.data ?? {};
         /*
          * The role adjusts the score; it does not gate the set. Applied after
          * admission so it reorders entries that already cleared the floor — an
@@ -712,6 +726,23 @@ export function selectContext(question, entries, options = {}) {
           id: String(result.id),
           score: preferred ? result.score * ROLE_BOOST : result.score,
           data,
+          /*
+           * The body, and the author's constraints on how it may be described.
+           *
+           * These used to be dropped here, which quietly emptied two blocks of
+           * the prompt: `buildUserMessage` renders `detail:` from `content` and
+           * hoists `constraints` above the story tags as rules that override
+           * them. Neither had rendered since the fields were introduced — so
+           * the honesty guardrails written into the STAR bodies never reached
+           * the model, and a resume entry arrived as a title and a tag list
+           * because its prose lives entirely in its markdown body.
+           *
+           * Scoring still reads frontmatter only, deliberately: a body is prose
+           * and would drown the curated fields. This is about what the model is
+           * *shown* once an entry has been selected, not about what selects it.
+           */
+          ...(entry?.content ? { content: entry.content } : {}),
+          ...(entry?.constraints ? { constraints: entry.constraints } : {}),
         };
       })
       // Tie-break on id so identical scores produce a stable order. Without

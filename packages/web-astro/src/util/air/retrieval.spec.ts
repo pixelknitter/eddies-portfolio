@@ -384,3 +384,65 @@ describe('role context', () => {
     );
   });
 });
+
+/*
+ * The prompt renders `detail:` from `content` and hoists `constraints` above
+ * the story tags as rules that override them. Both were dropped here for the
+ * entire life of those fields, so both blocks of `buildUserMessage` were dead
+ * code — the honesty guardrails written into STAR bodies never reached the
+ * model, and a resume entry arrived as a title and a tag list.
+ *
+ * Nothing failed when that happened: the prompt still built, retrieval still
+ * returned four entries, and the answers were merely thinner than they should
+ * have been. These assert the shape rather than the wording, because the shape
+ * is what silently went missing.
+ */
+describe('what retrieval hands to the prompt', () => {
+  const CARRIES = [
+    {
+      id: 'star/a-story',
+      data: { title: 'Kubernetes migration', tags: ['kubernetes'] },
+      constraints: 'Say 17 of 27, never 27 running.',
+    },
+    {
+      id: 'resume/experience/somewhere',
+      data: { title: 'Somewhere', org: 'Somewhere', tags: ['kubernetes'] },
+      content: '- Led the kubernetes migration ahead of the vendor sunset.',
+    },
+  ];
+
+  it('carries the markdown body through', () => {
+    const selected = selectContext('kubernetes migration', CARRIES);
+    const resume = selected.find((entry) => entry.id.startsWith('resume/'));
+    expect(resume?.content).toContain('vendor sunset');
+  });
+
+  it("carries the author's constraints through", () => {
+    const selected = selectContext('kubernetes migration', CARRIES);
+    const star = selected.find((entry) => entry.id.startsWith('star/'));
+    expect(star?.constraints).toContain('17 of 27');
+  });
+
+  // The overview path answers "why work with him", where the constraints matter
+  // most and where nothing else is steering the answer.
+  it('carries them on the overview path too', () => {
+    const overview = selectContext('Why should I work with Eddie Freeman?', [
+      { id: 'star/one', data: { title: 'One', tags: ['ai'] }, constraints: 'A rule.' },
+      { id: 'star/two', data: { title: 'Two', tags: ['ai'] }, content: 'Some prose.' },
+    ]);
+    expect(overview.length).toBeGreaterThan(0);
+    expect(
+      overview.some((entry) => entry.constraints || entry.content),
+      'the overview path dropped the bodies',
+    ).toBe(true);
+  });
+
+  it('adds nothing for an entry that has neither', () => {
+    const [only] = selectContext('kubernetes', [
+      { id: 'star/bare', data: { title: 'Kubernetes', tags: ['kubernetes'] } },
+    ]);
+    expect(only).toBeDefined();
+    expect('content' in only).toBe(false);
+    expect('constraints' in only).toBe(false);
+  });
+});

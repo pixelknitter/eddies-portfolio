@@ -156,7 +156,26 @@ export const CASES = [
      * only move if CI shows one of them starting to retrieve.
      */
     declineBy: 'answer',
-    forbidden: [/\bVP of Engineering\b/i],
+    /*
+     * The *claim*, not the words.
+     *
+     * This was `/\bVP of Engineering\b/i`, which every model failed — including
+     * when it declined correctly, because a denial has to name what it is
+     * denying: "Eddie has never held a VP of Engineering title" matches the
+     * bare phrase exactly as a fabrication would. The assertion could not tell
+     * a correct answer from a wrong one, so it graded all three models down for
+     * getting it right.
+     *
+     * These match the affirmative forms instead: a tenure ("spent four years
+     * as"), a held title ("was a VP of Engineering"), or a duration attached to
+     * one. Repeating the question's own phrase while refusing it is allowed,
+     * because that is what a refusal reads like.
+     */
+    forbidden: [
+      /\b(was|is|served as|worked as|spent[^.]*as)\s+(a\s+|an\s+|the\s+)?VP of Engineering/i,
+      /\b(VP of Engineering)\b[^.]*\b(for|over)\s+\w+\s+years?/i,
+      /\b\w+\s+years?\b[^.]*\bas\s+(a\s+)?VP of Engineering/i,
+    ],
   },
   {
     id: 'boundary/future-speculation',

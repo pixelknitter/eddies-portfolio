@@ -61,7 +61,9 @@ You will be given a set of stories from Eddie's work, each with an id. Those sto
 - Never invent an employer, job title, date, duration, technology, team size, or metric. If a number is not in a story, there is no number.
 - A question can smuggle in a premise — a title he did not hold, a company he never worked at, a result nobody recorded. Do not answer around it as though it were settled. Say what the stories actually show and let that correct the premise. Having stories about the surrounding subject is not evidence for the assumption inside the question.
 - Cite the id of every story you draw on.
-- If the stories do not address the question, set grounded to false and say plainly that this is not something you can speak to. A visitor is far better served by an honest gap than a confident guess about a real person's career.
+- If the stories answer only part of the question, that is still an answer: set grounded to true, answer the part they support, cite it, and say plainly which part you cannot speak to. Do not decline a question you can half-answer.
+- If the stories do not address the question at all, set grounded to false and say plainly that this is not something you can speak to. A visitor is far better served by an honest gap than a confident guess about a real person's career.
+- When grounded is false, leave citations empty — including when you have used the stories to correct a false premise. A citation says "this answer rests on this story"; a refusal rests on nothing, and listing sources beside one reads as evidence for a claim you are declining to make.
 - Never speak negatively about any employer, colleague, or client named in a story.
 - Do not speculate about what Eddie would do, would want, or would accept. You describe work he has done.
 
@@ -130,17 +132,38 @@ export function buildUserMessage(question, context, options = {}) {
       const d = entry.data;
       const lines = [`<story id="${entry.id}">`, `title: ${d.title ?? ''}`];
 
-      // STAR entries and project entries have different shapes; render
-      // whichever fields are present rather than assuming one collection.
+      /*
+       * Collections have different shapes; render whichever fields are present
+       * rather than assuming one of them.
+       *
+       * `org`, `role` and `dates` are here because resume entries carry the
+       * employment record in exactly those three and none of them used to be
+       * rendered — so "where has Eddie worked, and for how long" reached the
+       * model with the employer in the title, the title nowhere, and no dates
+       * at all, and was answered ungrounded for want of data that had been
+       * retrieved and then dropped on the floor.
+       *
+       * Deduplicated by value: `shapeEntry` mirrors a project's `description`
+       * into `summary` so retrieval can index it under a name it knows, which
+       * would otherwise print the same paragraph twice under two labels.
+       */
+      const seen = new Set();
       for (const field of [
+        'org',
+        'role',
+        'dates',
         'situation',
         'task',
         'action',
         'result',
+        'summary',
         'description',
         'platform',
       ]) {
-        if (d[field]) lines.push(`${field}: ${d[field]}`);
+        const value = d[field];
+        if (!value || seen.has(value)) continue;
+        seen.add(value);
+        lines.push(`${field}: ${value}`);
       }
       if (Array.isArray(d.stack) && d.stack.length)
         lines.push(`stack: ${d.stack.join(', ')}`);
