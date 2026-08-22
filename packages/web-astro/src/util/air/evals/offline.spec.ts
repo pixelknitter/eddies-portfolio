@@ -247,17 +247,29 @@ describe('eval set', () => {
  * list. Nothing failed; nothing was watching.
  */
 describe('suggested questions', () => {
-  for (const item of SUGGESTED) {
-    it.skipIf(!hasRealStories)(
-      `${item.audience}: "${item.question}" retrieves context`,
-      () => {
-        expect(
-          selectContext(item.question, corpus).length,
-          `The page offers this question but nothing answers it. Reword it, or add a story.`,
-        ).toBeGreaterThan(0);
-      },
+  it('every seed is graded by the live harness, not only by retrieval', () => {
+    // Whether each seed retrieves anything is asserted above, by the grounding
+    // loop: `SUGGESTED` is derived into `CASES`, so that loop now walks this
+    // exact list and a second copy of it here would assert the same thing
+    // twice, from the same source, on the same corpus.
+    //
+    // What is worth a test is the derivation. Retrieving is not answering — a
+    // seed can retrieve four entries and still be declined by the model, which
+    // is the failure that put these in the live set — so a seed that fell out
+    // of `CASES` would lose the only check that catches it, and lose it
+    // silently, which is how the last version of this list shipped a button
+    // nothing could answer.
+    const graded = new Set(
+      casesIn('grounding').map((testCase) => testCase.question),
     );
-  }
+
+    for (const item of SUGGESTED) {
+      expect(
+        graded.has(item.question),
+        `The page offers "${item.question}" but the live harness never grades it.`,
+      ).toBe(true);
+    }
+  });
 
   it('the decline message only names questions that work', () => {
     // The sentence is built from SUGGESTED, so this holds by construction — the
