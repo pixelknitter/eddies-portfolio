@@ -103,6 +103,10 @@ jobs:
           TARGET_URL: https://${{ vars.STAGING_HOSTNAME || 'staging.eddie.engineering' }}
           # Reachability alone let a stale version through — require the SHA.
           EXPECT_BUILD_SHA: ${{ env.BUILD_SHA }}
+          # Staging is behind Access. Without the token the probes only ever
+          # see the login page, which carries no build stamp.
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: ./scripts/wait-for-http.sh "$TARGET_URL"
 
       - name: Smoke test staging
