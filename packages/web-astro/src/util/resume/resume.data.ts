@@ -192,7 +192,7 @@ export const RESUME = {
     {
       title: 'Platform capability',
       detail:
-        'Founded a React Native practice; SDKs adopted across business units; a live agentic operations platform in four months.',
+        'Founded a React Native practice; SDKs adopted across business units; an agentic operations platform running a live business end to end across six domains.',
     },
     {
       title: 'Operational ownership',
@@ -221,15 +221,7 @@ export const RESUME = {
     lede: 'Co-own a curl-specialty salon with my wife, who operates the business; I lead the technical and operational side and build supporting technical solutions to real business problems.',
     summary:
       'I architected and operate an **agentic operations platform that runs a live salon end to end** — apps, automations, a CRM, and 17 primary agents, coordinated through an event-driven registry.',
-    tags: [
-      'finance',
-      'payroll',
-      'client intake',
-      'retail',
-      'content',
-      'hiring',
-      'concierge',
-    ],
+    tags: ['finance', 'payroll', 'intake', 'retail', 'content', 'hiring'],
     highlights: [
       {
         value: '1 hr → 10–30 min',
@@ -260,7 +252,7 @@ export const RESUME = {
         text: 'Built a **payroll audit agent** encoding Oregon hourly labor rules with private staff confirmation loops — **cut payroll effort from ~1 hour to 10–30 minutes weekly**, catching a real compliance discrepancy roughly every two weeks before each run finalizes.',
       },
       {
-        text: 'Own the technical-partner side of the business — **EAP agreements and working relationships with platform vendors**. Regular conversations with Mangomint’s business leaders about gaps in their platform have earned **early access to new technology** — webhooks I can name publicly, plus further features under NDA — real weight when requesting features, and a direct channel for business needs.',
+        text: 'Migrated booking and POS from **Square to Mangomint with no material disruption** to live operations, establishing the data feed the BI and agent layers run on — and own the vendor relationship it opened: **EAP agreements and early access to new technology**, webhooks I can name publicly plus further features under NDA, earned in regular conversations with Mangomint’s leadership about gaps in their platform.',
         featured: true,
       },
       {
