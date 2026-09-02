@@ -42,6 +42,7 @@
  *   node scripts/seal-content.mjs status
  *   node scripts/seal-content.mjs check
  *   node scripts/seal-content.mjs is-sealed <path>
+ *   node scripts/seal-content.mjs resume-drift   # PDFs vs sealed resume
  *
  * The key comes from $CONTENT_SEAL_KEY, or from
  * ~/.config/eddies-portfolio/content-seal.token when that is unset. No command
@@ -53,6 +54,7 @@ import { parseFrontmatter } from '../packages/obsidian-publish-core/src/index.mj
 import { readFileSync, writeFileSync, unlinkSync, existsSync, readdirSync, mkdirSync, statSync } from 'node:fs';
 import { join, relative, dirname, basename } from 'node:path';
 import { homedir } from 'node:os';
+import { contentFingerprint } from '../packages/web-astro/src/util/resume/fingerprint.mjs';
 import { execFileSync } from 'node:child_process';
 
 const CONTENT_ROOT = 'packages/web-astro/src/content';
@@ -604,8 +606,71 @@ try {
       break;
     }
 
+    /**
+     * Can this checkout resolve a key at all? Exit status only, nothing printed.
+     *
+     * The pre-commit hook needs this because it used to test $CONTENT_SEAL_KEY
+     * directly. Once the token-file fallback landed, that test was wrong on the
+     * maintainer's own machine — key present, env var unset — so the hook took
+     * its keyless branch and silently skipped both the plaintext check and the
+     * auto-reseal. A guard that answers "no key" when the key is right there is
+     * worse than no guard, because it reports as if it ran.
+     */
+    case 'has-key':
+      process.exit(hasKey() ? 0 : 1);
+      break;
+
+    /**
+     * Has the sealed resume content moved since the PDFs were generated?
+     *
+     * The gap this closes: `resumeFingerprint()` covers the print code and
+     * styling but deliberately not `src/content/resume`, so a content pass
+     * leaves it byte-identical and `pdfs.spec.ts` green while the committed
+     * downloads still describe the old claims. Measured, not theorised — one
+     * pass moved the payload 22KB with the fingerprint unchanged.
+     *
+     * It lives here rather than in the spec because the plaintext needs the
+     * key, and that is the right strength: sealed content cannot be edited
+     * without the key, so no keyless contributor can cause this drift.
+     */
+    case 'resume-drift': {
+      const generated = join(CONTENT_ROOT, '..', 'util', 'resume', 'pdfs.generated.mjs');
+      if (!existsSync(generated)) {
+        console.log('No generated PDF module. Nothing to compare.');
+        break;
+      }
+      const recorded = (readFileSync(generated, 'utf8')
+        .match(/RESUME_CONTENT_HASH = '([^']*)'/) ?? [])[1];
+      if (recorded === undefined) {
+        console.warn('⚠ pdfs.generated.mjs predates the content hash; run `yarn resume:pdf`.');
+        break;
+      }
+      // Same graceful degradation as unseal-all, for the same reason: a
+      // checkout that cannot decrypt also cannot have caused the drift.
+      if (!hasKey()) {
+        console.warn('⚠ CONTENT_SEAL_KEY not set — cannot check the PDFs against the resume content.');
+        break;
+      }
+
+      const entries = blobs()
+        .map((file) => openBlob(file))
+        .filter(({ path }) => path.startsWith(join(CONTENT_ROOT, 'resume')));
+      const actual = contentFingerprint(entries);
+      if (actual !== recorded) {
+        console.error('✖ The sealed resume content has changed since the PDFs were generated.');
+        console.error(`    recorded ${recorded || '(none)'}`);
+        console.error(`    actual   ${actual || '(none)'}`);
+        console.error('\n  The committed downloads describe the old resume. `resumeFingerprint`');
+        console.error('  cannot see this: it hashes the print code, not the sealed content.');
+        console.error('\n    yarn resume:pdf     # then commit pdfs.generated.mjs');
+        process.exit(1);
+      }
+      console.log(`✓ PDFs match the sealed resume content (${entries.length} file(s)).`);
+      break;
+    }
+
     default:
-      console.error('Usage: seal-content.mjs <keygen|seal|unseal-all|status|check|audit|prune|is-sealed> [path]');
+      console.error('Usage: seal-content.mjs <keygen|seal|unseal-all|status|check|audit|prune|is-sealed|has-key|resume-drift> [path]');
       process.exit(1);
   }
 } catch (error) {

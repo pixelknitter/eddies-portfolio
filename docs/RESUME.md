@@ -154,6 +154,31 @@ layout, `print.css`, `resume-organic.css`, and both `pages/cv/print/*.astro`.
 site-wide theme work does not force a rebuild — which is a reason to split a resume
 change and a site change into separate commits.
 
+**What is _not_ fingerprinted, and the second guard that covers it.** The list
+covers code and styling, and deliberately not `src/content/resume` — the sealed
+prose the pages actually render from. So editing the resume, resealing, and
+forgetting to regenerate left `resumeFingerprint()` byte-identical and
+`pdfs.spec.ts` green while the committed downloads still described the old
+claims. Measured, not theorised: one content pass moved the PDF payload 22KB
+with the fingerprint unchanged at `f45766a2`.
+
+`RESUME_CONTENT_HASH` in the generated module closes it. It hashes the
+_plaintext_ of the sealed resume content, and
+
+```bash
+node scripts/seal-content.mjs resume-drift
+```
+
+compares the two. This runs in `yarn ci` and in the pre-commit hook. The blobs
+themselves cannot be hashed instead: `sealFile` draws a fresh random IV per
+seal, so identical prose re-encrypts to different bytes and a ciphertext hash
+would churn on every reseal.
+
+**Why it is key-gated rather than a unit test.** Reading the plaintext needs the
+key, so this cannot run in CI — and does not need to. Sealed content cannot be
+edited without the key, so no keyless contributor can cause this drift. Without
+a key the check warns and passes, the same degradation `unseal-all` uses.
+
 **The key is the gate, not the procedure.** One command does all of it:
 
 ```bash

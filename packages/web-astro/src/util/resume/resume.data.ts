@@ -164,13 +164,13 @@ export const RESUME = {
 
   /** Complete, for the machine page and the PDFs. Variant 1a. */
   longSummary:
-    '15+ years shipping production systems across consumer mobile apps, cross-platform SDKs, and agentic AI. I work at the seams between disciplines — carrying design intent into implementation, building platform capability other teams ship on, and taking ownership of the operational layer when it needs an owner. Currently architect and operator of a multi-agent operations platform — **17 agents in production** of 27 registered — running a live business end to end. Accessibility-first practice, with particular focus on cognitive accessibility.',
+    '15+ years shipping production systems across consumer mobile apps, cross-platform SDKs, and agentic AI. I work at the seams between disciplines — carrying design intent into implementation, building platform capability other teams ship on, and taking ownership of the operational layer when it needs an owner. Currently architect and operator of an agentic operations platform — apps, automations, and a collection of **17 primary agents** — running a live business end to end. Accessibility-first practice, with particular focus on cognitive accessibility.',
 
   stats: [
     {
       value: '17',
       label:
-        'agents in production, of 27 registered — the rest sub-agents the active ones invoke',
+        'primary agents in production — the rest are sub-agents the active ones invoke',
     },
     { value: '1M+', label: 'downloads on mobile apps powered by SDKs I built' },
     {
@@ -192,17 +192,17 @@ export const RESUME = {
     {
       title: 'Platform capability',
       detail:
-        'Founded a React Native practice; SDKs adopted across business units; a live multi-agent operations platform in four months.',
+        'Founded a React Native practice; SDKs adopted across business units; an agentic operations platform running a live business end to end across six domains.',
     },
     {
       title: 'Operational ownership',
       detail:
-        'CI/CD, observability, deployment enablement, runbooks, payroll compliance auditing.',
+        'Decision-support BI, CI/CD, observability, deployment enablement, and payroll compliance auditing.',
     },
     {
       title: 'Accessibility-first practice',
       detail:
-        'Cognitive accessibility in particular — built a BI layer a dyslexic owner actually uses.',
+        "Cognitive accessibility in particular — built a BI layer an owner who doesn't think in spreadsheets actually uses.",
     },
     {
       title: 'Partner & vendor development',
@@ -220,16 +220,8 @@ export const RESUME = {
     start: '2025-08',
     lede: 'Co-own a curl-specialty salon with my wife, who operates the business; I lead the technical and operational side and build supporting technical solutions to real business problems.',
     summary:
-      'I architected and operate a **multi-agent operations platform that runs a live salon end to end** — built from scratch beginning April 2026, coordinating through event-driven messaging with a Registry Manager as service registry and control plane.',
-    tags: [
-      'finance',
-      'payroll',
-      'client intake',
-      'retail',
-      'content',
-      'hiring',
-      'concierge',
-    ],
+      'I architected and operate an **agentic operations platform that runs a live salon end to end** — apps, automations, a CRM, and 17 primary agents, coordinated through an event-driven registry.',
+    tags: ['finance', 'payroll', 'intake', 'retail', 'content', 'hiring'],
     highlights: [
       {
         value: '1 hr → 10–30 min',
@@ -249,28 +241,22 @@ export const RESUME = {
     ],
     bullets: [
       {
-        text: 'Architected and operate a **multi-agent operations platform — 17 agents in production, 27 registered** (the remainder sub-agents the active ones invoke) — spanning finance, payroll, client intake, retail, content, hiring, and concierge, coordinating through event-driven messaging with a Registry Manager serving as service registry and control plane. Built from scratch beginning April 2026.',
+        text: 'Architected and operate an **agentic operations platform running the business end to end** — apps, automations, a CRM, and a collection of 17 primary agents across finance, payroll, intake, retail, content, and hiring, coordinated through an event-driven registry.',
+        featured: true,
       },
       {
-        text: 'Built a **centralized observability plane with severity-based routing** and human-in-the-loop escalation; approval-first gating on every outbound client- and employee-facing action.',
+        text: "Built the platform's **decision-support layer** — damped-trend revenue projections, KPI management, and staff career mapping — designed around **cognitive accessibility** for an operator who doesn't think in spreadsheets. The numbers went from avoided to acted on.",
         featured: true,
       },
       {
         text: 'Built a **payroll audit agent** encoding Oregon hourly labor rules with private staff confirmation loops — **cut payroll effort from ~1 hour to 10–30 minutes weekly**, catching a real compliance discrepancy roughly every two weeks before each run finalizes.',
       },
       {
-        text: 'Designed the **BI layer around cognitive accessibility** for a co-owner with dyslexia: visual-first metrics, inline targets, and every figure paired with a concrete next action — moving the business from avoided spreadsheets to data-driven decisions.',
+        text: 'Migrated booking and POS from **Square to Mangomint with no material disruption** to live operations, establishing the data feed the BI and agent layers run on — and own the vendor relationship it opened: **EAP agreements and early access to new technology**, webhooks I can name publicly plus further features under NDA, earned in regular conversations with Mangomint’s leadership about gaps in their platform.',
         featured: true,
       },
       {
-        text: '**Leading migration off a hosted agent platform to self-owned infrastructure** for architectural control and unit-cost visibility, re-partitioning deterministic workflows out of the agentic runtime and reserving agents for work that genuinely requires reasoning.',
-        featured: true,
-      },
-      {
-        text: 'Migrated booking and POS from **Square to Mangomint with no material disruption** to live operations, establishing the structured data feed powering the BI and agent layers.',
-      },
-      {
-        text: 'Own the technical-partner side of the business — **EAP agreements and working relationships with platform vendors**. Regular conversations with Mangomint’s business leaders about gaps in their platform have earned **early access to new technology** — webhooks I can name publicly, plus further features under NDA — real weight when requesting features, and a direct channel for business needs.',
+        text: '**Incrementally hardening prototypes into platform** — moving deterministic work out of the agentic runtime onto self-owned infrastructure for legible unit costs.',
         featured: true,
       },
     ],
@@ -571,7 +557,7 @@ export const RESUME = {
       period: '2004 – 2009',
       institution: 'California Polytechnic State University, San Luis Obispo',
       detail:
-        'Computer Engineering. Embedded systems, circuit design, software systems, and early AI reasoning; coursework emphases in Philosophy and Psychology.',
+        'Computer Engineering coursework — embedded systems, circuit design, software systems, and early AI reasoning; further coursework in Philosophy and Psychology.',
     },
     {
       period: 'Continued',

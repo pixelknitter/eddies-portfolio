@@ -15,9 +15,18 @@
 set -euo pipefail
 
 CONTENT_ROOT="packages/web-astro/src/content"
+VAULT="packages/web-astro/content-vault"
 
+# Two triggers, because the two failures arrive by different routes.
+#
+# Plaintext leaks in as a `.md` under the content root. But *editing sealed
+# content* stages nothing there at all — the working copy lives in a gitignored
+# `.local-*` dir and the commit carries `.sealed` blobs. Gating only on staged
+# markdown meant the resume-drift check below could never fire on the one path
+# it exists for, which is how it shipped as dead code.
 staged=$(git diff --cached --name-only --diff-filter=ACM -- "$CONTENT_ROOT" | grep '\.md$' || true)
-[ -n "$staged" ] || exit 0
+staged_vault=$(git diff --cached --name-only --diff-filter=ACM -- "$VAULT" || true)
+[ -n "$staged" ] || [ -n "$staged_vault" ] || exit 0
 
 # The keyless rule, and the one that catches *new* drafts: unpublished
 # content (draft: true, or a future publishDate) may never sit at a real
@@ -31,8 +40,12 @@ if ! node scripts/seal-content.mjs audit >/dev/null 2>&1; then
   exit 1
 fi
 
-if [ -z "${CONTENT_SEAL_KEY:-}" ]; then
-  echo "⚠ CONTENT_SEAL_KEY not set — cannot check staged content against the vault." >&2
+# Ask seal-content.mjs, never $CONTENT_SEAL_KEY directly. It resolves the key
+# from the environment *or* ~/.config/eddies-portfolio/content-seal.token, and
+# testing the env var here meant that on a machine using the token file — the
+# maintainer's — this hook reported "no key" and skipped every check below.
+if ! node scripts/seal-content.mjs has-key; then
+  echo "⚠ No content seal key — cannot check staged content against the vault." >&2
   echo "  If you are committing a sealed story's plaintext, this will not catch it." >&2
   exit 0
 fi
@@ -48,7 +61,7 @@ done <<< "$staged"
 # Keep the vault in step with edits made after an unseal. Only files whose
 # content actually differs are re-encrypted, and the refreshed blob joins this
 # commit so the vault can never drift behind the working copy.
-if [ -z "$violations" ] && [ -n "${CONTENT_SEAL_KEY:-}" ]; then
+if [ -z "$violations" ]; then
   # `seal` with no path covers both cases: a new working copy with no blob,
   # and one that has drifted from its blob. `reseal-if-changed` only saw the
   # second, so a brand-new draft committed silently unsealed.
@@ -56,6 +69,15 @@ if [ -z "$violations" ] && [ -n "${CONTENT_SEAL_KEY:-}" ]; then
     git add packages/web-astro/content-vault
     echo "→ vault resealed and added to this commit"
   fi
+fi
+
+# Resume content and the committed PDFs have to move together. `pdfs.spec.ts`
+# cannot see this — it hashes the print code, not the sealed content — so a
+# resume edit leaves it green while the downloads describe the old claims.
+# Checked after the reseal above, so it reads the state being committed.
+if [ -z "$violations" ] && ! node scripts/seal-content.mjs resume-drift >/dev/null; then
+  node scripts/seal-content.mjs resume-drift >&2 || true
+  exit 1
 fi
 
 if [ -n "$violations" ]; then
