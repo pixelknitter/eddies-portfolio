@@ -15,9 +15,18 @@
 set -euo pipefail
 
 CONTENT_ROOT="packages/web-astro/src/content"
+VAULT="packages/web-astro/content-vault"
 
+# Two triggers, because the two failures arrive by different routes.
+#
+# Plaintext leaks in as a `.md` under the content root. But *editing sealed
+# content* stages nothing there at all — the working copy lives in a gitignored
+# `.local-*` dir and the commit carries `.sealed` blobs. Gating only on staged
+# markdown meant the resume-drift check below could never fire on the one path
+# it exists for, which is how it shipped as dead code.
 staged=$(git diff --cached --name-only --diff-filter=ACM -- "$CONTENT_ROOT" | grep '\.md$' || true)
-[ -n "$staged" ] || exit 0
+staged_vault=$(git diff --cached --name-only --diff-filter=ACM -- "$VAULT" || true)
+[ -n "$staged" ] || [ -n "$staged_vault" ] || exit 0
 
 # The keyless rule, and the one that catches *new* drafts: unpublished
 # content (draft: true, or a future publishDate) may never sit at a real
