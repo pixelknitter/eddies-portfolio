@@ -934,6 +934,14 @@ The authoritative list is `FINGERPRINTED_FILES` in
 which is a reason to split a resume change and a site change into separate
 commits.
 
+**The sealed content is not on that list either**, so editing the resume itself
+leaves the fingerprint unchanged and `pdfs.spec.ts` green while the committed
+downloads describe the old text. A second, key-gated guard covers that:
+`node scripts/seal-content.mjs resume-drift` compares `RESUME_CONTENT_HASH`
+against the plaintext in the vault. It runs in `yarn ci` and the pre-commit
+hook, and warns rather than fails without a key — a checkout that cannot
+decrypt also cannot have caused the drift.
+
 ```bash
 yarn resume:pdf     # then commit src/util/resume/pdfs.generated.mjs
 ```
@@ -1084,6 +1092,12 @@ failures with symptom, cause, and fix.
 **Issue:** Nx cache causing stale builds
 - **Solution:** Run `nx reset` to clear cache
 - **Solution:** Use `--skip-nx-cache` flag
+
+**Issue:** `resume-drift` fails — "The sealed resume content has changed since
+the PDFs were generated"
+- **Cause:** The resume prose was edited and resealed without regenerating. The
+  `pdfs.spec.ts` fingerprint cannot see this; it hashes the print code only.
+- **Solution:** `yarn resume:pdf`, commit `pdfs.generated.mjs`.
 
 **Issue:** `pdfs.spec.ts` fails — "Resume data or print layout changed since the
 PDFs were generated"

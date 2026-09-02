@@ -82,3 +82,57 @@ export function resumeFingerprint(srcDir = SRC) {
   }
   return `sha256:${hash.digest('hex')}`;
 }
+
+/**
+ * A hash of the sealed resume *content* the PDFs were rendered from.
+ *
+ * ## The gap this closes
+ *
+ * `FINGERPRINTED_FILES` covers the code and styling that shape a PDF, and
+ * deliberately not `src/content/resume` — which is where the prose actually
+ * lives. So editing the resume, resealing, and forgetting to regenerate left
+ * `resumeFingerprint()` byte-identical and `pdfs.spec.ts` green, while the
+ * committed downloads described the old claims. That is not hypothetical: a
+ * content pass moved the PDF payload 22KB with the fingerprint unchanged.
+ *
+ * ## Why this takes its input instead of reading the vault
+ *
+ * The blobs cannot be hashed directly. `sealFile` draws a fresh random IV per
+ * seal, so identical prose re-encrypts to different bytes — a ciphertext hash
+ * would churn on every reseal and mean nothing. The plaintext is the only
+ * stable thing to hash, and reaching it needs the key.
+ *
+ * Keeping the key out of here is what leaves this function pure, testable
+ * without a vault, and safe for `pdfs.spec.ts` to import. The caller that
+ * *does* hold the key (`seal-content.mjs resume-drift`) supplies the entries.
+ *
+ * ## Why a key-gated check is the right strength
+ *
+ * It cannot run in CI, and does not need to: sealed content cannot be edited
+ * without the key, so no keyless contributor can cause this drift. The guard
+ * belongs where the capability is.
+ *
+ * @param {Array<{path: string, content: string}>} entries
+ * @returns {string} `sha256:<hex>`, or `''` for an empty set.
+ */
+export function contentFingerprint(entries) {
+  // Distinguishable from a real digest on purpose. A keyless checkout
+  // materializes nothing, and "no content" must not be mistakable for
+  // "content that happens to hash to this".
+  if (entries.length === 0) return '';
+
+  const hash = createHash('sha256');
+  // Vault order is directory order — neither sorted nor stable across machines.
+  // Sorting here is what stops the guard failing on a colleague's checkout.
+  for (const { path, content } of [...entries].sort((a, b) =>
+    a.path < b.path ? -1 : a.path > b.path ? 1 : 0,
+  )) {
+    // Same NUL discipline as above, and for a sharper reason: without it
+    // {path:'a', content:'bc'} and {path:'ab', content:'c'} collide.
+    hash.update(path);
+    hash.update('\0');
+    hash.update(content);
+    hash.update('\0');
+  }
+  return `sha256:${hash.digest('hex')}`;
+}

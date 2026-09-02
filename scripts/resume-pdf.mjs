@@ -47,7 +47,10 @@ import {
   WATERMARK_LENGTH,
   WATERMARK_PLACEHOLDER,
 } from '../packages/web-astro/src/util/resume/watermark.mjs';
-import { resumeFingerprint } from '../packages/web-astro/src/util/resume/fingerprint.mjs';
+import {
+  contentFingerprint,
+  resumeFingerprint,
+} from '../packages/web-astro/src/util/resume/fingerprint.mjs';
 import {
   PDF_KINDS,
   pdfKey,
@@ -59,6 +62,15 @@ import {
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const APP = join(REPO, 'packages/web-astro');
 const OUT = join(APP, 'src/util/resume/pdfs.generated.mjs');
+
+/**
+ * The sealed content the PDFs are rendered from, repo-relative.
+ *
+ * Must stay the same string `seal-content.mjs resume-drift` filters on — the
+ * hash recorded here and the hash checked there have to cover the same files
+ * or the guard compares two different things and always fails.
+ */
+const RESUME_CONTENT_DIR = 'packages/web-astro/src/content/resume';
 
 /** Not 4321: that is the e2e/dev port, and colliding produces a stale-asset server. */
 const PORT = 4319;
@@ -499,11 +511,22 @@ async function main() {
 
     const all = { ...previous, ...generated };
     const fingerprint = resumeFingerprint();
+    // Hashed from the plaintext this run materialized, because the blobs cannot
+    // be hashed: sealFile draws a fresh IV per seal, so identical prose
+    // re-encrypts to different bytes. See contentFingerprint for the whole
+    // reasoning — this pairs with `seal-content.mjs resume-drift`, which is what
+    // reads the value back.
+    const contentHash = contentFingerprint(
+      materialized
+        .filter((path) => path.startsWith(RESUME_CONTENT_DIR))
+        .map((path) => ({ path, content: readFileSync(join(REPO, path), 'utf8') })),
+    );
     const stamp = new Date().toISOString().slice(0, 10);
 
-    writeFileSync(OUT, renderModule(all, fingerprint, stamp));
+    writeFileSync(OUT, renderModule(all, fingerprint, contentHash, stamp));
     log(`wrote ${OUT}`);
     log(`fingerprint ${fingerprint}`);
+    log(`content     ${contentHash || '(no sealed resume content)'}`);
     log(
       'commit the generated module; `nx test` fails if it drifts from the sources',
     );
@@ -514,7 +537,7 @@ async function main() {
 }
 
 /** The generated module's text. Kept in one place so its shape is reviewable. */
-function renderModule(all, fingerprint, stamp) {
+function renderModule(all, fingerprint, contentHash, stamp) {
   const entry = (key) => {
     const { variant, kind } = parsePdfKey(key);
     const v = all[key] ?? {
@@ -581,6 +604,19 @@ ${Object.keys(all).sort().map(entry).join('\n')}
  * @type {string}
  */
 export const RESUME_DATA_HASH = '${fingerprint}';
+
+/**
+ * A hash of the sealed resume *content* these PDFs were rendered from.
+ *
+ * RESUME_DATA_HASH above covers the print code and styling, and deliberately
+ * not \`src/content/resume\` — so a content pass leaves it unchanged and
+ * \`pdfs.spec.ts\` green while these downloads describe the old resume.
+ * \`node scripts/seal-content.mjs resume-drift\` compares this instead. It
+ * needs the seal key, which is why it is a repo check and not a unit test.
+ *
+ * @type {string}
+ */
+export const RESUME_CONTENT_HASH = '${contentHash}';
 
 /**
  * Generation date, used in the watermark line.
