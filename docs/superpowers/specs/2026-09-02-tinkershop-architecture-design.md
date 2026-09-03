@@ -31,7 +31,7 @@ and has to be re-made in the others by hand.
   private repos can install it, and it is public because nothing in it needs to
   be secret. No support promise, no roadmap, no issue triage.
 - **Not** mobile. React Native is aspirational; see "Keeping mobile cheap".
-- **Not** a migration of YCF onto Nx. See "What Turborepo changes".
+- **Not** a migration of Simply Build onto Nx. See "What Turborepo changes".
 - **Not** a rewrite. Every phase leaves the site working.
 
 ## Decisions
@@ -63,8 +63,8 @@ The repo is public and stays public. Everything requiring privacy is *content*,
 and the sealed vault already solves that — 51 blobs, decrypted at build time
 with a CI secret.
 
-Apps inside the monorepo resolve packages through the workspace. External
-private consumers (Simply Build, YCF) install the published artifact.
+Apps inside the monorepo resolve packages through the workspace. Simply Build,
+private and separate, installs the published artifact.
 
 This makes change amplification deliberately asymmetric:
 
