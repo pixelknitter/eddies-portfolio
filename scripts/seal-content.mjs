@@ -56,6 +56,7 @@ import { join, relative, dirname, basename } from 'node:path';
 import { homedir } from 'node:os';
 import { contentFingerprint } from '../packages/web-astro/src/util/resume/fingerprint.mjs';
 import { auditsAsContent } from '../packages/web-astro/src/util/content-audit.mjs';
+import { findVerbatim, WINDOW } from '../packages/web-astro/src/util/verbatim.mjs';
 import { execFileSync } from 'node:child_process';
 
 const CONTENT_ROOT = 'packages/web-astro/src/content';
@@ -615,6 +616,46 @@ try {
     }
 
     /**
+     * Does a commit message reproduce sealed content?
+     *
+     * Sealing a file and then quoting it in the commit that seals it is a
+     * guard defeated by its own paperwork — and it is worse than committing
+     * the plaintext, because a file can be removed in the next commit and a
+     * message cannot be removed at all. GitHub keeps the commits of a merged
+     * pull request permanently, branch deletion included.
+     *
+     * Measured on this repo's own history: five of seven vault-touching
+     * commits quote content. This is not a hypothetical failure.
+     */
+    case 'message-check': {
+      if (!target) throw new Error('usage: message-check <message-file>');
+      if (!hasKey()) {
+        console.warn('⚠ No content seal key — cannot check this message against the vault.');
+        break;
+      }
+      // Comment lines are git's own scaffolding, not the author's words.
+      const message = readFileSync(target, 'utf8')
+        .split('\n')
+        .filter((line) => !line.startsWith('#'))
+        .join('\n');
+
+      const hit = findVerbatim(message, blobs().map((f) => openBlob(f).content), WINDOW);
+      if (hit) {
+        console.error('✖ This commit message reproduces sealed content:');
+        console.error(`\n    "${hit}"\n`);
+        console.error('  The repo is public. A message quoting sealed prose publishes it as');
+        console.error('  surely as committing the plaintext would — and unlike a file, a commit');
+        console.error('  message cannot be taken back.');
+        console.error('\n  Describe the shape instead: what moved, how many, and why.');
+        console.error('    ✓ "Now section: 7 bullets to 5, one folded, one cut."');
+        console.error('    ✖ any verbatim phrase, metric, employer or personal detail.');
+        process.exit(1);
+      }
+      console.log('✓ Message reveals no sealed content.');
+      break;
+    }
+
+    /**
      * Can this checkout resolve a key at all? Exit status only, nothing printed.
      *
      * The pre-commit hook needs this because it used to test $CONTENT_SEAL_KEY
@@ -678,7 +719,7 @@ try {
     }
 
     default:
-      console.error('Usage: seal-content.mjs <keygen|seal|unseal-all|status|check|audit|prune|is-sealed|has-key|resume-drift> [path]');
+      console.error('Usage: seal-content.mjs <keygen|seal|unseal-all|status|check|audit|prune|is-sealed|has-key|resume-drift|message-check> [path]');
       process.exit(1);
   }
 } catch (error) {

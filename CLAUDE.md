@@ -1036,6 +1036,19 @@ change, not after CI rejects it.
 
 ### Git Workflow
 
+> **Never describe sealed content in a commit message or PR body.** The repo is
+> public: a message that quotes sealed prose publishes it as surely as
+> committing the plaintext would, and unlike a file, a commit message cannot be
+> taken back — GitHub retains a merged PR's commits permanently, even after the
+> branch is deleted. Describe the *shape*: what moved, how many, and why.
+> `.githooks/commit-msg` refuses a message sharing a five-word run with the
+> vault; see `util/verbatim.mjs` for why five, and why paraphrase is out of
+> scope.
+
+> **Keep PR bodies scannable.** Bulleted changes with the why as a clause, then
+> a verification list. Depth belongs where it is durable — a comment next to the
+> constraint, or `docs/DECISIONS.md`. A PR body is read once.
+
 **Trunk-based development.** `master` is the trunk; branches are short-lived
 and **rebased** onto it.
 

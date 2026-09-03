@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Refuse a commit message that reproduces sealed content.
+#
+# The vault's threat model is "the repo is public". Sealing a file and then
+# describing its contents in the commit that seals it defeats the guard with
+# its own paperwork — and it is strictly worse than committing the plaintext,
+# because a file can be removed in the next commit while a commit message
+# cannot be removed at all. GitHub retains the commits of a merged pull
+# request permanently, even after the branch is deleted.
+#
+# Scoped to commits that touch the vault: those are the ones where the author
+# has content in mind and is most likely to describe it.
+#
+# Installed via core.hooksPath by `yarn hooks:install`.
+set -euo pipefail
+
+VAULT="packages/web-astro/content-vault"
+
+git diff --cached --name-only --diff-filter=ACM -- "$VAULT" | grep -q . || exit 0
+
+node scripts/seal-content.mjs message-check "$1" >/dev/null || {
+  node scripts/seal-content.mjs message-check "$1" >&2 || true
+  exit 1
+}
