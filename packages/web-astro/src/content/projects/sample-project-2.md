@@ -13,7 +13,7 @@ worksImage2:
 platform: iOS
 stack: ['Swift', 'SwiftUI']
 website: https://eddie.engineering/
-github: https://github.com/pixelknitter/eddies-portfolio
+github: https://github.com/pixelknitter/tinkershop
 tags: ['swift', 'ios', 'mobile']
 draft: false
 ---

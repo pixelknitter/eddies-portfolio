@@ -13,7 +13,7 @@ worksImage2:
 platform: Web
 stack: ['React', 'Node.js']
 website: https://eddie.engineering/
-github: https://github.com/pixelknitter/eddies-portfolio
+github: https://github.com/pixelknitter/tinkershop
 tags: ['react', 'nodejs', 'api']
 draft: false
 ---

@@ -34,6 +34,15 @@ consistent across hostname, Worker, and GitHub environment:
 > **Naming:** `-dev` is per-branch and ephemeral; `staging` is the single
 > shared pre-production slot tracking `master`.
 
+> **Why the Workers still say `eddies-portfolio`.** The repo was renamed to
+> `tinkershop`; the Workers were not, and should not be. A Worker name is an
+> identity, not a label — renaming one does not rename it, it creates a second
+> Worker, leaving the hostname, every secret and the KV binding pointed at the
+> old one. The names diverging from the repo is deliberate, and cheaper than a
+> production migration performed for tidiness. The same holds for
+> `~/.config/eddies-portfolio/content-seal.token`, which is a path on a disk
+> rather than a name that has to match anything.
+
 ## Promotion flow
 
 ```

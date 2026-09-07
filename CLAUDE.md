@@ -70,7 +70,7 @@ Capabilities and the problems they solve are in
 This is an **Nx 23 monorepo** with Yarn 3 workspaces:
 
 ```
-eddies-portfolio/
+tinkershop/
 ├── packages/
 │   ├── web-astro/               # Main Astro application
 │   ├── web-astro-e2e/           # Playwright E2E tests
