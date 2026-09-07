@@ -55,6 +55,7 @@ import { readFileSync, writeFileSync, unlinkSync, existsSync, readdirSync, mkdir
 import { join, relative, dirname, basename } from 'node:path';
 import { homedir } from 'node:os';
 import { contentFingerprint } from '../packages/web-astro/src/util/resume/fingerprint.mjs';
+import { auditsAsContent } from '../packages/web-astro/src/util/content-audit.mjs';
 import { execFileSync } from 'node:child_process';
 
 const CONTENT_ROOT = 'packages/web-astro/src/content';
@@ -472,9 +473,16 @@ try {
        * being worked around rather than followed.
        */
       const EXEMPT = new Set(['packages/web-astro/src/content/blog/sample-scheduled-post.md']);
+      // `git ls-files` reads the *index*, so this covers staged-but-uncommitted
+      // files as well as committed ones — which is the whole point, since a new
+      // draft has no blob and cannot be caught by `is-sealed`.
+      //
+      // What is skipped is a security boundary, so the rule lives in
+      // `content-audit.mjs` with its own tests rather than inline here. It used
+      // to skip any `_`-prefixed basename, which let `_notes.md` through.
       const tracked = execFileSync('git', ['ls-files', CONTENT_ROOT], { encoding: 'utf8' })
         .split('\n')
-        .filter((path) => path.endsWith('.md') && !path.split('/').pop().startsWith('_'));
+        .filter(auditsAsContent);
 
       const exposed = [];
       for (const path of tracked) {
