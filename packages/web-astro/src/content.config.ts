@@ -311,7 +311,7 @@ const latestWork = defineCollection({
       const response = await fetch(url, {
         headers: {
           Accept: 'application/vnd.github+json',
-          'User-Agent': 'eddies-portfolio-build',
+          'User-Agent': 'tinkershop-build',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         signal: AbortSignal.timeout(15_000),

@@ -13,7 +13,7 @@ worksImage2:
 platform: Web
 stack: ['Astro', 'TypeScript']
 website: https://eddie.engineering/
-github: https://github.com/pixelknitter/eddies-portfolio
+github: https://github.com/pixelknitter/tinkershop
 tags: ['astro', 'static-site', 'web']
 draft: false
 ---

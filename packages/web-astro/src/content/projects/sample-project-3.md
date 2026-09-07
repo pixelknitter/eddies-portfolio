@@ -13,7 +13,7 @@ worksImage2:
 platform: Android
 stack: ['Kotlin', 'Jetpack Compose']
 website: https://eddie.engineering/
-github: https://github.com/pixelknitter/eddies-portfolio
+github: https://github.com/pixelknitter/tinkershop
 tags: ['kotlin', 'android', 'mobile']
 draft: false
 ---
