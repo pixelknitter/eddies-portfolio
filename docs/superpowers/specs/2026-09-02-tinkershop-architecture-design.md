@@ -46,16 +46,29 @@ Rename cost, to schedule rather than discover: the GitHub rename (old URLs
 redirect, but local remotes should be updated), Cloudflare Worker and project
 names, any CI badge, and README links.
 
-### npm scope: `@tink`
+### npm scope: `@tinker`, falling back to `@tinkershop`
 
-Short, and it locates a package without explanation — `@tink/tokens` is
-obviously from this repo. Consolidating settles the existing split between
-`@pk/telemetry` and `@eddie/obsidian-publish-core`. Both are unpublished, so the
-rename is free now and expensive after the first publish.
+`tinker` is the activity, `tinkershop` the place — and packages are the tools
+you tinker with, so the shorter form reads better at every import site while the
+repo name supplies the context. Consolidating also settles the existing split
+between `@pk/telemetry` and `@eddie/obsidian-publish-core`. Both are
+unpublished, so the rename is free now and expensive after the first publish.
 
-**Verify the scope is actually claimable before relying on it.** Zero published
-packages under a scope does not prove it is unclaimed; an org can exist with
-nothing public. Confirm with `npm org create tink`.
+**Scope availability could not be determined from outside.** No packages are
+published under `@tinker`, `@tinkershop` or `@tink`, but that does not prove any
+of them is unclaimed — an org or user account can hold a scope with nothing
+public, and npm returns 403 to unauthenticated profile lookups. An *unscoped*
+package named `tinker` exists, which does not block the scope but suggests it is
+a name people reach for.
+
+**Phase 0 decides this, with auth, before anything depends on the name:**
+
+```bash
+npm org create tinker        # falls back to tinkershop
+```
+
+`@tinkershop` is the likelier of the two to be free — no unscoped collision —
+and is the fallback rather than the default only because it is longer.
 
 ### Public monorepo, published packages
 
@@ -71,7 +84,7 @@ This makes change amplification deliberately asymmetric:
 | consumer | mechanism | cost of a shared change |
 |---|---|---|
 | the four sites | workspace resolution | one commit, one CI run |
-| Simply Build | published `@tink/*` | version bump, Renovate PR, its CI |
+| Simply Build | published `@tinker/*` | version bump, Renovate PR, its CI |
 
 That is the correct coupling, not a compromise. A business platform should not
 churn every time a card's padding is nudged.
@@ -93,7 +106,7 @@ Conflating these is the usual mistake, and each wants different machinery.
 
 | kind | contents | mechanism |
 |---|---|---|
-| **Packages** | tokens, UI, charts, content pipeline, telemetry | published `@tink/*` |
+| **Packages** | tokens, UI, charts, content pipeline, telemetry | published `@tinker/*` |
 | **Docs** | deployment practices, agentic lessons, conventions | `docs/`, read by humans |
 | **Scaffolding** | app structure | a generator, not a dependency |
 
@@ -108,21 +121,21 @@ order.
 
 | package | depends on | imposes on a consumer |
 |---|---|---|
-| `@tink/tokens` | nothing | a naming contract, no visual identity |
-| `@tink/theme-eddie` | `@tink/tokens` | a specific brand — the four sites only |
-| `@tink/telemetry` | nothing (exists) | a vendor adapter it injects |
-| `@tink/obsidian-publish-core` | nothing (exists) | nothing |
-| `@tink/charts` | React | React, and agreement about tokens |
-| `@tink/astro-ui` | Astro, Tailwind 4 | Astro, Tailwind 4, the `.dark` convention |
-| `@tink/content-core` | Astro content layer | the whole content model |
+| `@tinker/tokens` | nothing | a naming contract, no visual identity |
+| `@tinker/theme-eddie` | `@tinker/tokens` | a specific brand — the four sites only |
+| `@tinker/telemetry` | nothing (exists) | a vendor adapter it injects |
+| `@tinker/obsidian-publish-core` | nothing (exists) | nothing |
+| `@tinker/charts` | React | React, and agreement about tokens |
+| `@tinker/astro-ui` | Astro, Tailwind 4 | Astro, Tailwind 4, the `.dark` convention |
+| `@tinker/content-core` | Astro content layer | the whole content model |
 
 ### Contract and theme are separate packages
 
-`@tink/tokens` holds the *contract*: semantic names (`--color-surface`,
+`@tinker/tokens` holds the *contract*: semantic names (`--color-surface`,
 `--color-emphasis`), the type and spacing scales, and the light/dark mechanics.
 It carries no brand values.
 
-`@tink/theme-eddie` holds this site's actual palette and fonts. Simply Build
+`@tinker/theme-eddie` holds this site's actual palette and fonts. Simply Build
 supplies its own.
 
 This split is not tidiness. Simply Build is a product for salons and must not
@@ -181,13 +194,14 @@ Each phase leaves the site working and is independently abandonable.
 
 ### Phase 0 — Naming and READMEs
 
-Rename the repo, consolidate the npm scope, layer the READMEs (root explains the
-monorepo; each package explains itself).
+Claim the npm scope first — the name everything else is written against has to
+be real before it is spent. Then rename the repo, consolidate the scope, and
+layer the READMEs (root explains the monorepo; each package explains itself).
 
-*Done when:* the repo is `tinkershop`, both existing packages are `@tink/*`,
-`yarn ci` is green, and the site deploys.
+*Done when:* the scope is claimed, the repo is `tinkershop`, both existing
+packages are `@tinker/*`, `yarn ci` is green, and the site deploys.
 
-### Phase 1 — `@tink/tokens`, published
+### Phase 1 — `@tinker/tokens`, published
 
 Split the `@theme` block into contract and values. Publish both. Consume them
 back in web-astro. Then install the contract in Simply Build, with Simply
@@ -200,7 +214,7 @@ repeatable from CI.
 **This phase is the go/no-go for the rest.** If adoption in Simply Build is
 painful, stop and reconsider before extracting anything heavier.
 
-### Phase 2 — `@tink/charts` (reconciliation)
+### Phase 2 — `@tinker/charts` (reconciliation)
 
 Bring Simply Build's charts and rings across. Decide a source of truth per component,
 migrate the losing call sites.
@@ -208,13 +222,13 @@ migrate the losing call sites.
 *Done when:* one implementation of each component exists, both repos consume it,
 and no call site references a local copy.
 
-### Phase 3 — `@tink/astro-ui`
+### Phase 3 — `@tinker/astro-ui`
 
 Layouts, `Card`, `Prose`, navigation, theme toggle. Depends on tokens existing.
 
 *Done when:* web-astro imports these from the package and renders identically.
 
-### Phase 4 — `@tink/content-core`
+### Phase 4 — `@tinker/content-core`
 
 Collection schemas, `visibility.mjs`, the flags system, the seal tooling and its
 guards.
@@ -249,7 +263,7 @@ committed, and nothing derived from raw Timeline data enters the repo unfiltered
 | Reconciliation drags | Named as the long pole; one component at a time |
 | Timeline data carries home address and daily movement | Extractor is local and its output is reviewed before commit |
 | Public repo publishes commit history for personal sites | Content stays sealed; the commit-message guard already exists |
-| The npm scope turns out to be claimed | Verify in phase 0, before anything depends on the name |
+| The npm scope turns out to be claimed | Claimed first in phase 0, before anything depends on the name; `@tinkershop` is the fallback |
 
 ## Domains
 
